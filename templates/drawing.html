@@ -114,14 +114,39 @@
   }
   .btn-download { background: var(--green); color: #fff; text-decoration: none; }
   footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 40px; }
+  /* 流程导航 */
+  .flow-nav {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;
+    background: #fff; border-radius: 16px; padding: 10px;
+    box-shadow: 0 6px 24px rgba(20,60,120,0.07);
+  }
+  .flow-nav a {
+    flex: 1; min-width: 120px; text-align: center; text-decoration: none;
+    padding: 12px 10px; border-radius: 12px; font-size: 14px; font-weight: 700;
+    color: #5a6270; transition: all .2s;
+  }
+  .flow-nav a:hover { background: #f0f6ff; color: #0066cc; }
+  .flow-nav a.active {
+    background: linear-gradient(135deg, #0066cc, #2d84f0); color: #fff;
+    box-shadow: 0 4px 14px rgba(0,102,204,0.3);
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="userbar" style="display:flex;justify-content:flex-end;align-items:center;gap:14px;padding:0 4px 14px;font-size:13px;color:#86868b;">
     <span>👤 {{ username }}</span>
+    <a href="/change-password" style="color:#0066cc;text-decoration:none;font-weight:600;">修改密码</a>
+    <a href="/admin" style="color:#0066cc;text-decoration:none;font-weight:600;">管理</a>
     <a href="/logout" style="color:#0066cc;text-decoration:none;font-weight:600;">退出登录</a>
   </div>
+  <nav class="flow-nav">
+    <a href="/" data-m="home">🏠 工作台</a>
+    <a href="/verify" data-m="verify">① 参数验证</a>
+    <a href="/model" data-m="model">② 三维仿真</a>
+    <a href="/drawing" data-m="drawing" class="active">③ 工程图纸</a>
+    <a href="/thesis" data-m="thesis">④ 生成论文</a>
+  </nav>
   <header>
     <h1>工程图纸生成（水闸纵剖面图）</h1>
     <p>按顺序填写各部分尺寸（单位：米），填好后点击下方"生成图纸"</p>

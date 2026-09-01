@@ -105,7 +105,7 @@ PUBLIC_PATHS = {'/login', '/register', '/static', '/favicon.ico'}
 @app.before_request
 def require_login():
     path = request.path
-    if path in ('/', '/drawing', '/generate', '/drawing/generate', '/drawing/dl'):
+    if path in ('/', '/verify', '/model', '/thesis', '/drawing', '/generate', '/drawing/generate', '/drawing/dl'):
         if not current_user():
             if path == '/drawing/generate' or path == '/drawing/dl':
                 return jsonify({"ok": False, "error": "请先登录"}), 401
@@ -306,6 +306,21 @@ def load_user_params(uid):
 def index():
     if request.method == 'OPTIONS':
         return ('', 204)
+    return send_from_directory(BASE, 'index.html')
+
+
+@app.route('/verify')
+def page_verify():
+    return send_from_directory(BASE, 'index.html')
+
+
+@app.route('/model')
+def page_model():
+    return send_from_directory(BASE, 'index.html')
+
+
+@app.route('/thesis')
+def page_thesis():
     return send_from_directory(BASE, 'index.html')
 
 

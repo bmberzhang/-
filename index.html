@@ -172,6 +172,39 @@ body {
 .gate-control .gate-value { font-size: 13px; font-weight: 700; color: #0066cc; min-width: 40px; text-align: center; }
 .gate-control .gate-flow { font-size: 12px; color: #3d4a5c; white-space: nowrap; }
 
+/* ===== 流程导航条 ===== */
+.flow-nav {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px;
+    background: #fff; border-radius: 16px; padding: 10px;
+    box-shadow: 0 6px 24px rgba(20,60,120,0.07);
+}
+.flow-nav a {
+    flex: 1; min-width: 130px; text-align: center; text-decoration: none;
+    padding: 12px 10px; border-radius: 12px; font-size: 14px; font-weight: 700;
+    color: #5a6270; transition: all .2s;
+}
+.flow-nav a:hover { background: #f0f6ff; color: #0066cc; }
+.flow-nav a.active {
+    background: linear-gradient(135deg, #0066cc, #2d84f0); color: #fff;
+    box-shadow: 0 4px 14px rgba(0,102,204,0.3);
+}
+
+/* ===== 工作台卡片 ===== */
+.home-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+.home-cards .card {
+    background: #fff; border-radius: 20px; padding: 30px 26px; text-decoration: none;
+    color: #1d1d1f; box-shadow: 0 8px 30px rgba(20,60,120,0.07);
+    transition: transform .2s, box-shadow .2s; display: flex; flex-direction: column;
+}
+.home-cards .card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(20,60,120,0.14); }
+.home-cards .card-icon {
+    width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center;
+    justify-content: center; font-size: 24px; font-weight: 800; margin-bottom: 18px;
+}
+.home-cards .card h3 { font-size: 19px; font-weight: 800; margin-bottom: 10px; }
+.home-cards .card p { font-size: 13.5px; color: #6b7280; line-height: 1.7; flex: 1; }
+.home-cards .card .go { margin-top: 16px; font-size: 14px; font-weight: 700; color: #0066cc; }
+
 @media (max-width: 768px) {
     body { padding: 12px; }
     .form-row { grid-template-columns: 1fr; }
@@ -201,6 +234,43 @@ body {
             <h1>水闸设计参数验证与毕业设计论文生成系统</h1>
             <p>基于《水闸设计规范》（SL265-2016） | 参数验证 · 三维仿真 · 工程图纸 · 论文生成</p>
         </div>
+    </div>
+
+    <!-- 流程导航条 -->
+    <nav class="flow-nav" id="flowNav">
+        <a href="/" data-m="home">🏠 工作台</a>
+        <a href="/verify" data-m="verify">① 参数验证</a>
+        <a href="/model" data-m="model">② 三维仿真</a>
+        <a href="/drawing" data-m="drawing">③ 工程图纸</a>
+        <a href="/thesis" data-m="thesis">④ 生成论文</a>
+    </nav>
+
+    <!-- 工作台首页 -->
+    <div id="homeCards" class="home-cards">
+        <a class="card" href="/verify">
+            <div class="card-icon" style="background:#e8f1fb;color:#0066cc;">✓</div>
+            <h3>参数验证</h3>
+            <p>填写水闸设计参数，按 SL265-2016 规范验证并完成闸孔、消能、防渗、稳定等计算</p>
+            <span class="go">进入 →</span>
+        </a>
+        <a class="card" href="/model">
+            <div class="card-icon" style="background:#e6f7ee;color:#1d9e50;">3D</div>
+            <h3>三维仿真</h3>
+            <p>水闸三维模型交互展示，闸门开度调节、水流仿真，直观查看设计成果</p>
+            <span class="go">进入 →</span>
+        </a>
+        <a class="card" href="/drawing">
+            <div class="card-icon" style="background:#eaf4ff;color:#0f9d8c;">📐</div>
+            <h3>工程图纸</h3>
+            <p>输入结构尺寸生成水闸纵剖面图，下载 DXF 用 CAD 打开精修</p>
+            <span class="go">进入 →</span>
+        </a>
+        <a class="card" href="/thesis">
+            <div class="card-icon" style="background:#f6eefb;color:#8e4fc7;">📄</div>
+            <h3>生成论文</h3>
+            <p>按模板自动生成约 68 页毕业设计论文（Word 格式），封面、计算、图纸联动</p>
+            <span class="go">进入 →</span>
+        </a>
     </div>
 
     <div class="form-container" id="mainForm">
@@ -901,6 +971,29 @@ body {
         </div>
     </div>
 
+    <!-- 论文生成面板（独立页面 /thesis） -->
+    <div class="result-panel" id="thesisPanel">
+        <h2>📄 毕业设计论文生成</h2>
+        <div class="info-tip" style="margin-bottom:18px;">
+            <span class="tip-icon">💡</span>
+            <span>设计参数沿用「参数验证」页的数据。若尚未验证，请先到 ① 参数验证 填写参数并计算，再回来生成论文。</span>
+        </div>
+        <h3 style="font-size:15px;color:#4a4a55;margin-bottom:14px;">论文基本信息</h3>
+        <div class="form-row" id="thesisInfo">
+            <div class="form-group"><label>项目/水闸名称</label><input name="projectName" placeholder="如：XZ水闸拆除重建工程"></div>
+            <div class="form-group"><label>学生姓名</label><input name="studentName" placeholder="请输入姓名"></div>
+            <div class="form-group"><label>学号</label><input name="studentId" placeholder="请输入学号"></div>
+            <div class="form-group"><label>指导教师</label><input name="advisor" placeholder="请输入指导教师"></div>
+            <div class="form-group"><label>学院</label><input name="college" placeholder="如：水利水电学院"></div>
+            <div class="form-group"><label>专业班级</label><input name="majorClass" placeholder="如：水利水电工程2022级"></div>
+            <div class="form-group"><label>论文日期</label><input name="thesisDate" placeholder="如：2026年6月"></div>
+        </div>
+        <div style="text-align:center;margin-top:24px;">
+            <button class="btn btn-success" id="thesisGenBtn" onclick="generateThesis()" style="padding:15px 48px;font-size:16px;">生成论文（Word 文档）</button>
+        </div>
+        <div class="status" id="thesisStatus" style="text-align:center;font-size:13px;color:#86868b;margin-top:14px;"></div>
+    </div>
+
 </div>
 
 <!-- Three.js 本地文件 (完全离线可用) -->
@@ -919,6 +1012,65 @@ body {
 </div>
 
 <script>
+// ============================================================
+// 页面模式（按 URL 拆分：工作台/参数验证/三维仿真/工程图纸/生成论文）
+// ============================================================
+var PAGE_MODE = 'home';
+var _p = location.pathname;
+if (_p.indexOf('/verify') === 0) PAGE_MODE = 'verify';
+else if (_p.indexOf('/model') === 0) PAGE_MODE = 'model';
+else if (_p.indexOf('/thesis') === 0) PAGE_MODE = 'thesis';
+else if (_p.indexOf('/drawing') === 0) PAGE_MODE = 'drawing';
+
+function applyPageMode() {
+    var show = {};
+    show.home = (PAGE_MODE === 'home');
+    show.verify = (PAGE_MODE === 'verify');
+    show.model = (PAGE_MODE === 'model');
+    show.thesis = (PAGE_MODE === 'thesis');
+    // 显示/隐藏各区块
+    var el = function(id) { return document.getElementById(id); };
+    if (el('homeCards')) el('homeCards').style.display = show.home ? 'grid' : 'none';
+    if (el('mainForm')) el('mainForm').style.display = show.verify ? 'block' : 'none';
+    if (el('resultPanel')) el('resultPanel').style.display = show.verify ? 'block' : 'none';
+    if (el('modelPanel')) el('modelPanel').style.display = show.model ? 'block' : 'none';
+    if (el('thesisPanel')) el('thesisPanel').style.display = show.thesis ? 'block' : 'none';
+    // 导航高亮
+    var nav = el('flowNav');
+    if (nav) {
+        var links = nav.querySelectorAll('a[data-m]');
+        for (var i = 0; i < links.length; i++) {
+            links[i].classList.toggle('active', links[i].getAttribute('data-m') === PAGE_MODE);
+        }
+    }
+}
+
+// 参数表单跨页面共享（localStorage）
+function saveFormToStorage() {
+    try {
+        var data = getFormData();
+        localStorage.setItem('sluice_form', JSON.stringify(data));
+    } catch (e) {}
+}
+function restoreFormFromStorage() {
+    try {
+        var saved = localStorage.getItem('sluice_form');
+        if (!saved) return;
+        var data = JSON.parse(saved);
+        var inputs = document.querySelectorAll('#mainForm input, #mainForm select, #mainForm textarea');
+        for (var i = 0; i < inputs.length; i++) {
+            var name = inputs[i].name || inputs[i].id;
+            if (name && data[name] !== undefined) inputs[i].value = data[name];
+        }
+        // 论文面板基本信息也回填
+        var tInputs = document.querySelectorAll('#thesisInfo input');
+        for (var j = 0; j < tInputs.length; j++) {
+            var n = tInputs[j].name;
+            if (n && data[n]) tInputs[j].value = data[n];
+        }
+    } catch (e) {}
+}
+
 // ============================================================
 // 水闸设计参数验证与计算引擎 (SL265-2016) + 3D 仿真
 // 纯前端实现，无需后端服务
@@ -1985,6 +2137,7 @@ function validateAndCalculate() {
             hideLoading();
             showResults(result);
             update3DModel(data, gate, energy, seep);
+            saveFormToStorage();
             document.getElementById('genThesisBtn').disabled = false;
         } catch (err) {
             hideLoading();
@@ -2021,6 +2174,15 @@ function showResults(result) {
 // ============ 生成论文 ============
 function generateThesis() {
     var data = getFormData();
+    // 合并论文面板（/thesis 页）填写的项目信息
+    var tInfo = document.getElementById('thesisInfo');
+    if (tInfo) {
+        var tInputs = tInfo.querySelectorAll('input');
+        for (var j = 0; j < tInputs.length; j++) {
+            var n = tInputs[j].name;
+            if (n && tInputs[j].value) data[n] = tInputs[j].value;
+        }
+    }
     if (typeof JSZip === 'undefined' || typeof generateThesisDocx === 'undefined') {
         alert('论文生成引擎未加载。\n请确认 index.html、calc.js、jszip.min.js、template_data.js 四个文件在同一个文件夹。');
         return;
@@ -2139,19 +2301,50 @@ function openDrawingPage() {
 // 页面加载后初始化三维仿真模型
 document.addEventListener('DOMContentLoaded', function() {
     var now = new Date();
-    document.getElementById('thesisDate').value = now.getFullYear() + '年' + (now.getMonth() + 1) + '月';
+    var dEl = document.getElementById('thesisDate');
+    if (dEl && !dEl.value) dEl.value = now.getFullYear() + '年' + (now.getMonth() + 1) + '月';
     // 显示当前登录用户
     fetch('/api/me').then(function(r){ return r.json(); }).then(function(d){
         if (d.logged) { document.getElementById('userName').textContent = d.username; }
     }).catch(function(){});
-    // 先确保 3D 面板可见并有尺寸
+    // 按 URL 模式显示对应模块
+    restoreFormFromStorage();
+    applyPageMode();
+    // 3D 初始化（model 模式才显示）
     var panel = document.getElementById('modelPanel');
     panel.classList.add('show');
-    panel.style.display = 'block';
-    // 用 requestAnimationFrame 确保布局完成后再初始化
-    requestAnimationFrame(function() {
-        init3DScene();
-    });
+    if (PAGE_MODE === 'model') {
+        panel.style.display = 'block';
+        requestAnimationFrame(function() {
+            init3DScene();
+            // model 模式：自动用已保存的参数构建模型
+            var saved = null;
+            try { saved = localStorage.getItem('sluice_form'); } catch (e) {}
+            if (saved) {
+                try {
+                    var data = JSON.parse(saved);
+                    var gate = calcGateWidth(data);
+                    var energy = calcEnergyDissipation(data, gate);
+                    var seep = calcSeepage(data);
+                    update3DModel(data, gate, energy, seep);
+                } catch (e) { console.log('模型构建失败：' + e); }
+            }
+        });
+    }
+    if (PAGE_MODE === 'thesis') {
+        // 论文页：若 localStorage 有项目信息，回填基本信息
+        try {
+            var saved2 = localStorage.getItem('sluice_form');
+            if (saved2) {
+                var d2 = JSON.parse(saved2);
+                var tInputs = document.querySelectorAll('#thesisInfo input');
+                for (var j = 0; j < tInputs.length; j++) {
+                    var n = tInputs[j].name;
+                    if (n && d2[n]) tInputs[j].value = d2[n];
+                }
+            }
+        } catch (e) {}
+    }
 });
 
 </script>
