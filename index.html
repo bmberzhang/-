@@ -244,7 +244,7 @@ body {
     <div class="userbar" style="display:flex;justify-content:flex-end;align-items:center;gap:14px;padding:10px 4px 0;font-size:13px;color:#86868b;">
         <span>👤 <span id="userName"></span></span>
         <a href="/change-password" style="color:#0066cc;text-decoration:none;font-weight:600;">修改密码</a>
-        <a href="/admin" style="color:#0066cc;text-decoration:none;font-weight:600;">管理</a>
+        <a href="/admin" id="adminLink" style="color:#0066cc;text-decoration:none;font-weight:600;display:none;">管理</a>
         <a href="/logout" style="color:#0066cc;text-decoration:none;font-weight:600;">退出登录</a>
     </div>
     <div class="header">
@@ -2381,10 +2381,9 @@ document.addEventListener('DOMContentLoaded', function() {
     fetch('/api/me').then(function(r){return r.json();}).then(function(d){
         if (d.logged) {
             document.getElementById('userName').textContent = d.username;
-            if (!d.is_admin) {
-                var links = document.querySelectorAll('.userbar a[href="/admin"]');
-                for (var i = 0; i < links.length; i++) links[i].style.display = 'none';
-            }
+            // 管理链接默认隐藏，仅管理员显示（避免非管理员加载时闪现）
+            var adminLink = document.getElementById('adminLink');
+            if (adminLink) adminLink.style.display = d.is_admin ? '' : 'none';
         }
     }).catch(function(){});
     // 按 URL 模式显示对应模块
