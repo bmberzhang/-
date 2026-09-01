@@ -114,6 +114,36 @@
   }
   .btn-download { background: var(--green); color: #fff; text-decoration: none; }
   footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 40px; }
+  /* 剩余次数 */
+  .quota-bar {
+    text-align: center; background: #e8f1fb; border-radius: 12px;
+    padding: 12px 18px; font-size: 15px; color: #0c447c; margin: 0 0 4px;
+  }
+  .quota-bar b { font-size: 22px; color: var(--blue); }
+  /* 付费弹窗 */
+  .pay-mask {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    z-index: 999; display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .pay-box {
+    background: #fff; border-radius: 20px; max-width: 400px; width: 100%;
+    padding: 26px 22px 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.25); text-align: center;
+  }
+  .pay-title { font-size: 19px; font-weight: 800; color: #1d1d1f; margin-bottom: 6px; }
+  .pay-price { font-size: 14px; color: #86868b; margin-bottom: 16px; }
+  .pay-qrs { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+  .pay-qr { flex: 1; min-width: 130px; max-width: 165px; }
+  .pay-qr-label { font-size: 12px; color: #86868b; margin-bottom: 6px; }
+  .pay-qr img {
+    width: 150px; height: 150px; object-fit: contain; border: 1px solid #e5e5ea;
+    border-radius: 12px; background: #fff; padding: 6px;
+  }
+  .pay-qr .noqr { width: 150px; height: 150px; border: 1px dashed #d2d2d7; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; color: #bbb; }
+  .pay-note { font-size: 13px; color: #5a6270; background: #f7f9fd; border-radius: 10px;
+    padding: 10px 12px; margin: 14px 0; text-align: left; line-height: 1.7; }
+  .pay-actions { display: flex; gap: 10px; justify-content: center; }
+  .pay-actions .btn { padding: 11px 18px; font-size: 14px; font-weight: 600; border-radius: 10px; }
   /* 流程导航 */
   .flow-nav {
     display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;
@@ -192,6 +222,11 @@
   </div>
   {% endfor %}
 
+  <div class="quota-bar">
+    剩余图纸次数：<b id="quotaNum">…</b>
+    <span style="color:var(--muted);font-size:12px;">每次生成消耗 1 次</span>
+  </div>
+
   <div class="actions">
     <button class="btn btn-primary" id="btnGen" onclick="generate()">生成图纸</button>
     <button class="btn btn-reset" onclick="location.reload()">恢复默认</button>
@@ -214,7 +249,69 @@
   <footer>返回 <a href='/'>主系统</a></footer>
 </div>
 
+<!-- 付费弹窗 -->
+<div class="pay-mask" id="payMask" style="display:none;" onclick="if(event.target===this)closePay()">
+  <div class="pay-box">
+    <div class="pay-title">次数不足，请先付费开通</div>
+    <div class="pay-price" id="payPrice"></div>
+    <div class="pay-qrs">
+      <div class="pay-qr">
+        <div class="pay-qr-label">微信支付</div>
+        <img id="payWechat" alt="微信收款码" style="display:none;">
+        <div class="noqr" id="payWechatNo" style="display:none;">未上传收款码<br>请联系管理员</div>
+      </div>
+      <div class="pay-qr">
+        <div class="pay-qr-label">支付宝</div>
+        <img id="payAlipay" alt="支付宝收款码" style="display:none;">
+        <div class="noqr" id="payAlipayNo" style="display:none;">未上传收款码<br>请联系管理员</div>
+      </div>
+    </div>
+    <div class="pay-note" id="payNote"></div>
+    <div class="pay-actions">
+      <button class="btn btn-primary" onclick="closePay()">我已支付，去联系管理员</button>
+      <button class="btn btn-reset" onclick="closePay()">关闭</button>
+    </div>
+  </div>
+</div>
+
 <script>
+var myQuota = -1;
+var myPay = null;
+
+async function loadMe() {
+  try {
+    var r = await fetch('/api/me');
+    if (!r.ok) return;
+    var d = await r.json();
+    myQuota = d.drawing_quota;
+    myPay = d.pay;
+    document.getElementById('quotaNum').textContent = myQuota;
+  } catch (e) {}
+}
+
+function showPay() {
+  var pay = myPay || {};
+  document.getElementById('payPrice').textContent =
+    '图纸：' + (pay.drawing_price || '5') + ' 元/张';
+  var pairs = [
+    ['payWechat', 'payWechatNo', pay.wechat_qr],
+    ['payAlipay', 'payAlipayNo', pay.alipay_qr]
+  ];
+  pairs.forEach(function(p) {
+    var img = document.getElementById(p[0]), no = document.getElementById(p[1]);
+    if (p[2]) { img.src = p[2] + '?t=' + Date.now(); img.style.display = ''; no.style.display = 'none'; }
+    else { img.style.display = 'none'; no.style.display = 'flex'; }
+  });
+  document.getElementById('payNote').textContent = pay.pay_note || '扫码支付后请联系管理员开通次数。';
+  document.getElementById('payMask').style.display = 'flex';
+}
+
+function closePay() {
+  document.getElementById('payMask').style.display = 'none';
+}
+
+loadMe();
+
 function collectParams() {
   const data = {};
   document.querySelectorAll('input[data-key]').forEach(function(inp) {
@@ -224,6 +321,8 @@ function collectParams() {
 }
 
 async function generate() {
+  // 前端付费墙：次数不足直接弹窗
+  if (myQuota === 0) { showPay(); return; }
   const btn = document.getElementById('btnGen');
   btn.disabled = true;
   document.getElementById('error').textContent = '';
@@ -239,6 +338,7 @@ async function generate() {
     });
     const data = await resp.json();
     if (!data.ok) {
+      if (data.need_pay) { myPay = data.pay || myPay; showPay(); return; }
       document.getElementById('error').textContent = data.error || '生成失败';
       return;
     }
@@ -248,6 +348,7 @@ async function generate() {
     document.getElementById('dlSvg').href = data.svg_url;
     document.getElementById('result').style.display = 'block';
     document.getElementById('status').textContent = '生成成功，可下载 DXF 图纸';
+    if (myQuota > 0) { myQuota -= 1; document.getElementById('quotaNum').textContent = myQuota; }
     // 自动滚动到结果区，确保用户看到
     setTimeout(function() {
       document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'center' });

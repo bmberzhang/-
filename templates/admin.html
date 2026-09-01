@@ -79,12 +79,13 @@
   <div class="card">
     <h2>已注册用户（{{ users|length }} 人）</h2>
     <table>
-      <tr><th>ID</th><th>用户名</th><th>注册时间</th><th>操作</th></tr>
+      <tr><th>ID</th><th>用户名</th><th>图纸次数</th><th>论文次数</th><th>操作</th></tr>
       {% for u in users %}
       <tr>
         <td>{{ u['id'] }}</td>
         <td>{{ u['username'] }}{% if loop.first %}（管理员）{% endif %}</td>
-        <td>{{ u['created_at'] }}</td>
+        <td>{{ u['drawing_quota'] }}</td>
+        <td>{{ u['thesis_quota'] }}</td>
         <td>
           {% if not loop.first %}
           <form method="post" action="/admin" onsubmit="return confirm('确定删除用户 {{ u['username'] }} 吗？');" style="display:inline;">
@@ -99,18 +100,81 @@
       </tr>
       <tr style="background:#fafafc;">
         <td></td>
-        <td colspan="3">
-          <form method="post" action="/admin" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <input type="hidden" name="action" value="reset_password">
-            <input type="hidden" name="user_id" value="{{ u['id'] }}">
-            <span style="font-size:12px;color:#86868b;">重置 {{ u['username'] }} 的密码：</span>
-            <input type="password" name="new_password" placeholder="输入新密码（至少4位）" style="flex:1;min-width:160px;padding:8px 12px;border:1px solid #d2d2d7;border-radius:8px;font-size:14px;">
-            <button class="btn" type="submit">重置密码</button>
-          </form>
+        <td colspan="4">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <form method="post" action="/admin" style="display:inline;">
+              <input type="hidden" name="action" value="add_quota">
+              <input type="hidden" name="user_id" value="{{ u['id'] }}">
+              <input type="hidden" name="kind" value="drawing">
+              <input type="number" name="num" value="1" min="1" max="99" style="width:56px;padding:6px 8px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px;">
+              <button class="btn" type="submit">+图纸次数</button>
+            </form>
+            <form method="post" action="/admin" style="display:inline;">
+              <input type="hidden" name="action" value="add_quota">
+              <input type="hidden" name="user_id" value="{{ u['id'] }}">
+              <input type="hidden" name="kind" value="thesis">
+              <input type="number" name="num" value="1" min="1" max="99" style="width:56px;padding:6px 8px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px;">
+              <button class="btn" type="submit">+论文次数</button>
+            </form>
+            <form method="post" action="/admin" style="display:inline;margin-left:8px;">
+              <input type="hidden" name="action" value="reset_password">
+              <input type="hidden" name="user_id" value="{{ u['id'] }}">
+              <input type="password" name="new_password" placeholder="重置密码（4位+）" style="width:150px;padding:6px 8px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px;">
+              <button class="btn" type="submit">重置密码</button>
+            </form>
+          </div>
         </td>
       </tr>
       {% endfor %}
     </table>
+    <p style="font-size:12px;color:#86868b;margin-top:8px;">收到用户付款后，用上面的 + 按钮给对应用户增加次数（确认收款后再加）。</p>
+  </div>
+
+  <div class="card">
+    <h2>收费设置</h2>
+    <form method="post" action="/admin" enctype="multipart/form-data">
+      <input type="hidden" name="action" value="update_pay">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+        <div>
+          <label style="font-size:13px;color:#86868b;">图纸价格（元/张）</label><br>
+          <input type="number" name="drawing_price" value="{{ pay['drawing_price'] }}" min="0" step="0.5" style="padding:8px 12px;border:1px solid #d2d2d7;border-radius:10px;font-size:15px;width:110px;">
+        </div>
+        <div>
+          <label style="font-size:13px;color:#86868b;">论文价格（元/篇）</label><br>
+          <input type="number" name="thesis_price" value="{{ pay['thesis_price'] }}" min="0" step="0.5" style="padding:8px 12px;border:1px solid #d2d2d7;border-radius:10px;font-size:15px;width:110px;">
+        </div>
+      </div>
+      <label style="font-size:13px;color:#86868b;">付款说明（展示给付费用户）</label><br>
+      <textarea name="pay_note" rows="3" style="width:100%;padding:10px 12px;border:1px solid #d2d2d7;border-radius:10px;font-size:14px;">{{ pay['pay_note'] }}</textarea>
+      <div style="margin-top:10px;"><button class="btn" type="submit">保存收费设置</button></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>收款码</h2>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;">
+        <label style="font-size:13px;color:#86868b;">微信收款码</label><br>
+        {% if pay['wechat_qr'] %}<img src="{{ pay['wechat_qr'] }}" style="width:120px;height:120px;object-fit:contain;border:1px solid #e5e5ea;border-radius:10px;margin:6px 0;background:#fff;">{% else %}<div style="font-size:12px;color:#bbb;padding:6px 0;">未上传</div>{% endif %}
+        <form method="post" action="/admin" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="upload_qr">
+          <input type="hidden" name="kind" value="wechat">
+          <input type="file" name="qr" accept="image/*" style="font-size:12px;margin:4px 0;">
+          <button class="btn" type="submit">上传</button>
+        </form>
+      </div>
+      <div style="flex:1;min-width:200px;">
+        <label style="font-size:13px;color:#86868b;">支付宝收款码</label><br>
+        {% if pay['alipay_qr'] %}<img src="{{ pay['alipay_qr'] }}" style="width:120px;height:120px;object-fit:contain;border:1px solid #e5e5ea;border-radius:10px;margin:6px 0;background:#fff;">{% else %}<div style="font-size:12px;color:#bbb;padding:6px 0;">未上传</div>{% endif %}
+        <form method="post" action="/admin" enctype="multipart/form-data">
+          <input type="hidden" name="action" value="upload_qr">
+          <input type="hidden" name="kind" value="alipay">
+          <input type="file" name="qr" accept="image/*" style="font-size:12px;margin:4px 0;">
+          <button class="btn" type="submit">上传</button>
+        </form>
+      </div>
+    </div>
+    <p style="font-size:12px;color:#86868b;margin-top:8px;">上传后，用户付费弹窗会展示对应收款码。</p>
   </div>
 
   <div class="footer">水闸设计论文生成系统 · 管理页面（仅管理员可见）</div>

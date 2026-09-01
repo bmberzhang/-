@@ -60,6 +60,24 @@ def init_db():
     ''')
     conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('invite_code', ?)",
                  (os.environ.get('INVITE_CODE', 'sluice2026'),))
+    # ===== 付费功能：旧库字段迁移 =====
+    try:
+        ucols = [r[1] for r in conn.execute('PRAGMA table_info(users)').fetchall()]
+        if 'drawing_quota' not in ucols:
+            conn.execute('ALTER TABLE users ADD COLUMN drawing_quota INTEGER DEFAULT 0')
+        if 'thesis_quota' not in ucols:
+            conn.execute('ALTER TABLE users ADD COLUMN thesis_quota INTEGER DEFAULT 0')
+        # 收费配置（settings 表）
+        defaults = [
+            ('drawing_price', '5'), ('thesis_price', '10'),
+            ('pay_note', '扫码支付后，请联系管理员（微信/QQ 私聊）确认到账，由管理员为您开通对应次数。'),
+            ('wechat_qr', ''), ('alipay_qr', ''),
+            ('register_drawing_bonus', '0'), ('register_thesis_bonus', '0'),
+        ]
+        for k, v in defaults:
+            conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', (k, v))
+    except Exception as e:
+        print('[init_db] 迁移警告:', e)
     conn.commit()
     conn.close()
 
@@ -82,6 +100,58 @@ def get_invite_code():
     row = conn.execute("SELECT value FROM settings WHERE key='invite_code'").fetchone()
     conn.close()
     return row['value'] if row else 'sluice2026'
+
+
+# ============================================================
+# 付费 / 次数扣费
+# ============================================================
+def get_setting(key, default=''):
+    conn = get_db()
+    row = conn.execute('SELECT value FROM settings WHERE key=?', (key,)).fetchone()
+    conn.close()
+    return row['value'] if row else default
+
+
+def get_pay_config():
+    """返回收费配置（价格 / 收款码 / 说明）"""
+    return {
+        'drawing_price': get_setting('drawing_price', '5'),
+        'thesis_price': get_setting('thesis_price', '10'),
+        'pay_note': get_setting('pay_note', ''),
+        'wechat_qr': get_setting('wechat_qr', ''),
+        'alipay_qr': get_setting('alipay_qr', ''),
+    }
+
+
+def get_quota(uid):
+    conn = get_db()
+    u = conn.execute('SELECT drawing_quota, thesis_quota FROM users WHERE id=?', (uid,)).fetchone()
+    conn.close()
+    if not u:
+        return 0, 0
+    return u['drawing_quota'], u['thesis_quota']
+
+
+def consume_quota(uid, kind):
+    """扣减一次次数。kind: 'drawing' 或 'thesis'。返回 True=扣减成功，False=次数不足"""
+    col = 'drawing_quota' if kind == 'drawing' else 'thesis_quota'
+    conn = get_db()
+    u = conn.execute(f'SELECT {col} FROM users WHERE id=?', (uid,)).fetchone()
+    if not u or u[col] <= 0:
+        conn.close()
+        return False
+    conn.execute(f'UPDATE users SET {col}={col}-1 WHERE id=?', (uid,))
+    conn.commit()
+    conn.close()
+    return True
+
+
+def add_quota(uid, kind, num=1):
+    col = 'drawing_quota' if kind == 'drawing' else 'thesis_quota'
+    conn = get_db()
+    conn.execute(f'UPDATE users SET {col}={col}+? WHERE id=?', (int(num), uid))
+    conn.commit()
+    conn.close()
 
 
 def is_admin(u=None):
@@ -163,8 +233,10 @@ def register():
         conn.close()
         flash('该用户名已被注册')
         return redirect(url_for('register'))
-    conn.execute('INSERT INTO users (username, password_hash) VALUES (?, ?)',
-                 (username, generate_password_hash(password)))
+    conn.execute('INSERT INTO users (username, password_hash, drawing_quota, thesis_quota) VALUES (?, ?, ?, ?)',
+                 (username, generate_password_hash(password),
+                  int(get_setting('register_drawing_bonus', '0') or 0),
+                  int(get_setting('register_thesis_bonus', '0') or 0)))
     conn.commit()
     conn.close()
     flash('注册成功，请登录')
@@ -212,11 +284,54 @@ def admin():
                 conn.commit()
                 conn.close()
                 flash('密码已重置')
+        elif action == 'add_quota':
+            # 管理员确认收款后给用户加次数
+            uid = request.form.get('user_id')
+            kind = request.form.get('kind')  # drawing / thesis
+            num = request.form.get('num') or '1'
+            try:
+                num = int(num)
+            except ValueError:
+                num = 1
+            if num > 0 and kind in ('drawing', 'thesis'):
+                add_quota(uid, kind, num)
+                flash(f'已为用户增加 {kind == "drawing" and "图纸" or "论文"}次数 × {num}')
+        elif action == 'update_pay':
+            # 保存价格与付款说明
+            conn = get_db()
+            for k in ('drawing_price', 'thesis_price', 'pay_note'):
+                v = request.form.get(k, '')
+                if k in ('drawing_price', 'thesis_price'):
+                    try:
+                        v = str(max(0, int(float(v))))
+                    except (ValueError, TypeError):
+                        v = '5' if k == 'drawing_price' else '10'
+                conn.execute("UPDATE settings SET value=? WHERE key=?", (v, k))
+            conn.commit()
+            conn.close()
+            flash('收费设置已保存')
+        elif action == 'upload_qr':
+            # 上传微信 / 支付宝收款码
+            kind = request.form.get('kind')  # wechat / alipay
+            f = request.files.get('qr')
+            if f and f.filename:
+                os.makedirs(os.path.join(BASE, 'static', 'pay'), exist_ok=True)
+                ext = os.path.splitext(f.filename)[1].lower() or '.png'
+                if ext not in ('.png', '.jpg', '.jpeg', '.webp', '.gif'):
+                    ext = '.png'
+                name = ('wechat' if kind == 'wechat' else 'alipay') + ext
+                f.save(os.path.join(BASE, 'static', 'pay', name))
+                conn = get_db()
+                conn.execute("UPDATE settings SET value=? WHERE key=?",
+                             (f'/static/pay/{name}', 'wechat_qr' if kind == 'wechat' else 'alipay_qr'))
+                conn.commit()
+                conn.close()
+                flash('收款码已上传')
         return redirect(url_for('admin'))
     conn = get_db()
-    users = conn.execute('SELECT id, username, created_at FROM users ORDER BY id').fetchall()
+    users = conn.execute('SELECT id, username, created_at, drawing_quota, thesis_quota FROM users ORDER BY id').fetchall()
     conn.close()
-    return render_template('admin.html', invite_code=get_invite_code(), users=users)
+    return render_template('admin.html', invite_code=get_invite_code(), users=users, pay=get_pay_config())
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -281,7 +396,15 @@ def api_me():
     u = current_user()
     if not u:
         return jsonify({"logged": False}), 401
-    return jsonify({"logged": True, "username": u['username'], "is_admin": is_admin(u)})
+    dq, tq = get_quota(u['id'])
+    return jsonify({
+        "logged": True,
+        "username": u['username'],
+        "is_admin": is_admin(u),
+        "drawing_quota": dq,
+        "thesis_quota": tq,
+        "pay": get_pay_config(),
+    })
 
 
 # ============================================================
@@ -404,6 +527,14 @@ def drawing_page():
 @app.route('/drawing/generate', methods=['POST'])
 def drawing_generate():
     u = current_user()
+    # ===== 付费墙：检查图纸剩余次数 =====
+    if not consume_quota(u['id'], 'drawing'):
+        return jsonify({
+            "ok": False,
+            "need_pay": True,
+            "error": "图纸生成次数不足，请先付费开通。",
+            "pay": get_pay_config(),
+        }), 402
     try:
         data = request.get_json(force=True, silent=True) or {}
     except Exception:

@@ -219,6 +219,24 @@ body {
     .model-body { height: 350px; }
     .model-toolbar button { padding: 4px 8px; font-size: 11px; }
 }
+/* 付费弹窗 */
+.pay-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 999;
+  display: flex; align-items: center; justify-content: center; padding: 20px; }
+.pay-box { background: #fff; border-radius: 20px; max-width: 400px; width: 100%;
+  padding: 26px 22px 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.25); text-align: center; }
+.pay-title { font-size: 19px; font-weight: 800; color: #1d1d1f; margin-bottom: 6px; }
+.pay-price { font-size: 14px; color: #86868b; margin-bottom: 16px; }
+.pay-qrs { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.pay-qr { flex: 1; min-width: 130px; max-width: 165px; }
+.pay-qr-label { font-size: 12px; color: #86868b; margin-bottom: 6px; }
+.pay-qr img { width: 150px; height: 150px; object-fit: contain; border: 1px solid #e5e5ea;
+  border-radius: 12px; background: #fff; padding: 6px; }
+.pay-qr .noqr { width: 150px; height: 150px; border: 1px dashed #d2d2d7; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; font-size: 12px; color: #bbb; }
+.pay-note { font-size: 13px; color: #5a6270; background: #f7f9fd; border-radius: 10px;
+  padding: 10px 12px; margin: 14px 0; text-align: left; line-height: 1.7; }
+.pay-actions { display: flex; gap: 10px; justify-content: center; }
+.pay-actions .btn { padding: 11px 18px; font-size: 14px; font-weight: 600; border-radius: 10px; }
 </style>
 </head>
 <body>
@@ -986,6 +1004,10 @@ body {
         <div class="info-tip" style="margin-bottom:18px;">
             <span class="tip-icon">💡</span>
             <span>设计参数沿用「参数验证」页的数据。若尚未验证，请先到 ① 参数验证 填写参数并计算，再回来生成论文。</span>
+        </div>
+        <div class="info-tip" style="margin-bottom:18px;background:#e8f1fb;">
+            <span class="tip-icon">🔑</span>
+            <span id="thesisQuotaBar">剩余论文次数加载中…</span>
         </div>
         <h3 style="font-size:15px;color:#4a4a55;margin-bottom:14px;">论文基本信息</h3>
         <div class="form-row" id="thesisInfo">
@@ -2181,7 +2203,46 @@ function showResults(result) {
 }
 
 // ============ 生成论文 ============
+var thesisQuota = -1;
+var myPayT = null;
+
+async function loadMeT() {
+  try {
+    var r = await fetch('/api/me');
+    if (!r.ok) return;
+    var d = await r.json();
+    thesisQuota = d.thesis_quota;
+    myPayT = d.pay;
+    var el = document.getElementById('thesisQuotaBar');
+    if (el) el.textContent = '剩余论文次数：' + thesisQuota + '（每次生成消耗 1 次）';
+  } catch (e) {}
+}
+
+function showPayT() {
+  var pay = myPayT || {};
+  document.getElementById('payPriceT').textContent =
+    '论文：' + (pay.thesis_price || '10') + ' 元/篇';
+  var pairs = [
+    ['payWechatT', 'payWechatNoT', pay.wechat_qr],
+    ['payAlipayT', 'payAlipayNoT', pay.alipay_qr]
+  ];
+  pairs.forEach(function(p) {
+    var img = document.getElementById(p[0]), no = document.getElementById(p[1]);
+    if (p[2]) { img.src = p[2] + '?t=' + Date.now(); img.style.display = ''; no.style.display = 'none'; }
+    else { img.style.display = 'none'; no.style.display = 'flex'; }
+  });
+  document.getElementById('payNoteT').textContent = pay.pay_note || '扫码支付后请联系管理员开通次数。';
+  document.getElementById('payMaskT').style.display = 'flex';
+}
+
+function closePayT() {
+  document.getElementById('payMaskT').style.display = 'none';
+}
+
+loadMeT();
+
 function generateThesis() {
+    if (thesisQuota === 0) { showPayT(); return; }
     var data = getFormData();
     // 合并论文面板（/thesis 页）填写的项目信息
     var tInfo = document.getElementById('thesisInfo');
@@ -2204,6 +2265,11 @@ function generateThesis() {
         a.download = (data.projectName || '水闸设计') + '_毕业设计论文.docx';
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        if (thesisQuota > 0) {
+          thesisQuota -= 1;
+          var qel = document.getElementById('thesisQuotaBar');
+          if (qel) qel.textContent = '剩余论文次数：' + thesisQuota + '（每次生成消耗 1 次）';
+        }
         hideLoading();
         alert('论文生成成功！已下载 .docx 文件（格式完全按模板，约68页）。\n\n说明：纯前端生成，无需启动任何服务。闸孔、消能、防渗、闸顶高程、稳定、配筋、摘要、致谢均已按输入数据联动。');
     }, function(err) {
@@ -2372,5 +2438,30 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+
+<!-- 付费弹窗（论文） -->
+<div class="pay-mask" id="payMaskT" style="display:none;" onclick="if(event.target===this)closePayT()">
+  <div class="pay-box">
+    <div class="pay-title">次数不足，请先付费开通</div>
+    <div class="pay-price" id="payPriceT"></div>
+    <div class="pay-qrs">
+      <div class="pay-qr">
+        <div class="pay-qr-label">微信支付</div>
+        <img id="payWechatT" alt="微信收款码" style="display:none;">
+        <div class="noqr" id="payWechatNoT" style="display:none;">未上传收款码<br>请联系管理员</div>
+      </div>
+      <div class="pay-qr">
+        <div class="pay-qr-label">支付宝</div>
+        <img id="payAlipayT" alt="支付宝收款码" style="display:none;">
+        <div class="noqr" id="payAlipayNoT" style="display:none;">未上传收款码<br>请联系管理员</div>
+      </div>
+    </div>
+    <div class="pay-note" id="payNoteT"></div>
+    <div class="pay-actions">
+      <button class="btn" style="background:#0066cc;color:#fff;" onclick="closePayT()">我已支付，去联系管理员</button>
+      <button class="btn" style="background:#e5e5ea;color:#1d1d1f;" onclick="closePayT()">关闭</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
