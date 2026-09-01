@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}水闸设计论文生成系统{% endblock %}</title>
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0066cc">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro SC", "PingFang SC",
+                 "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    color: #1d1d1f; min-height: 100vh;
+  }
+  .auth-wrap { display: flex; min-height: 100vh; }
+
+  /* ===== 左侧品牌区 ===== */
+  .brand {
+    flex: 1.1; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(150deg, #0a4db8 0%, #0066cc 45%, #3d9bff 100%);
+    padding: 48px 40px; position: relative; overflow: hidden;
+  }
+  .brand::before, .brand::after {
+    content: ''; position: absolute; border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+  }
+  .brand::before { width: 420px; height: 420px; top: -140px; right: -120px; }
+  .brand::after { width: 300px; height: 300px; bottom: -100px; left: -80px; }
+  .brand-inner { position: relative; z-index: 1; max-width: 420px; color: #fff; }
+  .brand .logo {
+    width: 84px; height: 84px; border-radius: 22px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.25); margin-bottom: 28px;
+  }
+  .brand h1 { font-size: 30px; font-weight: 800; line-height: 1.35; letter-spacing: 0.5px; }
+  .brand .tagline { font-size: 15px; opacity: 0.9; margin: 12px 0 28px; line-height: 1.6; }
+  .brand .features { list-style: none; }
+  .brand .features li {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 14px; padding: 9px 0; opacity: 0.95;
+  }
+  .brand .features .dot {
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+    background: rgba(255,255,255,0.18); display: flex; align-items: center;
+    justify-content: center; font-size: 13px;
+  }
+  .brand .foot { position: absolute; bottom: 24px; left: 40px; font-size: 12px; opacity: 0.6; }
+
+  /* ===== 右侧表单区 ===== */
+  .panel {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    background: #f5f7fb; padding: 32px 20px;
+  }
+  .card {
+    background: #fff; border-radius: 24px; padding: 44px 40px; width: 100%;
+    max-width: 420px; box-shadow: 0 20px 60px rgba(15,60,120,0.10);
+  }
+  .card h2 { font-size: 26px; font-weight: 800; color: #1d1d1f; }
+  .card .sub { font-size: 14px; color: #86868b; margin: 8px 0 26px; }
+  .field { margin-bottom: 18px; }
+  .field label { display: block; font-size: 13px; font-weight: 600; color: #4a4a4f; margin-bottom: 7px; }
+  .field input {
+    width: 100%; padding: 13px 16px; border: 1.5px solid #e2e5ea; border-radius: 12px;
+    font-size: 15px; color: #1d1d1f; background: #fbfcfe; outline: none;
+    transition: border-color .2s, box-shadow .2s, background .2s;
+  }
+  .field input:focus {
+    border-color: #0066cc; background: #fff;
+    box-shadow: 0 0 0 4px rgba(0,102,204,0.12);
+  }
+  .field input::placeholder { color: #b0b3b9; }
+  .btn {
+    width: 100%; padding: 14px; border: none; border-radius: 12px;
+    background: linear-gradient(135deg, #0066cc, #2d84f0);
+    color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; letter-spacing: 2px;
+    transition: transform .1s, opacity .2s, box-shadow .2s;
+    box-shadow: 0 8px 20px rgba(0,102,204,0.28);
+  }
+  .btn:hover { opacity: 0.94; box-shadow: 0 10px 26px rgba(0,102,204,0.36); }
+  .btn:active { transform: scale(0.98); }
+  .flash { background: #fff4e5; color: #9a6b00; border-radius: 12px; padding: 12px 16px;
+           font-size: 13px; margin-bottom: 18px; border: 1px solid #ffe2b3; }
+  .foot { text-align: center; margin-top: 22px; font-size: 14px; color: #86868b; }
+  .foot a { color: #0066cc; text-decoration: none; font-weight: 700; }
+  .foot a:hover { text-decoration: underline; }
+
+  /* ===== 移动端 ===== */
+  @media (max-width: 900px) {
+    .brand { display: none; }
+    .panel { background: linear-gradient(160deg, #eaf2fd, #f5f7fb); }
+    .card { box-shadow: 0 12px 40px rgba(15,60,120,0.12); }
+  }
+</style>
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="brand">
+    <div class="brand-inner">
+      <img class="logo" src="/static/icons/icon-192.png" alt="水闸设计">
+      <h1>水闸设计<br>论文生成系统</h1>
+      <p class="tagline">基于《水闸设计规范》SL265-2016，一键完成设计计算、图纸与论文</p>
+      <ul class="features">
+        <li><span class="dot">✓</span>SL265-2016 规范参数验证</li>
+        <li><span class="dot">✓</span>三维水闸仿真模型</li>
+        <li><span class="dot">✓</span>参数化工程图纸（DXF 下载）</li>
+        <li><span class="dot">✓</span>毕业设计论文自动生成</li>
+      </ul>
+    </div>
+    <div class="foot">水闸设计论文生成系统 · v1.0</div>
+  </div>
+  <div class="panel">
+    <div class="card">
+      {% block form %}{% endblock %}
+    </div>
+  </div>
+</div>
+</body>
+</html>

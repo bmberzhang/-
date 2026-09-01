@@ -1,79 +1,31 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>注册 · 水闸设计论文生成系统</title>
-<link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#0066cc">
-<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, "SF Pro SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: linear-gradient(135deg, #e8f1fb, #f5f5f7);
-    min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  }
-  .card {
-    background: #fff; border-radius: 20px; padding: 44px 40px; width: 400px;
-    box-shadow: 0 8px 40px rgba(0,60,140,0.12);
-  }
-  .logo { text-align: center; margin-bottom: 24px; }
-  .logo img { width: 72px; height: 72px; border-radius: 16px; }
-  .logo h1 { font-size: 22px; margin-top: 12px; color: #1d1d1f; }
-  .logo p { font-size: 13px; color: #86868b; margin-top: 4px; }
-  .field { margin-bottom: 16px; }
-  .field label { display: block; font-size: 13px; color: #86868b; margin-bottom: 6px; }
-  .field input {
-    width: 100%; padding: 12px 14px; border: 1px solid #d2d2d7; border-radius: 10px;
-    font-size: 15px; outline: none; transition: border-color .15s, box-shadow .15s;
-  }
-  .field input:focus { border-color: #0066cc; box-shadow: 0 0 0 3px rgba(0,102,204,.12); }
-  .btn {
-    width: 100%; padding: 13px; border: none; border-radius: 12px;
-    background: #0066cc; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;
-    transition: opacity .15s;
-  }
-  .btn:hover { opacity: .9; }
-  .flash { background: #fff3cd; color: #8a6d1a; border-radius: 10px; padding: 10px 14px;
-           font-size: 13px; margin-bottom: 16px; }
-  .foot { text-align: center; margin-top: 18px; font-size: 13px; color: #86868b; }
-  .foot a { color: #0066cc; text-decoration: none; font-weight: 600; }
-</style>
-</head>
-<body>
-<div class="card">
-  <div class="logo">
-    <img src="/static/icons/icon-192.png" alt="水闸设计">
-    <h1>注册账号</h1>
-    <p>创建账号后即可使用全部功能</p>
+{% extends 'auth_base.html' %}
+{% block title %}注册 · 水闸设计论文生成系统{% endblock %}
+{% block form %}
+<h2>创建账号</h2>
+<p class="sub">需要邀请码才能注册，请联系管理员获取</p>
+{% with msgs = get_flashed_messages() %}
+  {% if msgs %}
+    {% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}
+  {% endif %}
+{% endwith %}
+<form method="post" action="/register">
+  <div class="field">
+    <label>用户名</label>
+    <input type="text" name="username" placeholder="3-20 个字符" required autofocus>
   </div>
-  {% with msgs = get_flashed_messages() %}
-    {% if msgs %}
-      {% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}
-    {% endif %}
-  {% endwith %}
-  <form method="post" action="/register">
-    <div class="field">
-      <label>用户名</label>
-      <input type="text" name="username" placeholder="3-20 个字符" required autofocus>
-    </div>
-    <div class="field">
-      <label>密码</label>
-      <input type="password" name="password" placeholder="至少 4 位" required>
-    </div>
-    <div class="field">
-      <label>确认密码</label>
-      <input type="password" name="confirm" placeholder="再次输入密码" required>
-    </div>
-    <div class="field">
-      <label>邀请码</label>
-      <input type="text" name="invite" placeholder="需要邀请码才能注册" required>
-    </div>
-    <button class="btn" type="submit">注 册</button>
-  </form>
-  <div class="foot" style="margin-top:14px;font-size:12px;color:#86868b;">需要邀请码才能注册，请联系管理员获取</div>
-  <div class="foot">已有账号？<a href="/login">返回登录</a></div>
-</div>
-</body>
-</html>
+  <div class="field">
+    <label>密码</label>
+    <input type="password" name="password" placeholder="至少 4 位" required>
+  </div>
+  <div class="field">
+    <label>确认密码</label>
+    <input type="password" name="confirm" placeholder="再次输入密码" required>
+  </div>
+  <div class="field">
+    <label>邀请码</label>
+    <input type="text" name="invite" placeholder="输入管理员提供的邀请码" required>
+  </div>
+  <button class="btn" type="submit">注 册</button>
+</form>
+<div class="foot">已有账号？<a href="/login">返回登录</a></div>
+{% endblock %}
