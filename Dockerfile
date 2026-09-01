@@ -19,4 +19,4 @@ ENV SEED_DB=/app/users.db.seed
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "gunicorn server:app --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 180"]
+CMD ["sh", "-c", "gunicorn server:app --bind 0.0.0.0:8080 --workers 2 --timeout 180"]
