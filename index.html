@@ -972,12 +972,6 @@ body {
             <button class="btn btn-primary" onclick="validateAndCalculate()">
                 🔍 第一步：参数验证与设计计算
             </button>
-            <button class="btn btn-success" id="genThesisBtn" onclick="generateThesis()" disabled>
-                📄 第二步：生成毕业设计论文（Word文档）
-            </button>
-            <button class="btn btn-info" onclick="openDrawingPage()" style="background:linear-gradient(135deg,#11998e,#38ef7d);color:#fff;border:none;">
-                生成工程图纸
-            </button>
             <button class="btn btn-secondary" onclick="resetForm()">
                 🔄 重置参数
             </button>
@@ -1106,16 +1100,20 @@ function applyPageMode() {
     }
 }
 
-// 参数表单跨页面共享（localStorage）
+// 参数表单按用户隔离（localStorage key 含用户名，不同用户互不串数据）
+function getFormStorageKey() {
+    var u = (window.currentUsername || (document.getElementById('userName')||{}).textContent || 'anon').trim();
+    return 'sluice_form_' + (u || 'anon');
+}
 function saveFormToStorage() {
     try {
         var data = getFormData();
-        localStorage.setItem('sluice_form', JSON.stringify(data));
+        localStorage.setItem(getFormStorageKey(), JSON.stringify(data));
     } catch (e) {}
 }
 function restoreFormFromStorage() {
     try {
-        var saved = localStorage.getItem('sluice_form');
+        var saved = localStorage.getItem(getFormStorageKey());
         if (!saved) return;
         var data = JSON.parse(saved);
         var inputs = document.querySelectorAll('#mainForm input, #mainForm select, #mainForm textarea');
@@ -2198,7 +2196,6 @@ function validateAndCalculate() {
             hideLoading();
             showResults(result);
             saveFormToStorage();
-            document.getElementById('genThesisBtn').disabled = false;
         } catch (err) {
             hideLoading();
             alert('计算出错：' + err.message + '\n请检查参数是否完整。');
@@ -2479,53 +2476,55 @@ document.addEventListener('DOMContentLoaded', function() {
     var now = new Date();
     var dEl = document.getElementById('thesisDate');
     if (dEl && !dEl.value) dEl.value = now.getFullYear() + '年' + (now.getMonth() + 1) + '月';
-    // 显示当前登录用户 + 按身份显示/隐藏"管理"链接
+    // 先获取当前登录用户（确保后续 localStorage 按用户名隔离正确生效）
     fetch('/api/me').then(function(r){return r.json();}).then(function(d){
         if (d.logged) {
+            window.currentUsername = d.username;
             document.getElementById('userName').textContent = d.username;
             // 管理链接默认隐藏，仅管理员显示（避免非管理员加载时闪现）
             var adminLink = document.getElementById('adminLink');
             if (adminLink) adminLink.style.display = d.is_admin ? '' : 'none';
         }
-    }).catch(function(){});
-    // 按 URL 模式显示对应模块
-    restoreFormFromStorage();
-    applyPageMode();
-    // 3D 初始化（model 模式才显示）
-    var panel = document.getElementById('modelPanel');
-    panel.classList.add('show');
-    if (PAGE_MODE === 'model') {
-        panel.style.display = 'block';
-        requestAnimationFrame(function() {
-            init3DScene();
-            // model 模式：自动用已保存的参数构建模型
-            var saved = null;
-            try { saved = localStorage.getItem('sluice_form'); } catch (e) {}
-            if (saved) {
-                try {
-                    var data = JSON.parse(saved);
-                    var gate = calcGateWidth(data);
-                    var energy = calcEnergyDissipation(data, gate);
-                    var seep = calcSeepage(data);
-                    update3DModel(data, gate, energy, seep);
-                } catch (e) { console.log('模型构建失败：' + e); }
-            }
-        });
-    }
-    if (PAGE_MODE === 'thesis') {
-        // 论文页：若 localStorage 有项目信息，回填基本信息
-        try {
-            var saved2 = localStorage.getItem('sluice_form');
-            if (saved2) {
-                var d2 = JSON.parse(saved2);
-                var tInputs = document.querySelectorAll('#thesisInfo input');
-                for (var j = 0; j < tInputs.length; j++) {
-                    var n = tInputs[j].name;
-                    if (n && d2[n]) tInputs[j].value = d2[n];
+    }).catch(function(){}).then(function(){
+        // fetch 完成后才回填表单（保证 getFormStorageKey 拿到正确的用户名）
+        restoreFormFromStorage();
+        applyPageMode();
+        // 3D 初始化（model 模式才显示）
+        var panel = document.getElementById('modelPanel');
+        panel.classList.add('show');
+        if (PAGE_MODE === 'model') {
+            panel.style.display = 'block';
+            requestAnimationFrame(function() {
+                init3DScene();
+                // model 模式：自动用已保存的参数构建模型
+                var saved = null;
+                try { saved = localStorage.getItem(getFormStorageKey()); } catch (e) {}
+                if (saved) {
+                    try {
+                        var data = JSON.parse(saved);
+                        var gate = calcGateWidth(data);
+                        var energy = calcEnergyDissipation(data, gate);
+                        var seep = calcSeepage(data);
+                        update3DModel(data, gate, energy, seep);
+                    } catch (e) { console.log('模型构建失败：' + e); }
                 }
-            }
-        } catch (e) {}
-    }
+            });
+        }
+        if (PAGE_MODE === 'thesis') {
+            // 论文页：若 localStorage 有项目信息，回填基本信息
+            try {
+                var saved2 = localStorage.getItem(getFormStorageKey());
+                if (saved2) {
+                    var d2 = JSON.parse(saved2);
+                    var tInputs = document.querySelectorAll('#thesisInfo input');
+                    for (var j = 0; j < tInputs.length; j++) {
+                        var n = tInputs[j].name;
+                        if (n && d2[n]) tInputs[j].value = d2[n];
+                    }
+                }
+            } catch (e) {}
+        }
+    });
 });
 
 </script>
