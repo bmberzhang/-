@@ -190,7 +190,8 @@ body {
 }
 
 /* ===== 工作台卡片（竖排列表） ===== */
-.home-cards { display: flex; flex-direction: column; gap: 16px; max-width: 860px; margin: 0 auto; }
+.home-cards { display: none; flex-direction: column; gap: 16px; max-width: 860px; margin: 0 auto; }
+.home-cards.show { display: flex; }
 .home-cards .card {
     background: #fff; border-radius: 18px; padding: 24px 28px; text-decoration: none;
     color: #1d1d1f; box-shadow: 0 8px 30px rgba(20,60,120,0.07);
@@ -1061,7 +1062,10 @@ function applyPageMode() {
     show.thesis = (PAGE_MODE === 'thesis');
     // 显示/隐藏各区块
     var el = function(id) { return document.getElementById(id); };
-    if (el('homeCards')) el('homeCards').style.display = show.home ? 'grid' : 'none';
+    if (el('homeCards')) {
+        if (show.home) el('homeCards').classList.add('show');
+        else el('homeCards').classList.remove('show');
+    }
     if (el('mainForm')) el('mainForm').style.display = show.verify ? 'block' : 'none';
     if (el('resultPanel')) el('resultPanel').style.display = show.verify ? 'block' : 'none';
     if (el('modelPanel')) el('modelPanel').style.display = show.model ? 'block' : 'none';
