@@ -1,0 +1,29 @@
+# 水闸设计系统 - Fly.io 配置
+app = "sluice-design"
+
+[build]
+  dockerfile = "Dockerfile"
+
+primary_region = "nrt"
+
+[env]
+  DATA_DIR = "/data"
+
+# 持久卷：用户库 + 图纸文件
+[[mounts]]
+  source = "sluice_data"
+  destination = "/data"
+
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+  processes = ["app"]
+
+  [[services.ports]]
+    force_https = true
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443

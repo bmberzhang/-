@@ -22,3 +22,6 @@ app_server.log
 convert_pdf.py
 README_论文生成器.md
 drawings/
+
+# 用户数据种子库（含账号哈希，不入公开仓库）
+users.db.seed

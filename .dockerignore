@@ -1,0 +1,11 @@
+.git
+.workbuddy
+users.db
+output_drawing
+__pycache__
+*.pyc
+*.log
+server.log
+deploy
+.dockerignore
+部署指南.md
