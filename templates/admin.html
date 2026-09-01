@@ -97,6 +97,18 @@
           {% endif %}
         </td>
       </tr>
+      <tr style="background:#fafafc;">
+        <td></td>
+        <td colspan="3">
+          <form method="post" action="/admin" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="hidden" name="action" value="reset_password">
+            <input type="hidden" name="user_id" value="{{ u['id'] }}">
+            <span style="font-size:12px;color:#86868b;">重置 {{ u['username'] }} 的密码：</span>
+            <input type="password" name="new_password" placeholder="输入新密码（至少4位）" style="flex:1;min-width:160px;padding:8px 12px;border:1px solid #d2d2d7;border-radius:8px;font-size:14px;">
+            <button class="btn" type="submit">重置密码</button>
+          </form>
+        </td>
+      </tr>
       {% endfor %}
     </table>
   </div>

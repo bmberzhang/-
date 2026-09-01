@@ -190,6 +190,18 @@ def admin():
             conn.commit()
             conn.close()
             flash('用户已删除')
+        elif action == 'reset_password':
+            uid = request.form.get('user_id')
+            new_pw = request.form.get('new_password') or ''
+            if len(new_pw) < 4:
+                flash('新密码至少 4 位')
+            else:
+                conn = get_db()
+                conn.execute('UPDATE users SET password_hash=? WHERE id=?',
+                             (generate_password_hash(new_pw), uid))
+                conn.commit()
+                conn.close()
+                flash('密码已重置')
         return redirect(url_for('admin'))
     conn = get_db()
     users = conn.execute('SELECT id, username, created_at FROM users ORDER BY id').fetchall()
@@ -216,6 +228,40 @@ def login():
 
 @app.route('/logout')
 def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+
+@app.route('/change-password', methods=['GET', 'POST'])
+def change_password():
+    """用户修改自己的密码（需验证旧密码）"""
+    u = current_user()
+    if not u:
+        return redirect(url_for('login'))
+    if request.method == 'GET':
+        return render_template('change_password.html')
+    old = request.form.get('old_password') or ''
+    new = request.form.get('new_password') or ''
+    confirm = request.form.get('confirm') or ''
+    conn = get_db()
+    row = conn.execute('SELECT password_hash FROM users WHERE id=?', (u['id'],)).fetchone()
+    if not row or not check_password_hash(row['password_hash'], old):
+        conn.close()
+        flash('旧密码错误')
+        return redirect(url_for('change_password'))
+    if len(new) < 4:
+        conn.close()
+        flash('新密码至少 4 位')
+        return redirect(url_for('change_password'))
+    if new != confirm:
+        conn.close()
+        flash('两次输入的新密码不一致')
+        return redirect(url_for('change_password'))
+    conn.execute('UPDATE users SET password_hash=? WHERE id=?',
+                 (generate_password_hash(new), u['id']))
+    conn.commit()
+    conn.close()
+    flash('密码修改成功，请重新登录')
     session.clear()
     return redirect(url_for('login'))
 
