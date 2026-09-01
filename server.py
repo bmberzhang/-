@@ -29,6 +29,10 @@ app.secret_key = os.environ.get('SECRET_KEY', 'sluice-design-secret-key-2026')  
 DRAW_OUT = os.path.join(DATA_DIR, 'output_drawing')
 os.makedirs(DRAW_OUT, exist_ok=True)
 
+# 论文生成记录存储目录
+THESIS_OUT = os.path.join(DATA_DIR, 'output_thesis')
+os.makedirs(THESIS_OUT, exist_ok=True)
+
 
 # ============================================================
 # 数据库（SQLite）
@@ -76,6 +80,16 @@ def init_db():
             to_user_id INTEGER DEFAULT 0,
             created_at TEXT DEFAULT (datetime('now','localtime')),
             is_read INTEGER DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS generation_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            username TEXT,
+            type TEXT NOT NULL,
+            title TEXT DEFAULT '',
+            file_url TEXT DEFAULT '',
+            file2_url TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now','localtime'))
         );
     ''')
     conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('invite_code', ?)",
@@ -541,6 +555,67 @@ def msg_list():
 
 
 # ============================================================
+# 生成记录（客户历史生成，可回看/重新下载）
+# ============================================================
+@app.route('/api/records/save', methods=['POST'])
+def records_save():
+    """论文生成后前端上传 docx 并保存记录（图纸在 drawing_generate 里自动记录）"""
+    u = current_user()
+    if not u:
+        return jsonify({"ok": False, "error": "请先登录"}), 401
+    f = request.files.get('file')
+    title = (request.form.get('title') or '毕业设计论文').strip()
+    if not f or not f.filename:
+        return jsonify({"ok": False, "error": "未收到文件"}), 400
+    user_dir = os.path.join(THESIS_OUT, str(u['id']))
+    os.makedirs(user_dir, exist_ok=True)
+    stamp = int(time.time())
+    # 清理文件名中的非法字符
+    safe_title = ''.join(c for c in title if c not in '\\/:*?"<>|').strip() or '论文'
+    fname = f"{safe_title}_{stamp}.docx"
+    fpath = os.path.join(user_dir, fname)
+    f.save(fpath)
+    conn = get_db()
+    conn.execute(
+        'INSERT INTO generation_records (user_id, username, type, title, file_url) VALUES (?,?,?,?,?)',
+        (u['id'], u['username'], 'thesis', title, f"/records/dl/{u['id']}/{fname}"))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "msg": "论文已保存到你的生成记录"})
+
+
+@app.route('/api/records')
+def records_list():
+    u = current_user()
+    if not u:
+        return jsonify({"ok": False, "error": "请先登录"}), 401
+    conn = get_db()
+    if is_admin(u):
+        rows = conn.execute('SELECT * FROM generation_records ORDER BY id DESC LIMIT 200').fetchall()
+    else:
+        rows = conn.execute('SELECT * FROM generation_records WHERE user_id=? ORDER BY id DESC LIMIT 100',
+                            (u['id'],)).fetchall()
+    conn.close()
+    return jsonify({"ok": True, "list": [dict(r) for r in rows]})
+
+
+@app.route('/records/dl/<int:uid>/<path:filename>')
+def records_download(uid, filename):
+    u = current_user()
+    if u is None or u['id'] != uid:
+        return jsonify({"ok": False, "error": "无权限"}), 403
+    return send_from_directory(os.path.join(THESIS_OUT, str(uid)), filename)
+
+
+@app.route('/records')
+def records_page():
+    u = current_user()
+    if not u:
+        return redirect(url_for('login'))
+    return render_template('records.html', username=u['username'], is_admin=is_admin(u))
+
+
+# ============================================================
 # 用户参数持久化
 # ============================================================
 def save_user_params(uid, params):
@@ -710,6 +785,19 @@ def drawing_generate():
 
     # 保存该用户的参数（下次自动回填）
     save_user_params(u['id'], saved)
+
+    # 自动记录生成历史（供"我的生成记录"回看/下载）
+    try:
+        conn = get_db()
+        conn.execute(
+            'INSERT INTO generation_records (user_id, username, type, title, file_url, file2_url) VALUES (?,?,?,?,?,?)',
+            (u['id'], u['username'], 'drawing', p.get('title', '水闸纵剖面图'),
+             f"/drawing/dl/{u['id']}/{os.path.basename(dxf_path)}",
+             f"/drawing/dl/{u['id']}/{os.path.basename(svg_path)}"))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print('[drawing] 记录保存失败:', e)
 
     return jsonify({
         "ok": True,

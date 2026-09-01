@@ -269,6 +269,7 @@ body {
 <div class="container">
     <div class="userbar" style="display:flex;justify-content:flex-end;align-items:center;gap:14px;padding:10px 4px 0;font-size:13px;color:#86868b;">
         <span>👤 <span id="userName"></span></span>
+        <a href="/records" style="color:#0066cc;text-decoration:none;font-weight:600;">我的记录</a>
         <a href="/change-password" style="color:#0066cc;text-decoration:none;font-weight:600;">修改密码</a>
         <a href="/admin" id="adminLink" style="color:#0066cc;text-decoration:none;font-weight:600;display:none;">管理</a>
         <a href="/logout" style="color:#0066cc;text-decoration:none;font-weight:600;">退出登录</a>
@@ -2359,8 +2360,19 @@ function generateThesis() {
           var qel = document.getElementById('thesisQuotaBar');
           if (qel) qel.textContent = '剩余论文次数：' + thesisQuota + '（每次生成消耗 1 次）';
         }
+        // 自动保存到"我的生成记录"（防止下载丢失后白做）
+        try {
+          var fd = new FormData();
+          fd.append('file', blob, (data.projectName || '水闸设计') + '_毕业设计论文.docx');
+          fd.append('title', (data.projectName || '水闸设计') + '毕业设计论文');
+          fetch('/api/records/save', {method:'POST', body:fd}).then(function(r){return r.json();}).then(function(d2){
+            if (d2.ok) alert('论文生成成功！已自动保存到「我的生成记录」，可随时回来重新下载。');
+            else alert('论文生成成功！已下载。但保存记录失败：' + (d2.error || ''));
+          }).catch(function(){ alert('论文生成成功！已下载。\n提示：记录自动保存失败（网络问题），可手动保存已下载的文件。'); });
+        } catch (e) {
+          alert('论文生成成功！已下载。\n提示：记录自动保存失败，可手动保存已下载的文件。');
+        }
         hideLoading();
-        alert('论文生成成功！已下载 .docx 文件（格式完全按模板，约68页）。\n\n说明：纯前端生成，无需启动任何服务。闸孔、消能、防渗、闸顶高程、稳定、配筋、摘要、致谢均已按输入数据联动。');
     }, function(err) {
         hideLoading();
         var m = (err && err.message) ? err.message : String(err);
