@@ -122,6 +122,8 @@ body {
 .result-panel { display: none; background: #fff; border-radius: 20px; padding: 30px; margin-top: 22px;
     box-shadow: 0 10px 40px rgba(20,60,120,0.08); }
 .result-panel.show { display: block; }
+/* 验证表单（默认隐藏，仅 verify 模式显示，避免主页加载时闪现） */
+.form-container { display: none; }
 .result-panel h2 { font-size: 20px; margin-bottom: 20px; color: #1d1d1f; font-weight: 800; }
 .validation-item { padding: 12px 16px; margin-bottom: 8px; border-radius: 10px;
     display: flex; align-items: center; gap: 12px; font-size: 14px; }
