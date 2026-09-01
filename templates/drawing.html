@@ -137,7 +137,7 @@
   <div class="userbar" style="display:flex;justify-content:flex-end;align-items:center;gap:14px;padding:0 4px 14px;font-size:13px;color:#86868b;">
     <span>👤 {{ username }}</span>
     <a href="/change-password" style="color:#0066cc;text-decoration:none;font-weight:600;">修改密码</a>
-    <a href="/admin" style="color:#0066cc;text-decoration:none;font-weight:600;">管理</a>
+    {% if is_admin %}<a href="/admin" style="color:#0066cc;text-decoration:none;font-weight:600;">管理</a>{% endif %}
     <a href="/logout" style="color:#0066cc;text-decoration:none;font-weight:600;">退出登录</a>
   </div>
   <nav class="flow-nav">

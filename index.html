@@ -2312,9 +2312,15 @@ document.addEventListener('DOMContentLoaded', function() {
     var now = new Date();
     var dEl = document.getElementById('thesisDate');
     if (dEl && !dEl.value) dEl.value = now.getFullYear() + '年' + (now.getMonth() + 1) + '月';
-    // 显示当前登录用户
-    fetch('/api/me').then(function(r){ return r.json(); }).then(function(d){
-        if (d.logged) { document.getElementById('userName').textContent = d.username; }
+    // 显示当前登录用户 + 按身份显示/隐藏"管理"链接
+    fetch('/api/me').then(function(r){return r.json();}).then(function(d){
+        if (d.logged) {
+            document.getElementById('userName').textContent = d.username;
+            if (!d.is_admin) {
+                var links = document.querySelectorAll('.userbar a[href="/admin"]');
+                for (var i = 0; i < links.length; i++) links[i].style.display = 'none';
+            }
+        }
     }).catch(function(){});
     // 按 URL 模式显示对应模块
     restoreFormFromStorage();

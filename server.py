@@ -271,7 +271,7 @@ def api_me():
     u = current_user()
     if not u:
         return jsonify({"logged": False}), 401
-    return jsonify({"logged": True, "username": u['username']})
+    return jsonify({"logged": True, "username": u['username'], "is_admin": is_admin(u)})
 
 
 # ============================================================
@@ -388,7 +388,7 @@ def drawing_page():
     for key, name, group, default, unit in FIELDS:
         val = saved.get(key, default)
         fields.append((key, name, group, val, unit))
-    return render_template('drawing.html', fields=fields, groups=GROUPS, username=u['username'])
+    return render_template('drawing.html', fields=fields, groups=GROUPS, username=u['username'], is_admin=is_admin(u))
 
 
 @app.route('/drawing/generate', methods=['POST'])
