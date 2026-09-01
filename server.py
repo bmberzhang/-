@@ -57,6 +57,26 @@ def init_db():
             key TEXT PRIMARY KEY,
             value TEXT
         );
+        CREATE TABLE IF NOT EXISTS payment_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            username TEXT,
+            amount TEXT DEFAULT '',
+            note TEXT DEFAULT '',
+            status TEXT DEFAULT 'pending',
+            created_at TEXT DEFAULT (datetime('now','localtime')),
+            processed_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            username TEXT,
+            content TEXT NOT NULL,
+            is_admin INTEGER DEFAULT 0,
+            to_user_id INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now','localtime')),
+            is_read INTEGER DEFAULT 0
+        );
     ''')
     conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('invite_code', ?)",
                  (os.environ.get('INVITE_CODE', 'sluice2026'),))
@@ -67,6 +87,10 @@ def init_db():
             conn.execute('ALTER TABLE users ADD COLUMN drawing_quota INTEGER DEFAULT 0')
         if 'thesis_quota' not in ucols:
             conn.execute('ALTER TABLE users ADD COLUMN thesis_quota INTEGER DEFAULT 0')
+        # messages 表迁移（旧库可能没有 to_user_id）
+        mcols = [r[1] for r in conn.execute('PRAGMA table_info(messages)').fetchall()]
+        if 'to_user_id' not in mcols:
+            conn.execute('ALTER TABLE messages ADD COLUMN to_user_id INTEGER DEFAULT 0')
         # 收费配置（settings 表）
         defaults = [
             ('drawing_price', '5'), ('thesis_price', '10'),
@@ -405,6 +429,115 @@ def api_me():
         "thesis_quota": tq,
         "pay": get_pay_config(),
     })
+
+
+# ============================================================
+# 充值申请（客户付款后提交，管理员在后台确认开通）
+# ============================================================
+@app.route('/api/pay/request', methods=['POST'])
+def pay_request():
+    u = current_user()
+    if not u:
+        return jsonify({"ok": False, "error": "请先登录"}), 401
+    data = request.get_json(force=True, silent=True) or {}
+    amount = str(data.get('amount', '')).strip()
+    note = str(data.get('note', '')).strip()
+    if not amount:
+        return jsonify({"ok": False, "error": "请填写付款金额"}), 400
+    conn = get_db()
+    conn.execute('INSERT INTO payment_requests (user_id, username, amount, note) VALUES (?,?,?,?)',
+                 (u['id'], u['username'], amount, note))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "msg": "充值申请已提交，请等待管理员确认开通。"})
+
+
+@app.route('/api/pay/list')
+def pay_list():
+    u = current_user()
+    if not is_admin(u):
+        return jsonify({"ok": False, "error": "无权限"}), 403
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM payment_requests ORDER BY id DESC LIMIT 100").fetchall()
+    conn.close()
+    return jsonify({"ok": True, "list": [dict(r) for r in rows]})
+
+
+@app.route('/api/pay/process', methods=['POST'])
+def pay_process():
+    """管理员确认收款并开通次数"""
+    u = current_user()
+    if not is_admin(u):
+        return jsonify({"ok": False, "error": "无权限"}), 403
+    data = request.get_json(force=True, silent=True) or {}
+    rid = data.get('id')
+    try:
+        drawing = max(0, int(data.get('drawing', 0) or 0))
+        thesis = max(0, int(data.get('thesis', 0) or 0))
+    except (ValueError, TypeError):
+        return jsonify({"ok": False, "error": "次数无效"}), 400
+    if drawing == 0 and thesis == 0:
+        return jsonify({"ok": False, "error": "请填写要开通的次数"}), 400
+    conn = get_db()
+    row = conn.execute('SELECT * FROM payment_requests WHERE id=? AND status=?', (rid, 'pending')).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"ok": False, "error": "申请不存在或已处理"}), 400
+    if drawing:
+        add_quota(row['user_id'], 'drawing', drawing)
+    if thesis:
+        add_quota(row['user_id'], 'thesis', thesis)
+    conn.execute("UPDATE payment_requests SET status='done', processed_at=datetime('now','localtime') WHERE id=?", (rid,))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "msg": f"已为用户 {row['username']} 开通图纸×{drawing}、论文×{thesis}"})
+
+
+# ============================================================
+# 客服消息（站内信：客户留言，管理员回复）
+# ============================================================
+@app.route('/api/msg/send', methods=['POST'])
+def msg_send():
+    u = current_user()
+    if not u:
+        return jsonify({"ok": False, "error": "请先登录"}), 401
+    data = request.get_json(force=True, silent=True) or {}
+    content = str(data.get('content', '')).strip()
+    if not content:
+        return jsonify({"ok": False, "error": "消息不能为空"}), 400
+    if len(content) > 2000:
+        content = content[:2000]
+    is_admin_flag = 1 if is_admin(u) else 0
+    # 管理员回复时可指定发给哪个用户（to_user_id），否则发给管理员(0)
+    to_user_id = 0
+    if is_admin_flag:
+        try:
+            to_user_id = int(data.get('to_user_id', 0) or 0)
+        except (ValueError, TypeError):
+            to_user_id = 0
+    conn = get_db()
+    conn.execute('INSERT INTO messages (user_id, username, content, is_admin, to_user_id) VALUES (?,?,?,?,?)',
+                 (u['id'], u['username'], content, is_admin_flag, to_user_id))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route('/api/msg/list')
+def msg_list():
+    u = current_user()
+    if not u:
+        return jsonify({"ok": False, "error": "请先登录"}), 401
+    conn = get_db()
+    if is_admin(u):
+        rows = conn.execute('SELECT * FROM messages ORDER BY id DESC LIMIT 300').fetchall()
+    else:
+        rows = conn.execute('SELECT * FROM messages WHERE user_id=? OR to_user_id=? ORDER BY id DESC LIMIT 200',
+                            (u['id'], u['id'])).fetchall()
+    conn.close()
+    msgs = [dict(r) for r in rows]
+    msgs.reverse()
+    return jsonify({"ok": True, "list": msgs, "is_admin": is_admin(u)})
 
 
 # ============================================================

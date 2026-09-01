@@ -240,6 +240,29 @@ body {
   padding: 10px 12px; margin: 14px 0; text-align: left; line-height: 1.7; }
 .pay-actions { display: flex; gap: 10px; justify-content: center; }
 .pay-actions .btn { padding: 11px 18px; font-size: 14px; font-weight: 600; border-radius: 10px; }
+/* 客服聊天 */
+.cs-btn { position: fixed; right: 22px; bottom: 22px; z-index: 999; background: #0066cc; color: #fff;
+  border: none; border-radius: 50px; padding: 13px 20px; font-size: 14px; font-weight: 700;
+  cursor: pointer; box-shadow: 0 8px 24px rgba(0,102,204,0.35); }
+.cs-btn:hover { opacity: .9; }
+.cs-box { position: fixed; right: 22px; bottom: 78px; z-index: 999; width: 330px; max-width: calc(100vw - 44px);
+  background: #fff; border-radius: 18px; box-shadow: 0 16px 50px rgba(0,0,0,0.22); overflow: hidden;
+  display: flex; flex-direction: column; }
+.cs-head { background: #0066cc; color: #fff; padding: 13px 16px; font-size: 15px; font-weight: 700;
+  display: flex; justify-content: space-between; align-items: center; }
+.cs-close { cursor: pointer; font-size: 22px; line-height: 1; opacity: .8; }
+.cs-msg { height: 320px; overflow-y: auto; padding: 12px; background: #f5f7fb; }
+.cs-msg .item { margin-bottom: 8px; max-width: 82%; }
+.cs-msg .item.mine { margin-left: auto; }
+.cs-msg .item.theirs { margin-right: auto; }
+.cs-msg .item .bubble { padding: 9px 13px; border-radius: 14px; font-size: 13px; line-height: 1.6; word-break: break-word; }
+.cs-msg .item.mine .bubble { background: #0066cc; color: #fff; border-top-right-radius: 4px; }
+.cs-msg .item.theirs .bubble { background: #fff; color: #1d1d1f; border: 1px solid #e5e5ea; border-top-left-radius: 4px; }
+.cs-msg .item .meta { font-size: 11px; color: #a0a8b8; margin-top: 3px; }
+.cs-input { display: flex; gap: 8px; padding: 10px; border-top: 1px solid #eef1f6; background: #fff; }
+.cs-input input { flex: 1; padding: 9px 12px; border: 1px solid #d2d2d7; border-radius: 10px; font-size: 14px; outline: none; }
+.cs-input input:focus { border-color: #0066cc; }
+.cs-input button { background: #0066cc; color: #fff; border: none; border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -2244,6 +2267,67 @@ function closePayT() {
   document.getElementById('payMaskT').style.display = 'none';
 }
 
+// ===== 充值申请 =====
+function showPayReqT() {
+  document.getElementById('payReqT').style.display = 'block';
+}
+function submitPayReqT() {
+  var amount = document.getElementById('payAmtT').value.trim();
+  var note = document.getElementById('payNoteT3').value.trim();
+  if (!amount) { alert('请填写付款金额'); return; }
+  fetch('/api/pay/request', {method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({amount:amount, note:note})})
+  .then(function(r){return r.json();}).then(function(d){
+    if (d.ok) { alert(d.msg || '充值申请已提交！请耐心等待管理员确认开通。'); closePayT(); }
+    else alert(d.error || '提交失败');
+  }).catch(function(){ alert('提交失败，请稍后重试'); });
+}
+
+// ===== 客服聊天 =====
+var csTimer = null;
+function escHtml(s) { var d=document.createElement('div'); d.textContent = s==null?'':String(s); return d.innerHTML; }
+function toggleCS() {
+  var box = document.getElementById('csBox');
+  if (box.style.display === 'none') {
+    box.style.display = 'flex';
+    loadCSMsgs();
+    if (!csTimer) csTimer = setInterval(loadCSMsgs, 5000);
+    document.getElementById('csInput').focus();
+  } else {
+    box.style.display = 'none';
+    if (csTimer) { clearInterval(csTimer); csTimer = null; }
+  }
+}
+function loadCSMsgs() {
+  fetch('/api/msg/list').then(function(r){return r.json();}).then(function(d){
+    if (!d.ok) return;
+    var list = d.list || [];
+    var box = document.getElementById('csMsg');
+    if (!list.length) { box.innerHTML = '<div style="color:#86868b;font-size:13px;text-align:center;padding:20px;">欢迎咨询！有什么问题可以留言，管理员看到后会回复你。</div>'; return; }
+    var h = '';
+    list.forEach(function(m){
+      var mine = d.is_admin ? m.is_admin : !m.is_admin;
+      var who = m.is_admin ? '客服' : '我';
+      h += '<div class="item ' + (mine ? 'mine' : 'theirs') + '">' +
+        '<div class="bubble">' + escHtml(m.content) + '</div>' +
+        '<div class="meta">' + who + ' · ' + escHtml(m.created_at) + '</div></div>';
+    });
+    box.innerHTML = h;
+    box.scrollTop = box.scrollHeight;
+  }).catch(function(){});
+}
+function sendCS() {
+  var input = document.getElementById('csInput');
+  var content = input.value.trim();
+  if (!content) return;
+  fetch('/api/msg/send', {method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({content:content})})
+  .then(function(r){return r.json();}).then(function(d){
+    if (d.ok) { input.value = ''; loadCSMsgs(); }
+    else alert(d.error || '发送失败');
+  }).catch(function(){ alert('发送失败'); });
+}
+
 loadMeT();
 
 function generateThesis() {
@@ -2461,10 +2545,32 @@ if ('serviceWorker' in navigator) {
       </div>
     </div>
     <div class="pay-note" id="payNoteT"></div>
+    <div class="pay-submit" id="payReqT" style="display:none;margin-top:10px;">
+      <div style="font-size:13px;color:#5a6270;margin-bottom:6px;">填写付款信息，提交后管理员会核对并开通次数：</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="text" id="payAmtT" placeholder="付款金额（元）" style="flex:1;min-width:100px;padding:9px 12px;border:1px solid #d2d2d7;border-radius:10px;font-size:14px;">
+        <input type="text" id="payNoteT3" placeholder="备注（付款昵称/单号）" style="flex:1.5;min-width:130px;padding:9px 12px;border:1px solid #d2d2d7;border-radius:10px;font-size:14px;">
+        <button class="btn" style="background:#1d9e50;color:#fff;" onclick="submitPayReqT()">提交申请</button>
+      </div>
+    </div>
     <div class="pay-actions">
-      <button class="btn" style="background:#0066cc;color:#fff;" onclick="closePayT()">我已支付，去联系管理员</button>
+      <button class="btn" style="background:#0066cc;color:#fff;" onclick="showPayReqT()">我已支付，提交充值申请</button>
       <button class="btn" style="background:#e5e5ea;color:#1d1d1f;" onclick="closePayT()">关闭</button>
     </div>
+  </div>
+</div>
+
+<!-- 客服聊天 -->
+<button class="cs-btn" id="csBtn" onclick="toggleCS()">💬 客服</button>
+<div class="cs-box" id="csBox" style="display:none;">
+  <div class="cs-head">
+    <span>客服咨询</span>
+    <span class="cs-close" onclick="toggleCS()">×</span>
+  </div>
+  <div class="cs-msg" id="csMsg"><div style="color:#86868b;font-size:13px;text-align:center;padding:20px;">加载中…</div></div>
+  <div class="cs-input">
+    <input type="text" id="csInput" placeholder="输入你的问题…" onkeydown="if(event.key==='Enter')sendCS()">
+    <button onclick="sendCS()">发送</button>
   </div>
 </div>
 </body>
