@@ -53,12 +53,37 @@ def init_db():
             params TEXT NOT NULL DEFAULT '{}',
             updated_at TEXT DEFAULT (datetime('now','localtime'))
         );
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        );
     ''')
+    conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('invite_code', ?)",
+                 (os.environ.get('INVITE_CODE', 'sluice2026'),))
     conn.commit()
     conn.close()
 
 
 init_db()
+
+
+def get_invite_code():
+    conn = get_db()
+    row = conn.execute("SELECT value FROM settings WHERE key='invite_code'").fetchone()
+    conn.close()
+    return row['value'] if row else 'sluice2026'
+
+
+def is_admin(u=None):
+    """管理员 = 第一个注册的用户"""
+    if u is None:
+        u = current_user()
+    if not u:
+        return False
+    conn = get_db()
+    first = conn.execute('SELECT id FROM users ORDER BY id ASC LIMIT 1').fetchone()
+    conn.close()
+    return first is not None and u['id'] == first['id']
 
 
 def current_user():
@@ -101,10 +126,8 @@ def add_cors(resp):
 # ============================================================
 # 用户认证
 # ============================================================
-# 注册邀请码：只有知道邀请码的人才能注册（通过环境变量 INVITE_CODE 或直接改这里）
-INVITE_CODE = os.environ.get('INVITE_CODE', 'sluice2026')
-
-
+# 注册邀请码：只有知道邀请码的人才能注册（在网页"管理"页面修改）
+# 默认值可在环境变量 INVITE_CODE 或数据库 settings 表设置
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'GET':
@@ -122,7 +145,7 @@ def register():
     if password != confirm:
         flash('两次输入的密码不一致')
         return redirect(url_for('register'))
-    if not invite or invite != INVITE_CODE:
+    if not invite or invite != get_invite_code():
         flash('邀请码错误，无法注册')
         return redirect(url_for('register'))
     conn = get_db()
@@ -136,6 +159,42 @@ def register():
     conn.close()
     flash('注册成功，请登录')
     return redirect(url_for('login'))
+
+
+@app.route('/admin', methods=['GET', 'POST'])
+def admin():
+    """管理页面：修改邀请码、查看用户（仅第一个注册的管理员可用）"""
+    u = current_user()
+    if not u:
+        return redirect(url_for('login'))
+    if not is_admin(u):
+        flash('只有管理员（第一个注册的用户）能访问管理页面')
+        return redirect(url_for('index'))
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'update_invite':
+            new_code = (request.form.get('invite_code') or '').strip()
+            if new_code:
+                conn = get_db()
+                conn.execute("UPDATE settings SET value=? WHERE key='invite_code'", (new_code,))
+                conn.commit()
+                conn.close()
+                flash(f'邀请码已更新为：{new_code}')
+            else:
+                flash('邀请码不能为空')
+        elif action == 'delete_user':
+            uid = request.form.get('user_id')
+            conn = get_db()
+            conn.execute('DELETE FROM users WHERE id=?', (uid,))
+            conn.execute('DELETE FROM user_params WHERE user_id=?', (uid,))
+            conn.commit()
+            conn.close()
+            flash('用户已删除')
+        return redirect(url_for('admin'))
+    conn = get_db()
+    users = conn.execute('SELECT id, username, created_at FROM users ORDER BY id').fetchall()
+    conn.close()
+    return render_template('admin.html', invite_code=get_invite_code(), users=users)
 
 
 @app.route('/login', methods=['GET', 'POST'])
