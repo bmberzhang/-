@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工程图纸生成器 · 水闸纵剖面图</title>
+<!-- PWA -->
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0066cc">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="水闸设计">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/static/icons/icon-512.png">
+<style>
+  :root {
+    --blue: #0066cc;
+    --blue-light: #e8f1fb;
+    --text: #1d1d1f;
+    --muted: #86868b;
+    --border: #d2d2d7;
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --green: #34c759;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro SC", "PingFang SC",
+                 "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 28px 16px 80px; }
+
+  header { text-align: center; margin-bottom: 28px; }
+  header h1 {
+    font-size: 28px; font-weight: 700;
+    background: linear-gradient(135deg, var(--blue), #4a9bff);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  header p { color: var(--muted); font-size: 14px; margin-top: 6px; }
+
+  .part {
+    background: var(--card); border-radius: 16px; margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06); overflow: hidden;
+  }
+  .part .head {
+    background: var(--blue-light); padding: 12px 22px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .part .head .num {
+    background: var(--blue); color: #fff; border-radius: 50%;
+    width: 28px; height: 28px; display: flex; align-items: center;
+    justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0;
+  }
+  .part .head .name { font-size: 17px; font-weight: 700; }
+  .part .head .cat { font-size: 12px; color: var(--muted); font-weight: 400; }
+  .part .fields {
+    padding: 18px 22px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px 22px;
+  }
+  .field label {
+    display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px;
+  }
+  .field .input-wrap { position: relative; }
+  .field input[type="number"], .field input[type="text"] {
+    width: 100%; padding: 10px 52px 10px 14px;
+    border: 1px solid var(--border); border-radius: 10px;
+    font-size: 15px; color: var(--text); background: #fff;
+    outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .field input:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(0,102,204,0.12);
+  }
+  .field .unit {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    font-size: 12px; color: var(--muted);
+  }
+
+  .actions {
+    display: flex; justify-content: center; gap: 16px; margin: 30px 0;
+    flex-wrap: wrap;
+  }
+  .btn {
+    border: none; border-radius: 14px; padding: 15px 56px;
+    font-size: 17px; font-weight: 700; cursor: pointer;
+    transition: transform 0.1s, opacity 0.15s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-primary:hover { opacity: 0.92; }
+  .btn-reset { background: #e5e5ea; color: var(--text); }
+  .btn-reset:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .loading {
+    display: none; text-align: center; padding: 24px; color: var(--blue);
+    font-size: 15px; font-weight: 600;
+  }
+  .status { text-align: center; font-size: 14px; color: var(--muted); margin: 12px 0; }
+  .error { color: #d70015; font-size: 14px; text-align: center; margin: 12px 0; }
+
+  .result { display: none; }
+  .result .preview-box {
+    background: #fff; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .result .preview-box img { display: block; width: 100%; }
+  .result .dl-bar {
+    display: flex; justify-content: center; gap: 16px; margin-top: 18px;
+    flex-wrap: wrap;
+  }
+  .btn-download { background: var(--green); color: #fff; text-decoration: none; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 40px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="userbar" style="display:flex;justify-content:flex-end;align-items:center;gap:14px;padding:0 4px 14px;font-size:13px;color:#86868b;">
+    <span>👤 {{ username }}</span>
+    <a href="/logout" style="color:#0066cc;text-decoration:none;font-weight:600;">退出登录</a>
+  </div>
+  <header>
+    <h1>工程图纸生成（水闸纵剖面图）</h1>
+    <p>按顺序填写各部分尺寸（单位：米），填好后点击下方"生成图纸"</p>
+  </header>
+
+  {% set nums = { '铺盖':'1', '底板':'2', '消力池':'3', '反滤层':'4', '海漫':'5',
+                  '防冲槽':'6', '高程':'7', '闸门':'8', '排架':'9', '工作桥':'10',
+                  '交通桥':'11', '启闭机房':'12', '绘图选项':'13' } %}
+  {% for group, cat in groups %}
+  <div class="part">
+    <div class="head">
+      <span class="num">{{ nums.get(group, loop.index) }}</span>
+      <span class="name">{{ group }}</span>
+      <span class="cat">{{ cat }}</span>
+    </div>
+    {% if group == "排架" %}
+    <div style="padding:10px 22px 0;font-size:12px;color:var(--muted);">
+      高度由第 7 部分高程自动推导（排架高程 − 闸顶高程），无需填写
+    </div>
+    {% endif %}
+    {% if group == "工作桥" %}
+    <div style="padding:10px 22px 0;font-size:12px;color:var(--muted);">
+      高度由第 7 部分高程自动推导（工作桥高程 − 排架高程），无需填写
+    </div>
+    {% endif %}
+    <div class="fields">
+      {% for key, name, g, default, unit in fields %}
+        {% if g == group %}
+        <div class="field">
+          <label>{{ name }}</label>
+          <div class="input-wrap">
+            {% if unit == "文本" %}
+            <input type="text" id="{{ key }}" value="{{ default }}" data-key="{{ key }}">
+            {% else %}
+            <input type="number" id="{{ key }}" value="{{ default }}" step="any" data-key="{{ key }}">
+            {% endif %}
+            <span class="unit">{{ unit }}</span>
+          </div>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="actions">
+    <button class="btn btn-primary" id="btnGen" onclick="generate()">生成图纸</button>
+    <button class="btn btn-reset" onclick="location.reload()">恢复默认</button>
+  </div>
+  <div class="loading" id="loading">正在生成图纸，请稍候…</div>
+  <div class="status" id="status"></div>
+  <div class="error" id="error"></div>
+
+  <div class="result" id="result">
+    <h2 style="text-align:center;font-size:20px;margin:20px 0 12px;">生成结果</h2>
+    <div class="preview-box">
+      <img id="previewImg" alt="图纸预览">
+    </div>
+    <div class="dl-bar">
+      <a class="btn btn-download" id="dlDxf" href="#" download>下载 DXF 图纸（用 CAD 打开）</a>
+      <a class="btn btn-download" id="dlSvg" href="#" download>下载 SVG 预览图</a>
+    </div>
+  </div>
+
+  <footer>返回 <a href='/'>主系统</a></footer>
+</div>
+
+<script>
+function collectParams() {
+  const data = {};
+  document.querySelectorAll('input[data-key]').forEach(function(inp) {
+    data[inp.dataset.key] = inp.value;
+  });
+  return data;
+}
+
+async function generate() {
+  const btn = document.getElementById('btnGen');
+  btn.disabled = true;
+  document.getElementById('error').textContent = '';
+  document.getElementById('status').textContent = '';
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+
+  try {
+    const resp = await fetch('/drawing/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(collectParams())
+    });
+    const data = await resp.json();
+    if (!data.ok) {
+      document.getElementById('error').textContent = data.error || '生成失败';
+      return;
+    }
+    const img = document.getElementById('previewImg');
+    img.src = data.svg_url + '?t=' + Date.now();
+    document.getElementById('dlDxf').href = data.dxf_url;
+    document.getElementById('dlSvg').href = data.svg_url;
+    document.getElementById('result').style.display = 'block';
+    document.getElementById('status').textContent = '生成成功，可下载 DXF 图纸';
+    // 自动滚动到结果区，确保用户看到
+    setTimeout(function() {
+      document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 200);
+  } catch (e) {
+    document.getElementById('error').textContent = '网络错误：' + e.message;
+  } finally {
+    btn.disabled = false;
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+</script>
+
+<script>
+// 注册 Service Worker（PWA 离线支持）
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/static/sw.js').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>

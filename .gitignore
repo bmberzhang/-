@@ -1,0 +1,24 @@
+__pycache__/
+*.pyc
+*.pyo
+server.log
+.DS_Store
+Thumbs.db
+# 本地运行产生的数据（云端用 Volume 持久化）
+users.db
+output_drawing/
+# 本地缓存
+app_server.log
+*.log
+# 临时备份
+*.bak
+*.bak2
+# 论文模板保留（部署必须），但其他 docx 不提交
+毕业设计_*.docx
+# 个人本地数据（记忆/缓存），不上传
+.workbuddy/
+*.bak3
+# 历史遗留（当前项目不再用）
+convert_pdf.py
+README_论文生成器.md
+drawings/

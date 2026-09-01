@@ -1,0 +1,2355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- PWA -->
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0066cc">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="水闸设计">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/static/icons/icon-512.png">
+<title>水闸设计参数验证与毕业设计论文生成系统</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: "Microsoft YaHei", "SimSun", sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+.container {
+    max-width: 1300px;
+    margin: 0 auto;
+}
+.header {
+    text-align: center;
+    color: white;
+    padding: 30px 20px;
+    margin-bottom: 30px;
+}
+.header h1 {
+    font-size: 32px;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+.header p {
+    font-size: 16px;
+    opacity: 0.9;
+}
+.form-container {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    padding: 0;
+    overflow: hidden;
+}
+.section {
+    border-bottom: 1px solid #e8e8e8;
+}
+.section:last-child { border-bottom: none; }
+.section-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 16px 30px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    user-select: none;
+    transition: background 0.3s;
+}
+.section-header:hover { opacity: 0.95; }
+.section-header h2 {
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.section-header .icon {
+    font-size: 22px;
+}
+.section-header .arrow {
+    font-size: 14px;
+    transition: transform 0.3s;
+}
+.section-header.collapsed .arrow {
+    transform: rotate(-90deg);
+}
+.section-body {
+    padding: 25px 30px;
+    transition: max-height 0.4s ease, padding 0.3s ease;
+    overflow: hidden;
+}
+.section-body.collapsed {
+    max-height: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 5px;
+}
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+.form-group label {
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+.form-group label .unit {
+    font-weight: normal;
+    color: #999;
+    font-size: 12px;
+}
+.form-group input, .form-group select, .form-group textarea {
+    padding: 10px 14px;
+    border: 1.5px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    font-family: inherit;
+    background: #fafafa;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+    background: white;
+}
+.form-group textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+.form-group .hint {
+    font-size: 12px;
+    color: #999;
+    margin-top: 4px;
+}
+.actions {
+    padding: 25px 30px;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+    background: #f8f9fa;
+}
+.btn {
+    padding: 14px 36px;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+.btn-secondary:hover { background: #5a6268; }
+.btn-success {
+    background: #28a745;
+    color: white;
+}
+.btn-success:hover { background: #218838; }
+.loading {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+.loading.show { display: flex; }
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+.loading-text {
+    color: white;
+    margin-top: 15px;
+    font-size: 16px;
+}
+.result-panel {
+    display: none;
+    background: white;
+    border-radius: 16px;
+    padding: 30px;
+    margin-top: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+.result-panel.show { display: block; }
+.result-panel h2 {
+    font-size: 22px;
+    margin-bottom: 20px;
+    color: #333;
+}
+.validation-item {
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+}
+.validation-item.pass {
+    background: #d4edda;
+    color: #155724;
+    border-left: 4px solid #28a745;
+}
+.validation-item.fail {
+    background: #f8d7da;
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+}
+.validation-item.warn {
+    background: #fff3cd;
+    color: #856404;
+    border-left: 4px solid #ffc107;
+}
+.calc-results {
+    margin-top: 20px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+.calc-results h3 {
+    font-size: 16px;
+    margin-bottom: 12px;
+    color: #555;
+}
+.calc-results table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+.calc-results th, .calc-results td {
+    padding: 10px 14px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+.calc-results th {
+    background: #667eea;
+    color: white;
+}
+.calc-results tr:nth-child(even) { background: white; }
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: #e0e0e0;
+    border-radius: 3px;
+    margin: 20px 0;
+    overflow: hidden;
+}
+.progress-bar .fill {
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+.info-tip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #e7f1ff;
+    border-radius: 8px;
+    color: #004085;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+.info-tip .tip-icon { font-size: 20px; }
+.color-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+/* 3D 仿真面板 */
+.model-panel {
+    display: none;
+    background: white;
+    border-radius: 16px;
+    margin-top: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    overflow: hidden;
+}
+.model-panel.show { display: block; }
+.model-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 14px 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.model-header h2 { font-size: 18px; display: flex; align-items: center; gap: 10px; }
+.model-toolbar { display: flex; gap: 8px; }
+.model-toolbar button {
+    padding: 6px 14px; border: none; border-radius: 6px;
+    cursor: pointer; font-size: 13px; font-weight: 600;
+    background: rgba(255,255,255,0.2); color: white;
+    transition: background 0.2s;
+}
+.model-toolbar button:hover { background: rgba(255,255,255,0.35); }
+.model-toolbar button.active { background: rgba(255,255,255,0.5); }
+.model-body {
+    position: relative;
+    width: 100%; height: 500px;
+    background: linear-gradient(180deg, #87CEEB 0%, #B0E0FF 50%, #E8F4FD 100%);
+    cursor: grab;
+}
+.model-body:active { cursor: grabbing; }
+.model-body canvas { display: block; }
+.model-legend {
+    position: absolute; bottom: 12px; left: 12px;
+    background: rgba(0,0,0,0.7); color: white;
+    padding: 8px 14px; border-radius: 8px; font-size: 12px;
+}
+.model-legend span { display: inline-block; margin-right: 12px; }
+.model-legend .dot {
+    display: inline-block; width: 10px; height: 10px;
+    border-radius: 2px; margin-right: 4px; vertical-align: middle;
+}
+.model-info {
+    position: absolute; top: 12px; right: 12px;
+    background: rgba(0,0,0,0.7); color: white;
+    padding: 8px 14px; border-radius: 8px; font-size: 12px;
+    text-align: right;
+}
+.gate-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 30px;
+    background: #f0f4ff;
+    border-bottom: 1px solid #dfe6ff;
+    flex-wrap: wrap;
+}
+.gate-control .gate-label { font-size: 13px; font-weight: 700; color: #4a5568; white-space: nowrap; }
+.gate-control input[type="range"] { flex: 1; min-width: 160px; accent-color: #667eea; cursor: pointer; }
+.gate-control .gate-value { font-size: 13px; font-weight: 700; color: #667eea; min-width: 40px; text-align: center; }
+.gate-control .gate-flow { font-size: 12px; color: #4a5568; white-space: nowrap; }
+
+@media (max-width: 768px) {
+    .form-row { grid-template-columns: 1fr; }
+    .section-body { padding: 20px 15px; }
+    .section-header { padding: 14px 20px; }
+    .header h1 { font-size: 24px; }
+    .actions { flex-direction: column; }
+    .btn { justify-content: center; }
+    .model-body { height: 350px; }
+    .model-toolbar button { padding: 4px 8px; font-size: 11px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="userbar" style="display:flex;justify-content:flex-end;align-items:center;gap:14px;padding:10px 4px 0;font-size:13px;color:#86868b;">
+        <span>👤 <span id="userName"></span></span>
+        <a href="/logout" style="color:#0066cc;text-decoration:none;font-weight:600;">退出登录</a>
+    </div>
+    <div class="header">
+        <h1>🔧 水闸设计参数验证与毕业设计论文生成系统</h1>
+        <p>基于《水闸设计规范》（SL265-2016） | 河北工程大学毕业设计（论文）撰写规范</p>
+    </div>
+
+    <div class="form-container" id="mainForm">
+        <!-- Section 1: 基本信息 -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2><span class="icon">📋</span>一、基本信息</h2>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-body" id="section1">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>项目/水闸名称</label>
+                        <input type="text" id="projectName" value="XZ水闸拆除重建工程" placeholder="例如：XZ水闸拆除重建工程">
+                    </div>
+                    <div class="form-group">
+                        <label>项目简称 <span class="unit">(正文用)</span></label>
+                        <input type="text" id="projectShort" value="“XZ”水闸" placeholder="例如：“XZ”水闸">
+                    </div>
+                    <div class="form-group">
+                        <label>项目缩写 <span class="unit">(英文用)</span></label>
+                        <input type="text" id="projectAbbr" value="XZ" placeholder="例如：XZ">
+                    </div>
+                    <div class="form-group">
+                        <label>学校名称</label>
+                        <input type="text" id="university" value="河北工程大学" placeholder="例如：河北工程大学">
+                    </div>
+                    <div class="form-group">
+                        <label>学生姓名</label>
+                        <input type="text" id="studentName" value="" placeholder="请输入姓名">
+                    </div>
+                    <div class="form-group">
+                        <label>学号</label>
+                        <input type="text" id="studentId" value="" placeholder="请输入学号">
+                    </div>
+                    <div class="form-group">
+                        <label>学院</label>
+                        <input type="text" id="college" value="水利水电学院" placeholder="例如：水利水电学院">
+                    </div>
+                    <div class="form-group">
+                        <label>专业班级</label>
+                        <input type="text" id="majorClass" value="水工2202班" placeholder="例如：水工2202班">
+                    </div>
+                    <div class="form-group">
+                        <label>指导教师</label>
+                        <input type="text" id="advisor" value="" placeholder="指导教师姓名">
+                    </div>
+                    <div class="form-group">
+                        <label>日期 <span class="unit">(年-月-日)</span></label>
+                        <input type="text" id="thesisDate" value="2026年6月" placeholder="例如：2026年6月">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: 流域及河道参数 -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2><span class="icon">🌊</span>二、流域及河道参数</h2>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-body" id="section2">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>河流名称</label>
+                        <input type="text" id="riverName" value="滏阳河" placeholder="例如：滏阳河">
+                    </div>
+                    <div class="form-group">
+                        <label>海河水系名称</label>
+                        <input type="text" id="riverSystem" value="子牙河系" placeholder="例如：子牙河系">
+                    </div>
+                    <div class="form-group">
+                        <label>河道全长 <span class="unit">(km)</span></label>
+                        <input type="number" id="riverLength" value="403" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>境内河长 <span class="unit">(km)</span></label>
+                        <input type="number" id="riverLengthLocal" value="184" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>流域面积 <span class="unit">(km²)</span></label>
+                        <input type="number" id="basinArea" value="2747.8" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>上游水库名称</label>
+                        <input type="text" id="upReservoir" value="东武仕水库" placeholder="上游水库名称">
+                    </div>
+                    <div class="form-group">
+                        <label>水库控制流域面积 <span class="unit">(km²)</span></label>
+                        <input type="number" id="reservoirArea" value="340" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>水库总库容 <span class="unit">(亿m³)</span></label>
+                        <input type="number" id="reservoirCapacity" value="1.615" step="0.001">
+                    </div>
+                    <div class="form-group">
+                        <label>水库源头至坝址长度 <span class="unit">(km)</span></label>
+                        <input type="number" id="reservoirLength" value="65" step="0.1">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>河道断面形式</label>
+                        <select id="channelType">
+                            <option value="复式断面" selected>复式断面</option>
+                            <option value="梯形断面">梯形断面</option>
+                            <option value="矩形断面">矩形断面</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>河道设计底宽 <span class="unit">(m)</span></label>
+                        <input type="number" id="channelBottomWidth" value="20" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>河道设计边坡</label>
+                        <input type="text" id="channelSlope" value="1:2" placeholder="例如：1:2">
+                    </div>
+                    <div class="form-group">
+                        <label>滩地设计高程 <span class="unit">(m)</span></label>
+                        <input type="number" id="floodplainElevation" value="75.00" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>滩地平均宽度 <span class="unit">(m)</span></label>
+                        <input type="number" id="floodplainWidth" value="8.5" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>闸址河段设计纵坡</label>
+                        <input type="text" id="channelSlopeRatio" value="1/1410" placeholder="例如：1/1410">
+                    </div>
+                    <div class="form-group">
+                        <label>主河槽糙率系数 n</label>
+                        <input type="number" id="mainChannelRoughness" value="0.03" step="0.001">
+                    </div>
+                    <div class="form-group">
+                        <label>滩地糙率系数 n</label>
+                        <input type="number" id="floodplainRoughness" value="0.06" step="0.001">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3: 水文设计参数 -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2><span class="icon">💧</span>三、水文设计参数</h2>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-body" id="section3">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>设计洪水标准 <span class="unit">(年一遇)</span></label>
+                        <input type="number" id="floodStandard" value="20" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>设计洪水流量 <span class="unit">(m³/s)</span></label>
+                        <input type="number" id="designFlow" value="174" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>校核洪水流量 <span class="unit">(m³/s)</span></label>
+                        <input type="number" id="checkFlow" value="250" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>校核洪水位 <span class="unit">(m)</span></label>
+                        <input type="number" id="checkWaterLevel" value="78.60" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>闸下设计水位 <span class="unit">(m)</span></label>
+                        <input type="number" id="downstreamWaterLevel" value="77.52" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>正常蓄水位 <span class="unit">(m)</span></label>
+                        <input type="number" id="normalStorageLevel" value="76.60" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>设计闸底板高程 <span class="unit">(m)</span></label>
+                        <input type="number" id="gateSillElevation" value="73.10" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>闸址现状地面高程 <span class="unit">(m)</span></label>
+                        <input type="number" id="groundElevation" value="78.80" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>上游行进流速 <span class="unit">(m/s)</span></label>
+                        <input type="number" id="approachVelocity" value="0" step="0.01">
+                        <span class="hint">通常不计入行进流速时为0</span>
+                    </div>
+                    <div class="form-group">
+                        <label>计算风速 <span class="unit">(m/s)</span></label>
+                        <input type="number" id="windSpeed" value="22.5" step="0.1">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: 工程地质参数 -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2><span class="icon">🏔️</span>四、工程地质参数</h2>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-body" id="section4">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>闸基持力层类型</label>
+                        <select id="foundationType">
+                            <option value="卵石（土）" selected>卵石（土）</option>
+                            <option value="细砂">细砂</option>
+                            <option value="砂壤土">砂壤土</option>
+                            <option value="壤土">壤土</option>
+                            <option value="黏土">黏土</option>
+                            <option value="中砂">中砂</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>地基承载力特征值 <span class="unit">(kPa)</span></label>
+                        <input type="number" id="foundationBearing" value="300" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>闸基摩擦系数 f</label>
+                        <input type="number" id="frictionCoefficient" value="0.50" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>持力层厚度 <span class="unit">(m)</span></label>
+                        <input type="text" id="bearingLayerThickness" value="7.00-11.10" placeholder="范围或数值">
+                    </div>
+                    <div class="form-group">
+                        <label>持力层底高程 <span class="unit">(m)</span></label>
+                        <input type="text" id="bearingLayerBottom" value="60.11-62.07" placeholder="范围或数值">
+                    </div>
+                    <div class="form-group">
+                        <label>压缩模量 Es1-2 <span class="unit">(MPa)</span></label>
+                        <input type="number" id="compressionModulus" value="24" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>渗透系数 k <span class="unit">(cm/s)</span></label>
+                        <input type="number" id="permeabilityCoefficient" value="0.001" step="0.0001">
+                    </div>
+                    <div class="form-group">
+                        <label>卵石含量 <span class="unit">(%)</span></label>
+                        <input type="text" id="gravelContent" value="50-80" placeholder="范围">
+                    </div>
+                    <div class="form-group">
+                        <label>卵石粒径范围 <span class="unit">(cm)</span></label>
+                        <input type="text" id="gravelSize" value="2-20" placeholder="例如：2-20">
+                    </div>
+                    <div class="form-group">
+                        <label>排水条件</label>
+                        <select id="drainageCondition">
+                            <option value="有滤层" selected>有滤层</option>
+                            <option value="无滤层">无滤层</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>地震基本烈度</label>
+                        <select id="seismicIntensity">
+                            <option value="6">VI度</option>
+                            <option value="7">VII度</option>
+                            <option value="8" selected>VIII度</option>
+                            <option value="9">IX度</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>地震动峰值加速度 <span class="unit">(g)</span></label>
+                        <input type="number" id="seismicAcceleration" value="0.20" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>地质年代</label>
+                        <input type="text" id="geologicalAge" value="第四系全新统冲洪积" placeholder="地质年代">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 5: 建筑物设计等级 -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2><span class="icon">🏗️</span>五、建筑物设计等级与结构类型</h2>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-body" id="section5">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>永久性水工建筑物级别</label>
+                        <select id="structureGrade">
+                            <option value="1">1级</option>
+                            <option value="2">2级</option>
+                            <option value="3">3级</option>
+                            <option value="4" selected>4级</option>
+                            <option value="5">5级</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>水闸类型</label>
+                        <select id="sluiceType">
+                            <option value="开敞式" selected>开敞式</option>
+                            <option value="胸墙式">胸墙式</option>
+                            <option value="涵洞式">涵洞式</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>堰型</label>
+                        <select id="weirType">
+                            <option value="宽顶堰" selected>宽顶堰</option>
+                            <option value="实用堰">实用堰</option>
+                            <option value="薄壁堰">薄壁堰</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>闸室结构形式</label>
+                        <select id="chamberStructureType">
+                            <option value="整体式" selected>整体式（三孔一联）</option>
+                            <option value="分离式">分离式</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>闸门类型</label>
+                        <select id="gateType">
+                            <option value="平面钢闸门" selected>平面钢闸门</option>
+                            <option value="弧形钢闸门">弧形钢闸门</option>
+                            <option value="翻板闸门">翻板闸门</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>水闸功能</label>
+                        <select id="sluiceFunction">
+                            <option value="节制闸" selected>节制闸（蓄水+泄洪）</option>
+                            <option value="进水闸">进水闸</option>
+                            <option value="分洪闸">分洪闸</option>
+                            <option value="排水闸">排水闸</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>闸墩与两岸连接方式</label>
+                        <select id="bankConnection">
+                            <option value="边墩直接连接" selected>边墩直接连接</option>
+                            <option value="翼墙连接">翼墙连接</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 6: 闸孔设计参数 -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2><span class="icon">📐</span>六、闸孔设计参数</h2>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-body" id="section6">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>闸孔总净宽 <span class="unit">(m) — 自动计算</span></label>
+                        <input type="number" id="gateTotalWidth" value="0" step="0.01" readonly style="background:#eee;">
+                    </div>
+                    <div class="form-group">
+                        <label>单孔净宽 <span class="unit">(m)</span></label>
+                        <input type="number" id="singleGateWidth" value="6" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>闸孔数量 <span class="unit">(孔)</span></label>
+                        <input type="number" id="gateCount" value="3" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>中墩厚度 <span class="unit">(m)</span></label>
+                        <input type="number" id="middlePierThickness" value="1.2" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>边墩厚度 <span class="unit">(m)</span></label>
+                        <input type="number" id="sidePierThickness" value="1.0" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>闸底板顺水流方向长度 <span class="unit">(m)</span></label>
+                        <input type="number" id="floorLength" value="14" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>闸底板厚度 <span class="unit">(m)</span></label>
+                        <input type="number" id="floorThickness" value="1.2" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>铺盖长度 <span class="unit">(m)</span></label>
+                        <input type="number" id="blanketLength" value="15" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>铺盖厚度 <span class="unit">(m)</span></label>
+                        <input type="number" id="blanketThickness" value="0.5" step="0.1">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 7: 消能防冲参数 -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2><span class="icon">💨</span>七、消能防冲设计参数</h2>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-body" id="section7">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>水跃淹没系数 σ₀</label>
+                        <input type="number" id="jumpSubmergence" value="1.05" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>水跃长度校正系数 β</label>
+                        <input type="number" id="jumpCorrection" value="0.75" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>水流动能校正系数 α</label>
+                        <input type="number" id="kineticCorrection" value="1.0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>消力池底板计算系数 K₁</label>
+                        <input type="number" id="stillingBasinK1" value="0.2" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>海漫长度计算系数 Ks</label>
+                        <input type="number" id="riprapKs" value="9" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>过闸单宽流量 <span class="unit">(m³/s/m) — 自动计算</span></label>
+                        <input type="number" id="unitDischarge" value="0" step="0.001" readonly style="background:#eee;">
+                    </div>
+                    <div class="form-group">
+                        <label>河床土质类型</label>
+                        <select id="bedMaterial">
+                            <option value="粉质黏土" selected>粉质黏土</option>
+                            <option value="粉砂、细砂">粉砂、细砂</option>
+                            <option value="中砂、粗砂、粉质土壤">中砂、粗砂、粉质土壤</option>
+                            <option value="坚硬黏土">坚硬黏土</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>消力池末端河床水深 <span class="unit">(m)</span></label>
+                        <input type="number" id="downstreamDepth" value="4.42" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>海漫末端不冲流速 <span class="unit">(m/s)</span></label>
+                        <input type="number" id="nonScouringVelocity" value="0.7" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>消力池首端宽度 <span class="unit">(m)</span></label>
+                        <input type="number" id="stillingPoolB1" value="22.4" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>消力池末端宽度 <span class="unit">(m)</span></label>
+                        <input type="number" id="stillingPoolB2" value="22.4" step="0.1">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 8: 结构材料参数 -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2><span class="icon">⚙️</span>八、结构材料与荷载参数</h2>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-body" id="section8">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>混凝土强度等级</label>
+                        <select id="concreteGrade">
+                            <option value="C25">C25</option>
+                            <option value="C30" selected>C30</option>
+                            <option value="C35">C35</option>
+                            <option value="C40">C40</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>混凝土轴心抗压强度 fc <span class="unit">(N/mm²)</span></label>
+                        <input type="number" id="concreteFc" value="14.3" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>混凝土轴心抗拉强度 ft <span class="unit">(N/mm²)</span></label>
+                        <input type="number" id="concreteFt" value="1.43" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>混凝土弹性模量 Eh <span class="unit">(×10⁴ MPa)</span></label>
+                        <input type="number" id="concreteEh" value="3.0" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>钢筋类型</label>
+                        <select id="rebarType">
+                            <option value="HRB400" selected>HRB400</option>
+                            <option value="HPB300">HPB300</option>
+                            <option value="HRB500">HRB500</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>钢筋抗拉强度 fy <span class="unit">(N/mm²)</span></label>
+                        <input type="number" id="rebarFy" value="360" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>钢筋抗压强度 fy' <span class="unit">(N/mm²)</span></label>
+                        <input type="number" id="rebarFyPrime" value="360" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>钢筋混凝土重度 <span class="unit">(kN/m³)</span></label>
+                        <input type="number" id="concreteDensity" value="25" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>水的重度 <span class="unit">(kN/m³)</span></label>
+                        <input type="number" id="waterDensity" value="9.81" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>重力加速度 g <span class="unit">(m/s²)</span></label>
+                        <input type="number" id="gravity" value="9.81" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>结构安全系数 γd</label>
+                        <input type="number" id="safetyFactor" value="1.2" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>混凝土保护层厚度 c <span class="unit">(mm)</span></label>
+                        <input type="number" id="coverThickness" value="45" step="5">
+                    </div>
+                    <div class="form-group">
+                        <label>启闭机型号</label>
+                        <input type="text" id="hoistModel" value="QPQ-2×160" placeholder="例如：QPQ-2×160">
+                    </div>
+                    <div class="form-group">
+                        <label>启闭力 <span class="unit">(kN)</span></label>
+                        <input type="number" id="hoistForce" value="320" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>启门高度 <span class="unit">(m)</span></label>
+                        <input type="number" id="hoistHeight" value="6.2" step="0.1">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 9: 防渗设计参数 -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2><span class="icon">🔍</span>九、防渗排水设计参数</h2>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-body" id="section9">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>允许渗径系数 C</label>
+                        <input type="number" id="seepageCoefficientC" value="5" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>齿墙深度 <span class="unit">(m)</span></label>
+                        <input type="number" id="cutoffWallDepth" value="1.0" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>板桩入土深度 <span class="unit">(m)</span></label>
+                        <input type="number" id="sheetPileDepth" value="3.0" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>出口段容许坡降值 [J₀]</label>
+                        <input type="number" id="allowableGradient" value="0.5" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>水平段容许坡降值 [Jₓ]</label>
+                        <input type="number" id="allowableHorizontalGradient" value="0.25" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>地基土变形模量 Es <span class="unit">(MPa)</span></label>
+                        <input type="number" id="soilDeformationModulus" value="8" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>静止侧压力系数 K₀</label>
+                        <input type="number" id="earthPressureK0" value="0.53" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>填土有效内摩擦角 φ' <span class="unit">(°)</span></label>
+                        <input type="number" id="soilFrictionAngle" value="28" step="1">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 10: 闸室布置参数 -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2><span class="icon">🏛️</span>十、闸室布置详细参数</h2>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-body" id="section10">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>闸顶高程 <span class="unit">(m) — 自动计算</span></label>
+                        <input type="number" id="gateTopElevation" value="0" step="0.01" readonly style="background:#eee;">
+                    </div>
+                    <div class="form-group">
+                        <label>风区长度 D <span class="unit">(m)</span></label>
+                        <input type="number" id="windFetch" value="235" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>风区平均水深 Hm <span class="unit">(m)</span></label>
+                        <input type="number" id="windAvgDepth" value="5.5" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>闸前水深 H <span class="unit">(m)</span></label>
+                        <input type="number" id="upstreamDepth" value="5.5" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>波列累积频率 p <span class="unit">(%)</span></label>
+                        <input type="number" id="waveFrequency" value="10" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>闸墩高度 <span class="unit">(m)</span></label>
+                        <input type="number" id="pierHeight" value="6.5" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>交通桥宽度 <span class="unit">(m)</span></label>
+                        <input type="number" id="trafficBridgeWidth" value="7" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>工作桥宽度 <span class="unit">(m)</span></label>
+                        <input type="number" id="workingBridgeWidth" value="4" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>上游翼墙长度 <span class="unit">(m)</span></label>
+                        <input type="number" id="upstreamWingWall" value="10" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>下游翼墙长度 <span class="unit">(m)</span></label>
+                        <input type="number" id="downstreamWingWall" value="10" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>翼墙圆弧半径 <span class="unit">(m)</span></label>
+                        <input type="number" id="wingWallRadius" value="10" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>上游岸墙高度 <span class="unit">(m)</span></label>
+                        <input type="number" id="upstreamBankWall" value="5.7" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>下游岸墙高度 <span class="unit">(m)</span></label>
+                        <input type="number" id="downstreamBankWall" value="6.2" step="0.1">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions">
+            <button class="btn btn-primary" onclick="validateAndCalculate()">
+                🔍 第一步：参数验证与设计计算
+            </button>
+            <button class="btn btn-success" id="genThesisBtn" onclick="generateThesis()" disabled>
+                📄 第二步：生成毕业设计论文（Word文档）
+            </button>
+            <button class="btn btn-info" onclick="openDrawingPage()" style="background:linear-gradient(135deg,#11998e,#38ef7d);color:#fff;border:none;">
+                生成工程图纸
+            </button>
+            <button class="btn btn-secondary" onclick="resetForm()">
+                🔄 重置参数
+            </button>
+        </div>
+    </div>
+
+    <!-- Result Panel -->
+    <div class="result-panel" id="resultPanel">
+        <h2>📊 验证与计算结果</h2>
+        <div id="validationResults"></div>
+        <div id="calculationResults"></div>
+    </div>
+</div>
+
+
+    <!-- 3D 仿真模型面板 -->
+    <div class="model-panel" id="modelPanel">
+        <div class="model-header">
+            <h2><span>🏗️</span> 三维结构仿真模型</h2>
+            <div class="model-toolbar">
+                <button id="viewFront" onclick="setView('front')" class="active">正视</button>
+                <button id="viewTop" onclick="setView('top')">俯视</button>
+                <button id="viewSide" onclick="setView('side')">侧视</button>
+                <button id="viewIso" onclick="setView('iso')">轴测</button>
+                <button onclick="toggleWater()">💧 水流</button>
+                <button id="gateBtn" onclick="toggleGate()">🔓 开闸</button>
+                <button onclick="resetCamera()">🔄 重置</button>
+            </div>
+        </div>
+        <div class="gate-control">
+            <span class="gate-label">🔓 闸门开度</span>
+            <input type="range" id="gateSlider" min="0" max="100" value="0" step="1" oninput="setGateOpen(this.value/100)">
+            <span class="gate-value" id="gateValue">0%</span>
+            <span class="gate-flow" id="gateFlowInfo">闸门关闭 · 无过闸水流</span>
+        </div>
+        <div class="model-body" id="modelBody">
+            <div class="model-info" id="modelInfo">点击计算后生成模型</div>
+            <div class="model-legend">
+                <span><span class="dot" style="background:#b0b0b0;"></span> 混凝土</span>
+                <span><span class="dot" style="background:#555;"></span> 钢闸门</span>
+                <span><span class="dot" style="background:#8B7355;"></span> 地基</span>
+                <span><span class="dot" style="background:rgba(0,100,200,0.4);"></span> 水体</span>
+                <span><span class="dot" style="background:rgba(47,143,255,0.7);"></span> 过闸水流</span>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Three.js 本地文件 (完全离线可用) -->
+<script src="three.min.js"></script>
+<script src="OrbitControls.js"></script>
+
+<!-- 论文生成引擎（纯前端，无需后端服务） -->
+<script src="jszip.min.js"></script>
+<script src="template_data.js"></script>
+<script src="calc.js"></script>
+
+<!-- Loading Overlay -->
+<div class="loading" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">正在进行参数验证与设计计算...</div>
+</div>
+
+<script>
+// ============================================================
+// 水闸设计参数验证与计算引擎 (SL265-2016) + 3D 仿真
+// 纯前端实现，无需后端服务
+// ============================================================
+
+// ============ 3D 仿真全局变量 ============
+var scene, camera, renderer, controls, modelGroup, waterGroup, flowGroup;
+var currentModelData = null;
+var waterVisible = true;
+
+// 闸门启闭与水流状态
+var gateMeshes = [];        // 闸门网格引用
+var gateBaseY = [];         // 闸门初始中心高度
+var gateOpenRatio = 0;      // 当前开度 0~1
+var gateTargetRatio = 0;    // 目标开度（动画过渡）
+var gateModel = null;       // 当前水闸模型参数
+var flowJetMeshes = [];     // 过闸水流（水舌 / 泡沫）
+var flowParticles = [];     // 水流粒子
+var dsWaterMesh = null;     // 下游水面
+
+function init3DScene() {
+    var container = document.getElementById('modelBody');
+    var w = container.clientWidth;
+    var h = container.clientHeight || 500;
+
+    // 场景
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB);
+    scene.fog = new THREE.Fog(0x87CEEB, 40, 120);
+
+    // 相机
+    camera = new THREE.PerspectiveCamera(50, w / h, 0.5, 200);
+    camera.position.set(42, 30, 48);
+    camera.lookAt(0, 4, 0);
+
+    // 渲染器
+    renderer = new THREE.WebGLRenderer({antialias: true});
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    // OrbitControls
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 4, 0);
+    controls.maxPolarAngle = Math.PI * 0.5;
+    controls.minDistance = 8;
+    controls.maxDistance = 120;
+    controls.update();
+
+    // 光照
+    var ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+    var sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    sunLight.position.set(30, 40, 20);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.set(2048, 2048);
+    sunLight.shadow.camera.near = 0.5;
+    sunLight.shadow.camera.far = 150;
+    sunLight.shadow.camera.left = -50;
+    sunLight.shadow.camera.right = 50;
+    sunLight.shadow.camera.top = 50;
+    sunLight.shadow.camera.bottom = -50;
+    scene.add(sunLight);
+
+    // 网格地面
+    var gridHelper = new THREE.GridHelper(60, 40, 0x666666, 0xcccccc);
+    gridHelper.position.y = -0.01;
+    scene.add(gridHelper);
+
+    // 模型容器
+    modelGroup = new THREE.Group();
+    scene.add(modelGroup);
+    waterGroup = new THREE.Group();
+    scene.add(waterGroup);
+    flowGroup = new THREE.Group();
+    scene.add(flowGroup);
+
+    // 默认建一个模型预览（用典型计算结果）
+    buildWaterGateModel({
+        gateCount: 3, singleGateWidth: 6, middlePierThickness: 1.2, sidePierThickness: 1.0,
+        floorLength: 14, floorThickness: 1.2, pierHeight: 6.5,
+        gateSillElevation: 73.10, downstreamWaterLevel: 77.52,
+        blanketLength: 15, stillingPoolDepth: 1.2, stillingPoolLength: 16, riprapLength: 30,
+        downstreamWingWall: 10, upstreamWingWall: 10, wingWallRadius: 10,
+        trafficBridgeWidth: 7, workingBridgeWidth: 4
+    }, {upstreamWL: 77.40, dsDepth: 4.42, totalWidth: 22.4});
+
+    // 响应式
+    window.addEventListener('resize', function() {
+        var w2 = container.clientWidth;
+        var h2 = container.clientHeight || 500;
+        camera.aspect = w2 / h2;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w2, h2);
+    });
+
+    // 动画循环
+    var lastTime = performance.now();
+    function animate() {
+        requestAnimationFrame(animate);
+        var now = performance.now();
+        var dt = Math.min((now - lastTime) / 1000, 0.1);
+        lastTime = now;
+
+        // 闸门平滑启闭动画
+        if (Math.abs(gateOpenRatio - gateTargetRatio) > 0.0005) {
+            gateOpenRatio += (gateTargetRatio - gateOpenRatio) * 0.1;
+            if (Math.abs(gateOpenRatio - gateTargetRatio) < 0.001) gateOpenRatio = gateTargetRatio;
+            applyGatePositions();
+            updateFlowVisuals();
+        }
+
+        // 水流动态模拟
+        animateFlow(dt);
+
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+}
+
+// ============ 构建 3D 水闸模型 ============
+function buildWaterGateModel(data, gate) {
+    // 清空旧模型
+    while (modelGroup.children.length > 0) modelGroup.remove(modelGroup.children[0]);
+    while (waterGroup.children.length > 0) waterGroup.remove(waterGroup.children[0]);
+    dsWaterMesh = null;
+
+    var n = parseInt(data.gateCount) || 3;
+    var b0 = parseFloat(data.singleGateWidth) || 6;
+    var dp = parseFloat(data.middlePierThickness) || 1.2;
+    var dside = parseFloat(data.sidePierThickness) || 1.0;
+    var fl = parseFloat(data.floorLength) || 14;
+    var ft = parseFloat(data.floorThickness) || 1.2;
+    var ph = parseFloat(data.pierHeight) || 6.5;
+    var B_total = n * b0 + (n - 1) * dp + 2 * dside;
+    var blanketLen = parseFloat(data.blanketLength) || 15;
+    var spDepth = parseFloat(data.stillingPoolDepth) || 0;
+    var spLen = parseFloat(data.stillingPoolLength) || 0;
+    var rpLen = parseFloat(data.riprapLength) || 0;
+    var wwUp = parseFloat(data.upstreamWingWall) || 10;
+    var wwDn = parseFloat(data.downstreamWingWall) || 10;
+    var tw = parseFloat(data.trafficBridgeWidth) || 7;
+    var wbw = parseFloat(data.workingBridgeWidth) || 4;
+    var gateH = ph - 0.8; // 闸门高度（闸墩顶下留启闭空间）
+
+    // 河道断面参数（相对闸底板顶面 y=0）
+    var sill = parseFloat(data.gateSillElevation) || 73.10;
+    var dsWL = parseFloat(data.downstreamWaterLevel) || 77.52;
+    var floodElev = parseFloat(data.floodplainElevation) || 75.00;
+    var groundElev = parseFloat(data.groundElevation) || 78.80;
+    var cbw = parseFloat(data.channelBottomWidth) || 20;   // 河底宽
+    var fpw = parseFloat(data.floodplainWidth) || 8.5;     // 滩地宽
+    var bedY = -(Math.max(spDepth, 0.5) + 0.8);            // 河底相对高程（消力池底板下 0.8m）
+    var floodY = floodElev - sill;                         // 滩地相对高程
+    var groundY = groundElev - sill;                       // 地面相对高程
+    if (bedY >= -0.5) bedY = -0.5;
+    if (floodY <= bedY) floodY = bedY + 1.5;
+    if (groundY <= floodY) groundY = floodY + 3.5;
+
+    // 材质
+    var matConcrete = new THREE.MeshLambertMaterial({color: 0xcdd0d2});
+    var matConcreteDark = new THREE.MeshLambertMaterial({color: 0x9e9e9e});
+    var matSteel = new THREE.MeshLambertMaterial({color: 0x4a4a4a});
+    var matGround = new THREE.MeshLambertMaterial({color: 0x8B7355});
+    var matRiverbed = new THREE.MeshLambertMaterial({color: 0x6B5B45});
+    var matWater = new THREE.MeshLambertMaterial({color: 0x1f6f8b, transparent: true, opacity: 0.55});
+    var matRoof = new THREE.MeshLambertMaterial({color: 0x4a5560});
+    var matRiprap = new THREE.MeshLambertMaterial({color: 0xa8a8a8});
+    var matSoil = new THREE.MeshLambertMaterial({color: 0xa08458});     // 表层土（黄褐，亮一些）
+    var matSoilDark = new THREE.MeshLambertMaterial({color: 0x5f5138}); // 深层土（深棕）
+    var matGrass = new THREE.MeshLambertMaterial({color: 0x7cb342});    // 滩地草皮（鲜明草绿）
+    var matGrassDark = new THREE.MeshLambertMaterial({color: 0x558b2f}); // 暗草（岸坡上）
+    var matStone = new THREE.MeshLambertMaterial({color: 0xb8bec4});    // 浆砌石护坡（浅灰白）
+    var matTree = new THREE.MeshLambertMaterial({color: 0x5d4037});     // 树干（深棕）
+    var matLeaf = new THREE.MeshLambertMaterial({color: 0x2e7d32});     // 树冠（深绿）
+
+    function box(w, h, d, mat, x, y, z, rotY) {
+        var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+        m.position.set(x, y, z);
+        if (rotY) m.rotation.y = rotY;
+        m.castShadow = true; m.receiveShadow = true;
+        modelGroup.add(m);
+        return m;
+    }
+
+    // ===== 上下游河道（土体：河床底 + 岸坡 + 滩地 + 岸顶，梯形复式断面） =====
+    var upChanLen = 16;   // 上游纯河道长度
+    var dnChanLen = 16;   // 下游纯河道长度
+    var zMin = -fl / 2 - blanketLen - upChanLen;
+    var zMax = fl / 2 + spLen + rpLen + dnChanLen;
+    var totalLen = zMax - zMin;
+    var totalZc = (zMin + zMax) / 2;
+    var chanW = Math.max(cbw, B_total);   // 主槽底宽（取河底宽与闸室宽的较大者，保证与边墩对齐）
+    var chanHalf = chanW / 2;
+
+    // 河道断面构建（zc=中心，zl=长度）：岸坡 + 草坡覆盖 + 滩地 + 岸顶绿化 + 树木
+    function channelBank(zc, zl) {
+        var dh = floodY - bedY;                     // 岸坡高差
+        var slopeX = 2 * dh;                        // 岸坡水平投影（边坡 1:2）
+        var slopeLen = Math.sqrt(dh * dh + slopeX * slopeX);
+        var theta = Math.atan2(dh, slopeX);         // 坡角
+        var slopeCx = chanHalf + slopeX / 2;        // 岸坡中心 X
+        for (var s = -1; s <= 1; s += 2) {
+            // 裸土岸坡
+            var sp = new THREE.Mesh(new THREE.BoxGeometry(slopeLen, 0.35, zl), matSoil);
+            sp.rotation.z = -s * theta;             // 坡向河道
+            sp.position.set(s * slopeCx, (bedY + floodY) / 2, zc);
+            sp.castShadow = true; sp.receiveShadow = true;
+            modelGroup.add(sp);
+            // 岸坡上半覆盖草皮（让土与草分清，延伸到岸坡最上端与滩地连接）
+            var grassLen = slopeLen * 0.72;
+            var grassX = s * (chanHalf + slopeX * 0.64);
+            var grassY = (bedY + floodY) / 2 + dh * 0.22;
+            var grass = new THREE.Mesh(new THREE.BoxGeometry(grassLen, 0.12, zl), matGrassDark);
+            grass.rotation.z = -s * theta;
+            grass.position.set(grassX, grassY, zc);
+            grass.receiveShadow = true;
+            modelGroup.add(grass);
+        }
+        // 滩地
+        var fpCx = chanHalf + slopeX + fpw / 2;     // 滩地中心 X
+        box(fpw, 0.5, zl, matGrass, -fpCx, floodY - 0.25, zc);
+        box(fpw, 0.5, zl, matGrass, fpCx, floodY - 0.25, zc);
+        // 岸顶绿化（草绿色）
+        var dh2 = groundY - floodY;                 // 岸顶高差
+        var bankW = 2 * dh2 + 3;                    // 岸顶土体宽
+        var bankCx = chanHalf + slopeX + fpw + bankW / 2;
+        box(bankW, dh2 + 0.3, zl, matGrass, -bankCx, (floodY + groundY) / 2, zc);
+        box(bankW, dh2 + 0.3, zl, matGrass, bankCx, (floodY + groundY) / 2, zc);
+        // 树木（沿 z 方向每 12m 一棵，每岸两排）
+        for (var ts = -1; ts <= 1; ts += 2) {
+            var treesPerSide = Math.max(2, Math.floor(zl / 12));
+            for (var ti = 0; ti < treesPerSide; ti++) {
+                var tz = zc - zl / 2 + (ti + 0.5) * (zl / treesPerSide);
+                var tx = ts * (chanHalf + slopeX + fpw + bankW * 0.3);
+                // 树干
+                var trunk = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.15, 0.22, 1.6, 6), matTree);
+                trunk.position.set(tx, groundY + 0.8, tz);
+                trunk.castShadow = true;
+                modelGroup.add(trunk);
+                // 树冠（圆锥）
+                var crown = new THREE.Mesh(
+                    new THREE.ConeGeometry(1.1, 2.4, 8), matLeaf);
+                crown.position.set(tx, groundY + 2.6, tz);
+                crown.castShadow = true;
+                modelGroup.add(crown);
+            }
+        }
+    }
+
+    // 连续河床底（土色，覆盖整个河道范围）
+    box(chanW, 0.5, totalLen, matSoilDark, 0, bedY - 0.25, totalZc);
+
+    // 连续岸坡 + 滩地 + 岸顶（覆盖整个 z 范围，闸室段两侧也保留土体岸坡）
+    channelBank(totalZc, totalLen);
+
+    // ===== 上游铺盖 =====
+    box(B_total, ft * 0.4, blanketLen, matConcreteDark, 0, -ft * 0.2, -fl / 2 - blanketLen / 2);
+
+    // ===== 闸室底板 =====
+    box(B_total, ft, fl, matConcrete, 0, -ft / 2, 0);
+
+    // ===== 消力池（下游下挖：钢筋混凝土池底 + 消力坎 + 两侧导墙） =====
+    if (spLen > 0) {
+        // 池底板（下挖）
+        box(B_total, ft, spLen, matConcreteDark, 0, -spDepth - ft / 2, fl / 2 + spLen / 2);
+        // 消力坎（尾槛，池末端）
+        box(B_total, spDepth + 0.5, 0.6, matConcrete, 0, -spDepth / 2 + 0.25, fl / 2 + spLen - 0.3);
+        // 消力池两侧导墙（边墙，约束水流）
+        box(0.5, spDepth + 1.2, spLen, matConcrete, -B_total / 2 + 0.25, -spDepth / 2 + 0.6, fl / 2 + spLen / 2);
+        box(0.5, spDepth + 1.2, spLen, matConcrete, B_total / 2 - 0.25, -spDepth / 2 + 0.6, fl / 2 + spLen / 2);
+    }
+    // ===== 海漫（反滤层 + 浆砌石面板 + 齿坎 + 末端防冲槽） =====
+    if (rpLen > 0) {
+        // 反滤层（碎石垫层，位于面板下方）
+        box(B_total, 0.3, rpLen, matGround, 0, -spDepth * 0.3 - 0.35, fl / 2 + spLen + rpLen / 2);
+        // 海漫面板（浆砌石）
+        box(B_total, 0.3, rpLen, matRiprap, 0, -spDepth * 0.3 - 0.05, fl / 2 + spLen + rpLen / 2);
+        // 齿坎（消能辅助，海漫上 1/3 和 2/3 处各一道）
+        box(B_total, 0.5, 0.3, matConcrete, 0, -spDepth * 0.3 + 0.2, fl / 2 + spLen + rpLen * 0.3);
+        box(B_total, 0.4, 0.3, matConcrete, 0, -spDepth * 0.3 + 0.15, fl / 2 + spLen + rpLen * 0.65);
+        // 海漫末端防冲槽（齿墙下挖）
+        box(B_total, 1.0, 0.6, matConcreteDark, 0, -0.8, fl / 2 + spLen + rpLen + 0.3);
+    }
+
+    // ===== 闸墩（流线型：直段 + 两端半圆墩头） =====
+    for (var i = 0; i <= n; i++) {
+        var isEdge = (i === 0 || i === n);
+        var pierW = isEdge ? dside : dp;
+        var px = -B_total / 2 + dside + i * (b0 + dp) - dp / 2;
+        if (isEdge) px = (i === 0) ? -B_total / 2 + dside / 2 : B_total / 2 - dside / 2;
+
+        // 直段墩身
+        var bodyLen = Math.max(fl - pierW, 1);
+        box(pierW, ph, bodyLen, matConcrete, px, ft + ph / 2, 0);
+
+        // 两端半圆墩头（水平圆柱）
+        var headR = pierW / 2;
+        var headGeo = new THREE.CylinderGeometry(headR, headR, pierW, 20);
+        headGeo.rotateX(Math.PI / 2);
+        var hu = new THREE.Mesh(headGeo, matConcrete);
+        hu.position.set(px, ft + ph / 2, -(fl / 2 - pierW / 2));
+        hu.castShadow = true; hu.receiveShadow = true;
+        modelGroup.add(hu);
+        var hd = hu.clone();
+        hd.position.z = fl / 2 - pierW / 2;
+        modelGroup.add(hd);
+    }
+
+    // ===== 闸门（平面钢闸门，位于下游侧门槽） =====
+    gateMeshes = [];
+    gateBaseY = [];
+    for (var j = 0; j < n; j++) {
+        var gx = -B_total / 2 + dside + b0 / 2 + j * (b0 + dp);
+        var gateMesh = box(b0 - 0.1, gateH, 0.25, matSteel, gx, ft + gateH / 2, fl / 2 - 1.0);
+        gateMeshes.push(gateMesh);
+        gateBaseY.push(ft + gateH / 2);
+    }
+
+    // ===== 交通桥（下游侧桥面） =====
+    box(B_total + 1, 0.7, tw, matConcreteDark, 0, ft + ph + 0.35, fl / 2 - tw / 2);
+
+    // ===== 工作桥 / 检修桥（上游侧） =====
+    box(B_total + 1, 0.5, wbw, matConcreteDark, 0, ft + ph + 0.25, -fl / 2 + wbw / 2);
+
+    // ===== 启闭机排架柱 + 启闭机房（柱子在工作桥与交通桥之间的中央区域） =====
+    var colH = 2.6;
+    var colGap = 2.0; // 柱子沿 X 方向间距
+    // 排架柱 z 位置：避开工作桥（z 范围 -fl/2 ~ -fl/2+wbw）和交通桥（z 范围 fl/2-tw ~ fl/2）
+    // 排在中央 z=±1.5, ±2.5 四排
+    var colZs = [2.5, 1.5, -1.5, -2.5];
+    for (var cx = -B_total / 2; cx <= B_total / 2 + 0.01; cx += colGap) {
+        for (var k = 0; k < colZs.length; k++) {
+            box(0.35, colH, 0.35, matConcrete, cx, ft + ph + colH / 2, colZs[k]);
+        }
+    }
+    // 排架顶大梁（沿 Z 方向，覆盖全部排架柱 + 机房）
+    var beamLen = 6; // 覆盖 z=-3 到 +3
+    box(B_total, 0.5, beamLen, matConcrete, 0, ft + ph + colH + 0.25, 0);
+    // 启闭机房（坐在大梁上）
+    var roomH = 2.4, roomD = 2.2; // 房 z 方向长 2.2，中心 z=0
+    box(B_total, roomH, roomD, matConcreteDark, 0, ft + ph + colH + 0.5 + roomH / 2, 0);
+    // 屋顶（两坡：在 z=0 处屋脊对齐，两板在中央高、两端低）
+    var roofSpan = roomD / 2 + 0.4;
+    var roofSlab1 = box(B_total + 0.6, 0.15, roofSpan, matRoof, 0,
+        ft + ph + colH + 0.5 + roomH + 0.35, -roofSpan / 2);
+    roofSlab1.rotation.x = -0.45;   // +Z 端（z=0）向上
+    var roofSlab2 = box(B_total + 0.6, 0.15, roofSpan, matRoof, 0,
+        ft + ph + colH + 0.5 + roomH + 0.35, +roofSpan / 2);
+    roofSlab2.rotation.x = 0.45;    // -Z 端（z=0）向上
+
+    // ===== 八字翼墙（上游喇叭口，多段渐变高度） =====
+    for (var side = -1; side <= 1; side += 2) {
+        var segs = 6;
+        var spreadUp = 0.45; // 上游展开角度（rad）
+        for (var s = 0; s < segs; s++) {
+            var t = (s + 0.5) / segs;
+            var ang = spreadUp * t;
+            var wallH = ph * 0.75 * (1 - t * 0.75);
+            var segLen = wwUp / segs;
+            var zz = -fl / 2 - segLen * (s + 0.5);
+            var xx = side * (B_total / 2 + Math.sin(ang) * (s + 0.5) * segLen);
+            var ww = box(0.6, wallH, segLen + 0.1, matConcreteDark, xx, ft + wallH / 2, zz, side * ang);
+        }
+    }
+    // ===== 八字翼墙（下游喇叭口） =====
+    for (var side2 = -1; side2 <= 1; side2 += 2) {
+        var segs2 = 6;
+        var spreadDn = 0.4;
+        for (var s2 = 0; s2 < segs2; s2++) {
+            var t2 = (s2 + 0.5) / segs2;
+            var ang2 = spreadDn * t2;
+            var wallH2 = ph * 0.6 * (1 - t2 * 0.7);
+            var segLen2 = wwDn / segs2;
+            var zz2 = fl / 2 + spLen + rpLen + segLen2 * (s2 + 0.5);
+            var xx2 = side2 * (B_total / 2 + Math.sin(ang2) * (s2 + 0.5) * segLen2);
+            box(0.6, wallH2, segLen2 + 0.1, matConcreteDark, xx2, ft + wallH2 / 2, zz2, side2 * ang2);
+        }
+    }
+
+    // ===== 闸室段两侧浆砌石护坡（覆盖岸坡表面）+ 护脚 =====
+    var riprapLen = wwUp + fl + spLen + rpLen + wwDn + 6;   // 护坡沿河道长度
+    var riprapZc = (spLen + rpLen + wwDn - wwUp) / 4;       // 护坡中心 z
+    var bankDh = floodY - bedY;                             // 岸坡高差
+    var bankSlopeX = 2 * bankDh;                            // 岸坡水平投影（1:2）
+    var bankSlopeLen = Math.sqrt(bankDh * bankDh + bankSlopeX * bankSlopeX);
+    var bankTheta = Math.atan2(bankDh, bankSlopeX);
+    var riprapCx = chanHalf + bankSlopeX / 2;               // 护坡中心 X
+    for (var rs = -1; rs <= 1; rs += 2) {
+        // 浆砌石护坡（灰白，覆盖岸坡表面）
+        var rp = new THREE.Mesh(new THREE.BoxGeometry(bankSlopeLen, 0.25, riprapLen), matStone);
+        rp.rotation.z = -rs * bankTheta;
+        rp.position.set(rs * riprapCx, (bedY + floodY) / 2 + 0.05, riprapZc);
+        rp.castShadow = true; rp.receiveShadow = true;
+        modelGroup.add(rp);
+        // 护脚（坡脚压顶，靠河道侧）
+        var toe = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.7, riprapLen), matStone);
+        toe.position.set(rs * (chanHalf + 0.3), bedY + 0.35, riprapZc);
+        toe.castShadow = true; toe.receiveShadow = true;
+        modelGroup.add(toe);
+    }
+
+    // ===== 水面（厚水体，但水线降至闸底板顶面 y=0，让闸门完全可见在水上） =====
+    if (waterVisible) {
+        var upWL = gate.upstreamWL || 77.40;
+        var wDepth = upWL - sill;   // 上游水深（相对闸底板顶面）
+        var dsd = dsWL - sill;      // 下游水深
+        var gateZ = fl / 2 - 1.0;   // 闸门位置（下游侧）
+        // 水线高度（降到闸底板顶面 y=0，确保闸墩/闸门在水上）
+        var upWaterY = 0;           // 上游水线
+        var dnWaterY = 0;           // 下游水线
+        var matRipple = new THREE.MeshLambertMaterial({color: 0xffffff, transparent: true, opacity: 0.45});
+        // 水面波纹（白色细线，模拟水波反光）
+        function addRipples(zc, zl, yLevel) {
+            var step = 3.5;
+            var nR = Math.max(3, Math.floor(zl / step));
+            for (var i = 0; i < nR; i++) {
+                var rx = ((i % 3) - 1) * (chanW / 3.5);
+                var rz = zc - zl / 2 + (i + 0.5) * (zl / nR);
+                var rw = 1.2 + ((i * 13) % 7) * 0.18;
+                var rpl = new THREE.Mesh(new THREE.BoxGeometry(rw, 0.04, 0.12), matRipple);
+                rpl.position.set(rx, yLevel + 0.06, rz);
+                waterGroup.add(rpl);
+            }
+        }
+        // 上游厚水体（从河床底填到闸底板顶面 y=0）
+        if (wDepth > 0) {
+            var usLen = gateZ - zMin;
+            var usZc = (zMin + gateZ) / 2;
+            var usH = -bedY;                                       // 高度 = 0 - bedY
+            var usW = new THREE.Mesh(
+                new THREE.BoxGeometry(chanW, usH, usLen), matWater);
+            usW.position.set(0, bedY / 2, usZc);
+            waterGroup.add(usW);
+            addRipples(usZc, usLen, upWaterY);
+        }
+        // 下游厚水体
+        if (dsd > 0) {
+            var dsLen = zMax - gateZ;
+            var dsZc = (gateZ + zMax) / 2;
+            var dsH = -bedY;
+            var dsW = new THREE.Mesh(
+                new THREE.BoxGeometry(chanW, dsH, dsLen), matWater);
+            dsW.position.set(0, bedY / 2, dsZc);
+            waterGroup.add(dsW);
+            dsWaterMesh = dsW;
+            addRipples(dsZc, dsLen, dnWaterY);
+        } else {
+            dsWaterMesh = null;
+        }
+    }
+
+    // 记录模型参数（用于闸门启闭与水流模拟）
+    gateModel = {
+        n: n, b0: b0, dp: dp, dside: dside, fl: fl, ft: ft, ph: ph, gateH: gateH,
+        spLen: spLen, rpLen: rpLen, B_total: B_total,
+        sill: parseFloat(data.gateSillElevation) || 73.10,
+        upWL: (gate && gate.upstreamWL) ? gate.upstreamWL : 77.40,
+        dsWL: parseFloat(data.downstreamWaterLevel) || 77.52,
+        dsd: dsd || 0
+    };
+    gateModel.gateXs = [];
+    for (var j2 = 0; j2 < n; j2++) gateModel.gateXs.push(-B_total / 2 + dside + b0 / 2 + j2 * (b0 + dp));
+
+    // 重建时复位闸门并重建水流
+    gateOpenRatio = 0;
+    gateTargetRatio = 0;
+    applyGatePositions();
+    ensureFlowJets();
+    updateFlowVisuals();
+    syncGateUI();
+
+    // 更新信息标签
+    document.getElementById('modelInfo').innerHTML =
+        '总宽: ' + B_total.toFixed(1) + 'm | ' +
+        '孔数: ' + n + '×' + b0 + 'm | ' +
+        '闸墩高: ' + ph + 'm | ' +
+        '消力池: ' + spDepth.toFixed(2) + 'm深/' + spLen.toFixed(1) + 'm长 | ' +
+        '海漫: ' + rpLen.toFixed(1) + 'm';
+}
+
+// ============ 相机视角切换 ============
+function setView(view) {
+    ['front','top','side','iso'].forEach(function(v) {
+        document.getElementById('view'+v.charAt(0).toUpperCase()+v.slice(1)).classList.remove('active');
+    });
+    document.getElementById('view'+view.charAt(0).toUpperCase()+view.slice(1)).classList.add('active');
+
+    var t = controls.target.clone();
+    switch (view) {
+        case 'front':   // 正视（下游看上游，闸门立面）
+            camera.position.set(0, 12, 60);
+            t.set(0, 5, 0);
+            break;
+        case 'top':     // 俯视
+            camera.position.set(0, 70, 3);
+            t.set(0, 3, 0);
+            break;
+        case 'side':    // 侧视（沿水流方向看纵剖面）
+            camera.position.set(65, 12, 0);
+            t.set(0, 5, 0);
+            break;
+        case 'iso':     // 轴测
+            camera.position.set(42, 30, 48);
+            t.set(0, 5, 0);
+            break;
+    }
+    controls.target.copy(t);
+    controls.update();
+}
+
+function resetCamera() {
+    camera.position.set(42, 30, 48);
+    controls.target.set(0, 5, 0);
+    controls.update();
+}
+
+function toggleWater() {
+    waterVisible = !waterVisible;
+    if (currentModelData) {
+        buildWaterGateModel(currentModelData.data, currentModelData.gate);
+    }
+}
+
+// ============ 闸门启闭与水流状态模拟 ============
+function applyGatePositions() {
+    if (!gateModel) return;
+    var r = gateOpenRatio;
+    for (var i = 0; i < gateMeshes.length; i++) {
+        gateMeshes[i].position.y = gateBaseY[i] + r * gateModel.gateH;
+    }
+}
+
+function setGateOpen(ratio) {
+    gateTargetRatio = Math.max(0, Math.min(1, ratio));
+    syncGateUI();
+}
+
+function toggleGate() {
+    if (gateTargetRatio > 0.01) setGateOpen(0);
+    else setGateOpen(1);
+}
+
+function syncGateUI() {
+    var s = document.getElementById('gateSlider');
+    var v = document.getElementById('gateValue');
+    var b = document.getElementById('gateBtn');
+    if (s) s.value = Math.round(gateTargetRatio * 100);
+    if (v) v.textContent = Math.round(gateTargetRatio * 100) + '%';
+    if (b) b.textContent = gateTargetRatio > 0.01 ? '🔒 关闸' : '🔓 开闸';
+}
+
+function updateFlowInfo(e) {
+    var el = document.getElementById('gateFlowInfo');
+    if (!el || !gateModel) return;
+    var r = gateOpenRatio;
+    if (r <= 0.01) {
+        el.textContent = '闸门关闭 · 无过闸水流';
+        return;
+    }
+    var gm = gateModel;
+    var B = gm.n * gm.b0;                        // 闸孔总净宽
+    var H = Math.max(gm.upWL - gm.sill, 0);      // 闸前水深（水头）
+    var eEff = Math.min(e, H);                   // 有效开度（不超过水深）
+    // 闸孔出流 Q = μ·b·e·√(2g·H)（μ≈0.62，自由出流近似）
+    var Q = 0.62 * B * eEff * Math.sqrt(2 * 9.81 * H);
+    el.textContent = '开度 ' + Math.round(r * 100) + '% · 过闸流量 Q≈' + Q.toFixed(1) + ' m³/s';
+}
+
+function ensureFlowJets() {
+    if (!flowGroup) { flowGroup = new THREE.Group(); scene.add(flowGroup); }
+    while (flowGroup.children.length > 0) flowGroup.remove(flowGroup.children[0]);
+    flowJetMeshes = [];
+    flowParticles = [];
+    if (!gateModel) return;
+    var gm = gateModel;
+    var matJet = new THREE.MeshLambertMaterial({color: 0x2f8fff, transparent: true, opacity: 0.45});
+    var matFoam = new THREE.MeshLambertMaterial({color: 0xffffff, transparent: true, opacity: 0.7});
+    var z0 = gm.fl / 2 - 2.5;
+    var z1 = gm.fl / 2 + gm.spLen + 2;
+    var jetLen = z1 - z0;
+    var jetW = Math.max(gm.b0 - 0.2, 0.5);
+    for (var j = 0; j < gm.n; j++) {
+        var gx = gm.gateXs[j];
+        // 过闸水流（水舌）
+        var jet = new THREE.Mesh(new THREE.BoxGeometry(jetW, 1, jetLen), matJet);
+        jet.position.set(gx, gm.ft + 0.5, (z0 + z1) / 2);
+        jet.visible = false;
+        flowGroup.add(jet);
+        // 下游水花（泡沫）
+        var foam = new THREE.Mesh(new THREE.BoxGeometry(jetW, 0.12, 2.5), matFoam);
+        foam.position.set(gx, gm.ft + gm.dsd + 0.06, gm.fl / 2 + gm.spLen * 0.25 + 0.5);
+        foam.visible = false;
+        flowGroup.add(foam);
+        flowJetMeshes.push({jet: jet, foam: foam});
+        // 水流粒子
+        for (var k = 0; k < 14; k++) {
+            var pm = new THREE.Mesh(
+                new THREE.SphereGeometry(0.12, 6, 6),
+                new THREE.MeshLambertMaterial({color: 0xcfe8ff, transparent: true, opacity: 0.9}));
+            var hFrac = Math.random();
+            var xOff = (Math.random() - 0.5) * (jetW - 0.2);
+            var zOff = Math.random() * jetLen;
+            pm.position.set(gx + xOff, gm.ft + hFrac, z0 + zOff);
+            pm.visible = false;
+            flowGroup.add(pm);
+            flowParticles.push({mesh: pm, gx: gx, hFrac: hFrac, jetW: jetW, z0: z0, z1: z1});
+        }
+    }
+}
+
+function updateFlowVisuals() {
+    if (!gateModel) return;
+    var gm = gateModel;
+    var r = gateOpenRatio;
+    var e = r * gm.gateH;
+    var wDepth = Math.max(gm.upWL - gm.sill, 0);
+    if (e > wDepth) e = wDepth;
+    var show = r > 0.01 && e > 0.03;
+    for (var i = 0; i < flowJetMeshes.length; i++) {
+        var fj = flowJetMeshes[i];
+        fj.jet.visible = show;
+        fj.foam.visible = show;
+        if (show) {
+            fj.jet.scale.y = e;
+            fj.jet.position.y = gm.ft + e / 2;
+        }
+    }
+    for (var p = 0; p < flowParticles.length; p++) flowParticles[p].mesh.visible = show;
+    updateFlowInfo(e);
+}
+
+function animateFlow(dt) {
+    if (!gateModel) return;
+    var gm = gateModel;
+    var r = gateOpenRatio;
+    // 下游水面波动（水跃湍动），关闭时复位
+    if (dsWaterMesh) {
+        var bob = Math.sin(performance.now() * 0.004) * 0.06 * r;
+        dsWaterMesh.position.y = gm.ft + gm.dsd + bob;
+    }
+    if (r < 0.01) return;
+    var e = r * gm.gateH;
+    var wDepth = Math.max(gm.upWL - gm.sill, 0);
+    if (e > wDepth) e = wDepth;
+    var speed = 2.0 + 7.0 * r; // 下游流速（随开度增大）
+    for (var p = 0; p < flowParticles.length; p++) {
+        var pt = flowParticles[p];
+        var m = pt.mesh;
+        m.position.z += speed * dt;
+        m.position.y = gm.ft + pt.hFrac * e;
+        if (m.position.z > pt.z1) {
+            m.position.z = pt.z0 + Math.random() * 0.5;
+            m.position.x = pt.gx + (Math.random() - 0.5) * (pt.jetW - 0.2);
+            pt.hFrac = Math.random();
+        }
+    }
+}
+
+// ============ 从计算结果更新 3D 模型 ============
+function update3DModel(data, gate, energyRes, seepRes) {
+    try {
+        currentModelData = {
+            data: data,
+            gate: gate,
+            energy: energyRes,
+            seep: seepRes
+        };
+        var enriched = {};
+        for (var k in data) enriched[k] = data[k];
+        enriched.stillingPoolDepth = energyRes ? energyRes.d_pool : 0;
+        enriched.stillingPoolLength = energyRes ? energyRes.L_pool : 0;
+        enriched.riprapLength = energyRes ? energyRes.L_riprap : 0;
+
+        // 确保面板可见且容器有尺寸
+        var panel = document.getElementById('modelPanel');
+        var container = document.getElementById('modelBody');
+        panel.classList.add('show');
+        panel.style.display = 'block';
+
+        // 如果渲染器尺寸不对，重新设置
+        var cw = container.clientWidth;
+        var ch = container.clientHeight || 500;
+        if (cw > 0 && renderer) {
+            renderer.setSize(cw, ch);
+            camera.aspect = cw / ch;
+            camera.updateProjectionMatrix();
+        }
+
+        buildWaterGateModel(enriched, gate);
+
+        // 强制渲染一帧
+        if (renderer && scene && camera) {
+            renderer.render(scene, camera);
+        }
+
+        // 滚动到模型面板
+        panel.scrollIntoView({behavior: 'smooth'});
+    } catch(e) {
+        console.error('3D模型更新失败:', e);
+    }
+}
+
+
+function toggleSection(header) {
+    header.classList.toggle('collapsed');
+    header.nextElementSibling.classList.toggle('collapsed');
+}
+
+function showLoading(text) {
+    document.getElementById('loadingText').textContent = text;
+    document.getElementById('loadingOverlay').classList.add('show');
+}
+function hideLoading() {
+    document.getElementById('loadingOverlay').classList.remove('show');
+}
+function resetForm() {
+    if (confirm('确定要重置所有参数吗？')) location.reload();
+}
+
+function getFormData() {
+    var ids = [
+        'projectName','projectShort','projectAbbr','university','studentName','studentId','college','majorClass','advisor','thesisDate',
+        'riverName','riverSystem','riverLength','riverLengthLocal','basinArea','upReservoir',
+        'reservoirArea','reservoirCapacity','reservoirLength','channelType','channelBottomWidth',
+        'channelSlope','floodplainElevation','floodplainWidth','channelSlopeRatio',
+        'mainChannelRoughness','floodplainRoughness',
+        'floodStandard','designFlow','checkFlow','checkWaterLevel','downstreamWaterLevel','normalStorageLevel',
+        'gateSillElevation','groundElevation','approachVelocity','windSpeed',
+        'foundationType','foundationBearing','frictionCoefficient','bearingLayerThickness',
+        'bearingLayerBottom','compressionModulus','permeabilityCoefficient','gravelContent',
+        'gravelSize','drainageCondition','seismicIntensity','seismicAcceleration','geologicalAge',
+        'structureGrade','sluiceType','weirType','chamberStructureType','gateType',
+        'sluiceFunction','bankConnection',
+        'gateTotalWidth','singleGateWidth','gateCount','middlePierThickness','sidePierThickness',
+        'floorLength','floorThickness','blanketLength','blanketThickness',
+        'jumpSubmergence','jumpCorrection','kineticCorrection','stillingBasinK1','riprapKs',
+        'unitDischarge','bedMaterial','downstreamDepth','nonScouringVelocity',
+        'stillingPoolB1','stillingPoolB2',
+        'concreteGrade','concreteFc','concreteFt','concreteEh','rebarType','rebarFy',
+        'rebarFyPrime','concreteDensity','waterDensity','gravity','safetyFactor',
+        'coverThickness','hoistModel','hoistForce','hoistHeight',
+        'seepageCoefficientC','cutoffWallDepth','sheetPileDepth','allowableGradient',
+        'allowableHorizontalGradient','soilDeformationModulus','earthPressureK0','soilFrictionAngle',
+        'gateTopElevation','windFetch','windAvgDepth','upstreamDepth','waveFrequency',
+        'pierHeight','trafficBridgeWidth','workingBridgeWidth','upstreamWingWall',
+        'downstreamWingWall','wingWallRadius','upstreamBankWall','downstreamBankWall'
+    ];
+    var data = {};
+    ids.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) data[id] = el.value;
+    });
+    return data;
+}
+
+// ============ 一、闸孔总净宽 (SL265-2016 附录A) ============
+function calcGateWidth(d) {
+    var Q = parseFloat(d.designFlow) || 174;
+    var g = parseFloat(d.gravity) || 9.81;
+    var sill = parseFloat(d.gateSillElevation) || 73.10;
+    var dsWL = parseFloat(d.downstreamWaterLevel) || 77.52;
+    var normalWL = parseFloat(d.normalStorageLevel) || 76.60;
+    var n = parseInt(d.gateCount) || 3;
+    var b0 = parseFloat(d.singleGateWidth) || 6;
+    var dp = parseFloat(d.middlePierThickness) || 1.2;
+    var dside = parseFloat(d.sidePierThickness) || 1.0;
+    var v0 = parseFloat(d.approachVelocity) || 0;
+
+    var upWL = Math.max(normalWL + 0.8, dsWL + 0.2);
+    var H = upWL - sill;
+    if (H <= 0) H = 3.5;
+    var H0 = H + v0 * v0 / (2 * g);
+    var hs = dsWL - sill;
+    if (hs < 0) hs = 0;
+
+    var m_weir = (d.weirType === '实用堰') ? 0.48 : (d.weirType === '薄壁堰') ? 0.42 : 0.385;
+    var eps_mid = 1 - 0.171 * (1 - b0 / (b0 + dp)) * Math.pow(H0 / (H0 + dp), 0.25);
+    var eps_side = 1 - 0.171 * (1 - b0 / (b0 + dside)) * Math.pow(H0 / (H0 + dside), 0.25);
+    var epsilon = (eps_mid * (n - 1) + eps_side * 2) / (n + 1);
+
+    var subRatio = hs / H0;
+    var sigmaS = 0;
+    var tab_r = [0.72,0.75,0.78,0.80,0.82,0.84,0.86,0.88,0.90,0.92,0.94,0.96,0.98];
+    var tab_s = [1.00,0.98,0.95,0.93,0.90,0.86,0.82,0.77,0.70,0.61,0.49,0.33,0.00];
+    if (subRatio <= 0.72) sigmaS = 1.0;
+    else if (subRatio >= 0.98) sigmaS = 0;
+    else {
+        for (var i = 0; i < tab_r.length - 1; i++) {
+            if (subRatio >= tab_r[i] && subRatio <= tab_r[i + 1]) {
+                sigmaS = tab_s[i] + (tab_s[i + 1] - tab_s[i]) * (subRatio - tab_r[i]) / (tab_r[i + 1] - tab_r[i]);
+                break;
+            }
+        }
+    }
+
+    var B_assumed = n * b0;
+    var Q_capacity = sigmaS * epsilon * m_weir * B_assumed * Math.sqrt(2 * g) * Math.pow(H0, 1.5);
+    var B_required = sigmaS > 0.01 ? Q / (sigmaS * epsilon * m_weir * Math.sqrt(2 * g) * Math.pow(H0, 1.5)) : 999;
+    var q_unit = B_assumed > 0 ? Q / B_assumed : 0;
+    var B_total = B_assumed + (n - 1) * dp + 2 * dside;
+
+    return {
+        upstreamWL: upWL, headH: H, headH0: H0, dsDepth: hs,
+        subRatio: subRatio, sigmaS: sigmaS, epsilon: epsilon,
+        m_weir: m_weir, assumedWidth: B_assumed, requiredWidth: B_required,
+        capacity: Q_capacity, capacityCheck: Q_capacity >= Q,
+        totalWidth: B_total, unitQ: q_unit
+    };
+}
+
+// ============ 二、消能防冲 (SL265-2016 附录B) ============
+function calcEnergyDissipation(d, gate) {
+    var Q = parseFloat(d.designFlow) || 174;
+    var g = parseFloat(d.gravity) || 9.81;
+    var sill = parseFloat(d.gateSillElevation) || 73.10;
+    var dsWL = parseFloat(d.downstreamWaterLevel) || 77.52;
+    var sigma0 = parseFloat(d.jumpSubmergence) || 1.05;
+    var beta = parseFloat(d.jumpCorrection) || 0.75;
+    var k1 = parseFloat(d.stillingBasinK1) || 0.2;
+    var Ks = parseFloat(d.riprapKs) || 9;
+    var phi = 0.95;
+
+    var B = gate.assumedWidth;
+    if (B <= 0) B = 18;
+    var q = Q / B;
+    var T0 = gate.upstreamWL - sill;
+    var hs = dsWL - sill;
+
+    var hc = 0.3;
+    for (var iter = 0; iter < 100; iter++) {
+        var f = hc + q * q / (2 * g * phi * phi * hc * hc) - T0;
+        var df = 1 - q * q / (g * phi * phi * hc * hc * hc);
+        var dh = -f / df;
+        hc += dh;
+        if (Math.abs(dh) < 1e-6) break;
+    }
+    if (hc <= 0) hc = 0.1;
+
+    var hc2 = hc / 2 * (Math.sqrt(1 + 8 * q * q / (g * hc * hc * hc)) - 1);
+    var deltaH = gate.upstreamWL - dsWL;
+    var dz = q * q / (2 * g) * (1 / (phi * phi * hs * hs) - 1 / (sigma0 * sigma0 * hc2 * hc2));
+    if (dz < 0) dz = 0;
+    var d_pool = sigma0 * hc2 - hs - dz;
+    if (d_pool < 0) d_pool = 0;
+    var Lj = 10.8 * hc * Math.pow(hc2 / hc - 1, 0.93);
+    var L_pool = 1.5 + beta * Lj;
+    var t = k1 * Math.sqrt(q * Math.sqrt(deltaH));
+    var L_riprap = Ks * Math.sqrt(q * Math.sqrt(deltaH));
+
+    return {
+        q: q, T0: T0, hc: hc, hc2: hc2, hs: hs,
+        dz: dz, d_pool: d_pool, Lj: Lj, L_pool: L_pool,
+        t: t, L_riprap: L_riprap, deltaH: deltaH,
+        needPool: hc2 > hs
+    };
+}
+
+// ============ 三、防渗排水 (SL265-2016 第6章) ============
+function calcSeepage(d) {
+    var dsWL = parseFloat(d.downstreamWaterLevel) || 77.52;
+    var normalWL = parseFloat(d.normalStorageLevel) || 76.60;
+    var C = parseFloat(d.seepageCoefficientC) || 4;
+    var floorLen = parseFloat(d.floorLength) || 14;
+    var blanketLen = parseFloat(d.blanketLength) || 15;
+    var cutoffDepth = parseFloat(d.cutoffWallDepth) || 1.0;
+    var sheetPileDepth = parseFloat(d.sheetPileDepth) || 3.0;
+
+    var upWL = Math.max(normalWL, dsWL + 0.3);
+    var deltaH = upWL - dsWL;
+    if (deltaH < 0) deltaH = 0.5;
+
+    var L_h = blanketLen + floorLen;
+    var L_v = cutoffDepth * 2 + sheetPileDepth;
+    var L_actual = L_h + L_v * 1.5;
+    var L_required = C * deltaH;
+    var J_out = deltaH / (L_h + L_v);
+    var J_allow = parseFloat(d.allowableGradient) || 0.5;
+
+    return {
+        deltaH: deltaH, L_h: L_h, L_v: L_v,
+        L_actual: L_actual, L_required: L_required,
+        seepCheck: L_actual >= L_required,
+        J_out: J_out, gradCheck: J_out <= J_allow
+    };
+}
+
+// ============ 四、闸顶高程 (SL265-2016 附录E) ============
+function calcGateTopElevation(d, gate) {
+    var g = parseFloat(d.gravity) || 9.81;
+    var W = parseFloat(d.windSpeed) || 22.5;
+    var Fetch = parseFloat(d.windFetch) || 235;
+    var Hm = parseFloat(d.windAvgDepth) || 5.5;
+    var grade = parseInt(d.structureGrade) || 4;
+    var p = parseFloat(d.waveFrequency) || 10;
+
+    var gF_W2 = g * Fetch / (W * W);
+    var h_m = gF_W2 <= 100
+        ? 0.0018 * Math.pow(gF_W2, 0.45) * W * W / g
+        : 0.0076 * Math.pow(gF_W2, 1/3) * W * W / g * Math.pow(g * Hm / (W * W), 0.5);
+
+    var T_m = 4.438 * Math.sqrt(h_m);
+    var L_m = g * T_m * T_m / (2 * Math.PI);
+    for (var iter = 0; iter < 20; iter++) {
+        var L_new = g * T_m * T_m / (2 * Math.PI) * Math.tanh(2 * Math.PI * Hm / L_m);
+        if (Math.abs(L_new - L_m) < 0.001) break;
+        L_m = L_new;
+    }
+
+    var ratio = p <= 1 ? 2.42 : p <= 5 ? 1.95 : p <= 10 ? 1.71 : 1.36;
+    var h_p = ratio * h_m;
+    var R0 = 1.24 * Math.sqrt(h_p / L_m * 2);
+    var R_p = 0.9 * R0 * h_p;
+    var e_setup = 2.55e-6 * W * W * Fetch / (g * Hm);
+    var A = grade == 1 ? 0.7 : grade == 2 ? 0.5 : grade == 3 ? 0.4 : 0.3;
+    var topElevation = gate.upstreamWL + h_p + R_p + e_setup + A;
+
+    return {
+        h_m: h_m, T_m: T_m, L_m: L_m, h_p: h_p,
+        R_p: R_p, e: e_setup, A: A,
+        topElevation: topElevation
+    };
+}
+
+// ============ 五、闸室稳定 (SL265-2016 第7章) ============
+function calcStability(d, gate) {
+    var gw = parseFloat(d.waterDensity) || 9.81;
+    var gc = parseFloat(d.concreteDensity) || 25;
+    var sill = parseFloat(d.gateSillElevation) || 73.10;
+    var B_total = gate.totalWidth || 22.4;
+    var floorLen = parseFloat(d.floorLength) || 14;
+    var floorThk = parseFloat(d.floorThickness) || 1.2;
+    var pierH = parseFloat(d.pierHeight) || 6.5;
+    var dp = parseFloat(d.middlePierThickness) || 1.2;
+    var dside = parseFloat(d.sidePierThickness) || 1.0;
+    var n = parseInt(d.gateCount) || 3;
+    var b0 = parseFloat(d.singleGateWidth) || 6;
+    var f = parseFloat(d.frictionCoefficient) || 0.50;
+    var bearing = parseFloat(d.foundationBearing) || 300;
+
+    var dsWL = parseFloat(d.downstreamWaterLevel) || 77.52;
+    var upWL = gate.upstreamWL;
+    var A_base = B_total * floorLen;
+
+    var W_floor = gc * A_base * floorThk;
+    var W_piers = gc * dp * floorLen * pierH * (n - 1) + gc * dside * floorLen * pierH * 2;
+    var gateH = upWL - sill + 1.0;
+    var W_gate = b0 * gateH * n * 0.08 * 78.5;
+    var wd_up = upWL - sill;
+    var wd_dn = dsWL - sill;
+    var W_water = gw * b0 * n * floorLen * wd_up * 0.5;
+    var U1 = dsWL > sill ? gw * (dsWL - sill) * A_base : 0;
+    var dH = upWL - dsWL;
+    if (dH < 0) dH = 0;
+    var U2 = gw * dH * A_base * 0.5;
+    var sigmaG = W_floor + W_piers + W_gate + W_water - U1 - U2;
+    var P_up = 0.5 * gw * wd_up * wd_up * B_total;
+    var P_down = -0.5 * gw * wd_dn * wd_dn * B_total;
+    var sigmaH = P_up + P_down;
+    var Kc = sigmaH !== 0 ? f * sigmaG / Math.abs(sigmaH) : 999;
+    var sigma_max = sigmaG / A_base;
+
+    return {
+        sigmaG: sigmaG, sigmaH: sigmaH, Kc: Kc, sigma_max: sigma_max,
+        bearing: bearing, stabCheck: Kc >= 1.2, bearCheck: sigma_max <= bearing
+    };
+}
+
+// ============ 六、参数验证 ============
+function validateParameters(d, gate) {
+    var v = [];
+    var grade = parseInt(d.structureGrade) || 4;
+    var floodStd = parseInt(d.floodStandard) || 20;
+    var expFlood = {1:200, 2:100, 3:50, 4:20, 5:10};
+    var expF = expFlood[grade] || 20;
+    if (floodStd >= expF) {
+        v.push({item:'级别与洪水标准', status:'pass', message: grade+'级，设计洪水≥'+expF+'年（当前'+floodStd+'年），满足SL252-2017'});
+    } else {
+        v.push({item:'级别与洪水标准', status:'fail', message: grade+'级应≥'+expF+'年（当前'+floodStd+'年），不满足'});
+    }
+    if (gate.capacityCheck) {
+        v.push({item:'过流能力', status:'pass', message: 'Q_cap='+gate.capacity.toFixed(2)+'≥Q_design='+(parseFloat(d.designFlow)||174)+'m³/s'});
+    } else {
+        v.push({item:'过流能力', status:'fail', message: '不足，需增大净宽或降低底板高程'});
+    }
+    if (gate.requiredWidth <= 0 || gate.requiredWidth > 500) {
+        v.push({item:'闸孔净宽', status:'warn', message: '淹没度≥0.98，高淹没状态，过流能力极低'});
+    } else {
+        v.push({item:'闸孔净宽', status:'pass', message: '需B='+gate.requiredWidth.toFixed(2)+'m，布置B='+gate.assumedWidth.toFixed(2)+'m'});
+    }
+    var sill = parseFloat(d.gateSillElevation) || 73.10;
+    var ground = parseFloat(d.groundElevation) || 78.80;
+    if (sill < ground - 10) {
+        v.push({item:'底板高程', status:'warn', message: '底板('+sill+'m)远低于地面('+ground+'m)，开挖较深'});
+    } else {
+        v.push({item:'底板高程', status:'pass', message: '底板高程'+sill+'m，布置合理'});
+    }
+    var allowQ = {'粉质黏土':15, '粉砂、细砂':8, '中砂、粗砂、粉质土壤':12, '坚硬黏土':18};
+    var maxQ = allowQ[d.bedMaterial] || 12;
+    if (gate.unitQ <= maxQ) {
+        v.push({item:'单宽流量', status:'pass', message: 'q='+gate.unitQ.toFixed(3)+'≤['+maxQ+']m³/s/m ('+d.bedMaterial+')'});
+    } else {
+        v.push({item:'单宽流量', status:'fail', message: 'q='+gate.unitQ.toFixed(3)+'>['+maxQ+']m³/s/m，需增大闸宽'});
+    }
+    return v;
+}
+
+// ============ 主流程 ============
+function validateAndCalculate() {
+    var data = getFormData();
+    var errors = [];
+    if (!data.studentName) errors.push('请输入学生姓名');
+    if (!data.studentId) errors.push('请输入学号');
+    if (!data.advisor) errors.push('请输入指导教师');
+    if (!data.projectName) errors.push('请输入项目名称');
+    if (errors.length > 0) { alert('请填写以下必填信息：\n' + errors.join('\n')); return; }
+
+    showLoading('正在进行参数验证与设计计算...');
+    setTimeout(function() {
+        try {
+            var gate = calcGateWidth(data);
+            var energy = calcEnergyDissipation(data, gate);
+            var seep = calcSeepage(data);
+            var top = calcGateTopElevation(data, gate);
+            var stab = calcStability(data, gate);
+            var validations = validateParameters(data, gate);
+
+            document.getElementById('gateTotalWidth').value = gate.assumedWidth.toFixed(2);
+            document.getElementById('unitDischarge').value = gate.unitQ.toFixed(3);
+            document.getElementById('gateTopElevation').value = top.topElevation.toFixed(2);
+
+            var calc = [
+                {name:'闸孔总净宽 B', value:gate.assumedWidth.toFixed(2), unit:'m', note:data.gateCount+'孔×'+data.singleGateWidth+'m'},
+                {name:'闸孔总宽（含闸墩）', value:gate.totalWidth.toFixed(2), unit:'m', note:'中墩'+((parseInt(data.gateCount)-1)*parseFloat(data.middlePierThickness)).toFixed(1)+'m+边墩'+(parseFloat(data.sidePierThickness)*2).toFixed(1)+'m'},
+                {name:'所需净宽', value:gate.requiredWidth.toFixed(2), unit:'m', note:'σs='+gate.sigmaS.toFixed(3)+' ε='+gate.epsilon.toFixed(3)},
+                {name:'过流能力', value:gate.capacity.toFixed(2), unit:'m³/s', note:'设计Q='+(parseFloat(data.designFlow)||174)+'m³/s'},
+                {name:'单宽流量 q', value:gate.unitQ.toFixed(3), unit:'m³/s/m', note:'淹没度='+(gate.subRatio*100).toFixed(1)+'%'},
+                {name:'上游设计水位', value:gate.upstreamWL.toFixed(2), unit:'m', note:'正常蓄水位+行近水头'},
+                {name:'收缩断面hc', value:energy.hc.toFixed(3), unit:'m', note:'迭代求解'},
+                {name:'共轭水深hc"', value:energy.hc2.toFixed(3), unit:'m', note:'hc"=hc/2[√(1+8q²/ghc³)-1]'},
+                {name:'消力池深度 d', value:energy.d_pool.toFixed(2), unit:'m', note:energy.needPool?'需要消力池':'远驱水跃无需消力池'},
+                {name:'消力池长度 Lsj', value:energy.L_pool.toFixed(2), unit:'m', note:'Lsj=1.5+βLj'},
+                {name:'底板厚度 t', value:energy.t.toFixed(2), unit:'m', note:'t=K1√(q√ΔH)'},
+                {name:'海漫长度 Lp', value:energy.L_riprap.toFixed(2), unit:'m', note:'Ks='+(parseFloat(data.riprapKs)||9)},
+                {name:'防渗长度(实际)', value:seep.L_actual.toFixed(2), unit:'m', note:'水平'+seep.L_h.toFixed(1)+'+垂直×1.5'},
+                {name:'防渗长度(需要)', value:seep.L_required.toFixed(2), unit:'m', note:'L=C·ΔH, C='+(data.seepageCoefficientC||4)},
+                {name:'出口坡降 J', value:seep.J_out.toFixed(4), unit:'', note:'[J]='+(data.allowableGradient||0.5)+(seep.gradCheck?' 满足':' 不满足')},
+                {name:'平均波高 hm', value:top.h_m.toFixed(3), unit:'m', note:'莆田公式'},
+                {name:'累积波高 hp%', value:top.h_p.toFixed(3), unit:'m', note:'P='+(data.waveFrequency||10)+'%'},
+                {name:'波浪爬高 Rp', value:top.R_p.toFixed(3), unit:'m', note:'安全加高A='+top.A.toFixed(2)+'m'},
+                {name:'闸顶高程', value:top.topElevation.toFixed(2), unit:'m', note:'设计水位+hp+Rp+e+A'},
+                {name:'竖向力 ΣG', value:stab.sigmaG.toFixed(0), unit:'kN', note:'底板+墩+门+水-扬压力'},
+                {name:'水平力 ΣP', value:stab.sigmaH.toFixed(0), unit:'kN', note:'上-下水压力'},
+                {name:'抗滑稳定 Kc', value:stab.Kc.toFixed(2), unit:'', note:'[Kc]=1.20 '+(stab.stabCheck?'满足':'不满足')},
+                {name:'基底应力 σmax', value:stab.sigma_max.toFixed(1), unit:'kPa', note:'['+stab.bearing+'kPa] '+(stab.bearCheck?'满足':'不满足')}
+            ];
+            var hasFail = validations.some(function(vv){return vv.status==='fail';});
+            var result = {valid:!hasFail, validations:validations, calculations:calc};
+
+            hideLoading();
+            showResults(result);
+            update3DModel(data, gate, energy, seep);
+            document.getElementById('genThesisBtn').disabled = false;
+        } catch (err) {
+            hideLoading();
+            alert('计算出错：' + err.message + '\n请检查参数是否完整。');
+        }
+    }, 200);
+}
+
+function showResults(result) {
+    var panel = document.getElementById('resultPanel');
+    panel.classList.add('show');
+    var html = '';
+    if (result.validations && result.validations.length) {
+        html += '<h3 style="margin-bottom:12px;">规范参数验证结果</h3>';
+        result.validations.forEach(function(v) {
+            var cls = v.status==='pass'?'pass':v.status==='warn'?'warn':'fail';
+            var icon = v.status==='pass'?'\u2705':v.status==='warn'?'\u26A0\uFE0F':'\u274C';
+            html += '<div class="validation-item '+cls+'"><span>'+icon+'</span><span><strong>'+v.item+'</strong>: '+v.message+'</span></div>';
+        });
+    }
+    if (result.calculations && result.calculations.length) {
+        html += '<div class="calc-results"><h3>设计计算结果汇总</h3><table>';
+        html += '<tr><th>计算项目</th><th>计算值</th><th>单位</th><th>说明</th></tr>';
+        result.calculations.forEach(function(c) {
+            html += '<tr><td>'+c.name+'</td><td><strong>'+c.value+'</strong></td><td>'+c.unit+'</td><td style="font-size:12px;color:#666;">'+c.note+'</td></tr>';
+        });
+        html += '</table></div>';
+    }
+    document.getElementById('validationResults').innerHTML = html;
+    document.getElementById('calculationResults').innerHTML = '';
+    panel.scrollIntoView({behavior:'smooth'});
+}
+
+// ============ 生成论文 ============
+function generateThesis() {
+    var data = getFormData();
+    if (typeof JSZip === 'undefined' || typeof generateThesisDocx === 'undefined') {
+        alert('论文生成引擎未加载。\n请确认 index.html、calc.js、jszip.min.js、template_data.js 四个文件在同一个文件夹。');
+        return;
+    }
+    showLoading('正在生成毕业设计论文（纯前端，格式完全按模板，约68页）...');
+    generateThesisDocx(data, function(blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = (data.projectName || '水闸设计') + '_毕业设计论文.docx';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        hideLoading();
+        alert('论文生成成功！已下载 .docx 文件（格式完全按模板，约68页）。\n\n说明：纯前端生成，无需启动任何服务。闸孔、消能、防渗、闸顶高程、稳定、配筋、摘要、致谢均已按输入数据联动。');
+    }, function(err) {
+        hideLoading();
+        var m = (err && err.message) ? err.message : String(err);
+        alert('论文生成失败：' + m + '\n\n请确认 index.html、calc.js、jszip.min.js、template_data.js 四个文件在同一个文件夹，且用现代浏览器（Chrome/Edge）打开。');
+    });
+}
+
+function buildThesis(data, gate, energy, seep, top, stab) {
+    var Q = parseFloat(data.designFlow)||174, n = parseInt(data.gateCount)||3, b0 = parseFloat(data.singleGateWidth)||6;
+    var h=''; function r(a,b,c){h+='<tr><td>'+a+'</td><td>'+b+'</td><td>'+c+'</td></tr>';}
+
+    h+='<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>'+data.projectName+' - 毕业设计论文</title>\n<style>\n'+
+      'body{font-family:SimSun,serif;font-size:14px;line-height:1.8;max-width:210mm;margin:20mm auto;padding:10mm;color:#000;}'+
+      'h1{text-align:center;font-size:22px;font-weight:bold;margin-bottom:10px;}'+
+      'h2{font-size:18px;font-weight:bold;margin:20px 0 10px;border-bottom:2px solid #000;padding-bottom:5px;}'+
+      'h3{font-size:16px;font-weight:bold;margin:15px 0 8px;}'+
+      'p{text-indent:2em;margin:8px 0;}'+
+      'table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px;}'+
+      'th,td{border:1px solid #000;padding:6px 8px;text-align:center;}th{background:#ddd;font-weight:bold;}'+
+      '.center{text-align:center;text-indent:0;}.formula{margin:10px 0;text-align:center;font-style:italic;text-indent:0;}'+
+      '</style>\n</head>\n<body>\n';
+
+    h+='<div style="page-break-after:always;"><div style="height:80mm;"></div>'+
+       '<h1 style="font-size:26px;">毕业设计（论文）</h1>'+
+       '<p class="center" style="font-size:20px;margin:40px 0;">'+data.projectName+'</p>'+
+       '<div style="margin:30px 0 0 60mm;font-size:16px;">'+
+       '<p>学&emsp;&emsp;院：'+(data.college||'水利水电学院')+'</p>'+
+       '<p>专&emsp;&emsp;业：'+(data.majorClass||'水工')+'</p>'+
+       '<p>学&emsp;&emsp;号：'+(data.studentId||'')+'</p>'+
+       '<p>学生姓名：'+(data.studentName||'')+'</p>'+
+       '<p>指导教师：'+(data.advisor||'')+'</p>'+
+       '<p>日&emsp;&emsp;期：'+(data.thesisDate||'2026年6月')+'</p>'+
+       '</div></div>';
+
+    h+='<h1>'+data.projectName+'</h1><h1>毕业设计计算书</h1>'+
+       '<h2>1 工程概况</h2>'+
+       '<p>'+data.projectName+'位于'+(data.riverName||'滏阳河')+'上，属'+(data.riverSystem||'子牙河系')+'。河道全长'+(data.riverLength||'403')+'km，流域面积'+(data.basinArea||'2747.8')+'km²。上游'+(data.upReservoir||'东武仕水库')+'控制流域面积'+(data.reservoirArea||'340')+'km²，总库容'+(data.reservoirCapacity||'1.615')+'亿m³。</p>'+
+       '<p>闸址河道为'+(data.channelType||'复式断面')+'，设计底宽'+(data.channelBottomWidth||'20')+'m，边坡'+(data.channelSlope||'1:2')+'，纵坡'+(data.channelSlopeRatio||'1/1410')+'。</p>'+
+
+       '<h2>2 设计基本资料</h2>'+
+       '<h3>2.1 水文资料</h3>'+
+       '<p>设计洪水标准为'+(data.floodStandard||'20')+'年一遇，设计洪水流量Q='+Q+'m³/s，校核洪水流量'+(data.checkFlow||'250')+'m³/s。</p>'+
+       '<p>闸下设计水位'+(data.downstreamWaterLevel||'77.52')+'m，正常蓄水位'+(data.normalStorageLevel||'76.60')+'m。</p>'+
+       '<h3>2.2 工程地质</h3>'+
+       '<p>闸基持力层为'+(data.foundationType||'卵石（土）')+'，地基承载力'+(data.foundationBearing||'300')+'kPa，f='+(data.frictionCoefficient||'0.50')+'。地震基本烈度'+(data.seismicIntensity||'8')+'度。</p>'+
+       '<h3>2.3 建筑物等级</h3>'+
+       '<p>永久性水工建筑物'+(data.structureGrade||'4')+'级，水闸为'+(data.sluiceType||'开敞式')+'，堰型'+(data.weirType||'宽顶堰')+'。</p>'+
+
+       '<h2>3 闸孔设计</h2>'+
+       '<h3>3.1 闸孔型式与底板高程</h3>'+
+       '<p>采用'+(data.sluiceType||'开敞式')+'型式。底板高程'+(data.gateSillElevation||'73.10')+'m。闸室'+(data.chamberStructureType||'整体式')+'，共'+n+'孔，单孔净宽b₀='+b0+'m。</p>'+
+       '<h3>3.2 闸孔总净宽计算</h3>'+
+       '<p>按SL265-2016宽顶堰淹没出流公式：Q = σₛ·ε·m·B·√(2g)·H₀<sup>3/2</sup></p>'+
+       '<p>Q='+Q+'m³/s，H₀='+gate.headH0.toFixed(2)+'m，淹没度='+(gate.subRatio*100).toFixed(1)+'%，σₛ='+gate.sigmaS.toFixed(3)+'，ε='+gate.epsilon.toFixed(3)+'。</p>'+
+       '<table><tr><th>项目</th><th>数值</th><th>单位</th></tr>';
+    r('所需总净宽', gate.requiredWidth.toFixed(2), 'm');
+    r('实际布置净宽', gate.assumedWidth.toFixed(2), 'm');
+    r('闸孔总宽（含闸墩）', gate.totalWidth.toFixed(2), 'm');
+    r('过流能力', gate.capacity.toFixed(2), 'm³/s');
+    r('单宽流量', gate.unitQ.toFixed(3), 'm³/s/m');
+    h+='</table>';
+
+    h+='<h2>4 消能防冲设计</h2>'+
+       '<p>单宽流量q='+energy.q.toFixed(3)+'m³/s/m，T₀='+energy.T0.toFixed(2)+'m。迭代得hc='+energy.hc.toFixed(3)+'m，hc"='+energy.hc2.toFixed(3)+'m。下游hs='+energy.hs.toFixed(2)+'m。</p>'+
+       '<p>消力池深度d='+energy.d_pool.toFixed(2)+'m，长度Lsj='+energy.L_pool.toFixed(2)+'m，底板厚t='+energy.t.toFixed(2)+'m。海漫长度Lp='+energy.L_riprap.toFixed(2)+'m。</p>'+
+
+       '<h2>5 防渗排水设计</h2>'+
+       '<p>ΔH='+seep.deltaH.toFixed(2)+'m，C='+(data.seepageCoefficientC||'4')+'。需渗径L='+seep.L_required.toFixed(2)+'m，实际L='+seep.L_actual.toFixed(2)+'m，'+(seep.seepCheck?'满足。':'不满足！')+'</p>'+
+       '<p>出口J='+seep.J_out.toFixed(4)+'，[J]='+(data.allowableGradient||'0.5')+'，'+(seep.gradCheck?'满足。':'不满足！')+'</p>'+
+
+       '<h2>6 闸顶高程</h2>'+
+       '<p>W='+(data.windSpeed||'22.5')+'m/s，D='+(data.windFetch||'235')+'m。hm='+top.h_m.toFixed(3)+'m，Tm='+top.T_m.toFixed(2)+'s，Lm='+top.L_m.toFixed(2)+'m。P='+(data.waveFrequency||'10')+'%波高hp='+top.h_p.toFixed(3)+'m。Rp='+top.R_p.toFixed(3)+'m，e='+top.e.toFixed(4)+'m，A='+top.A.toFixed(2)+'m。闸顶高程='+top.topElevation.toFixed(2)+'m。</p>'+
+
+       '<h2>7 闸室稳定</h2>'+
+       '<p>ΣG='+stab.sigmaG.toFixed(0)+'kN，ΣP='+stab.sigmaH.toFixed(0)+'kN。Kc='+stab.Kc.toFixed(2)+'，[Kc]=1.20，'+(stab.stabCheck?'满足。':'不满足！')+'</p>'+
+       '<p>σmax='+stab.sigma_max.toFixed(1)+'kPa，['+stab.bearing+'kPa]，'+(stab.bearCheck?'满足。':'不满足！')+'</p>'+
+
+       '<h2>8 结论</h2>'+
+       '<table><tr><th>序号</th><th>参数</th><th>值</th><th>单位</th></tr>';
+    r('1','闸孔数量', n);
+    r('2','单孔净宽', b0+'m');
+    r('3','总净宽', gate.assumedWidth.toFixed(2)+'m');
+    r('4','底板高程', (data.gateSillElevation||'73.10')+'m');
+    r('5','闸顶高程', top.topElevation.toFixed(2)+'m');
+    r('6','消力池深度', energy.d_pool.toFixed(2)+'m');
+    r('7','消力池长度', energy.L_pool.toFixed(2)+'m');
+    r('8','海漫长度', energy.L_riprap.toFixed(2)+'m');
+    r('9','防渗长度', seep.L_actual.toFixed(2)+'m');
+    r('10','抗滑稳定Kc', stab.Kc.toFixed(2));
+    h+='</table>'+
+       '<p>以上各项设计指标满足SL265-2016要求，设计合理可行。</p>'+
+       '</body>\n</html>';
+    return h;
+}
+
+// 打开"生成工程图纸"独立页面（参数化 DXF 生成器）
+function openDrawingPage() {
+    var win = window.open('/drawing', '_blank');
+    if (!win) { location.href = '/drawing'; }
+}
+
+// 页面加载后初始化三维仿真模型
+document.addEventListener('DOMContentLoaded', function() {
+    var now = new Date();
+    document.getElementById('thesisDate').value = now.getFullYear() + '年' + (now.getMonth() + 1) + '月';
+    // 显示当前登录用户
+    fetch('/api/me').then(function(r){ return r.json(); }).then(function(d){
+        if (d.logged) { document.getElementById('userName').textContent = d.username; }
+    }).catch(function(){});
+    // 先确保 3D 面板可见并有尺寸
+    var panel = document.getElementById('modelPanel');
+    panel.classList.add('show');
+    panel.style.display = 'block';
+    // 用 requestAnimationFrame 确保布局完成后再初始化
+    requestAnimationFrame(function() {
+        init3DScene();
+    });
+});
+
+</script>
+
+<script>
+// 注册 Service Worker（PWA 离线支持）
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/static/sw.js').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>
