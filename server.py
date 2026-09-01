@@ -101,6 +101,10 @@ def add_cors(resp):
 # ============================================================
 # 用户认证
 # ============================================================
+# 注册邀请码：只有知道邀请码的人才能注册（通过环境变量 INVITE_CODE 或直接改这里）
+INVITE_CODE = os.environ.get('INVITE_CODE', 'sluice2026')
+
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'GET':
@@ -108,6 +112,7 @@ def register():
     username = (request.form.get('username') or '').strip()
     password = request.form.get('password') or ''
     confirm = request.form.get('confirm') or ''
+    invite = (request.form.get('invite') or '').strip()
     if not username or not password:
         flash('请填写用户名和密码')
         return redirect(url_for('register'))
@@ -116,6 +121,9 @@ def register():
         return redirect(url_for('register'))
     if password != confirm:
         flash('两次输入的密码不一致')
+        return redirect(url_for('register'))
+    if not invite or invite != INVITE_CODE:
+        flash('邀请码错误，无法注册')
         return redirect(url_for('register'))
     conn = get_db()
     if conn.execute('SELECT id FROM users WHERE username=?', (username,)).fetchone():
