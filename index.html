@@ -1458,9 +1458,9 @@ function buildWaterGateModel(data, gate) {
         var theta = Math.atan2(dh, slopeX);     // 坡角
         var slopeCx = chanHalf + slopeX / 2;    // 岸坡中心 X
         for (var s = -1; s <= 1; s += 2) {
-            // 裸土岸坡
+            // 裸土岸坡（外侧高、内侧低 → 形成梯形敞口河道）
             var sp = new THREE.Mesh(new THREE.BoxGeometry(slopeLen, 0.35, zl), matSoil);
-            sp.rotation.z = -s * theta;         // 坡向河道
+            sp.rotation.z = s * theta;          // s=+1(右岸)+θ：外端高；s=-1(左岸)-θ：外端高
             sp.position.set(s * slopeCx, (bedY + topY) / 2, zc);
             sp.castShadow = true; sp.receiveShadow = true;
             modelGroup.add(sp);
@@ -1469,7 +1469,7 @@ function buildWaterGateModel(data, gate) {
             var grassX = s * (chanHalf + slopeX * 0.64);
             var grassY = (bedY + topY) / 2 + dh * 0.22;
             var grass = new THREE.Mesh(new THREE.BoxGeometry(grassLen, 0.12, zl), matGrassDark);
-            grass.rotation.z = -s * theta;
+            grass.rotation.z = s * theta;
             grass.position.set(grassX, grassY, zc);
             grass.receiveShadow = true;
             modelGroup.add(grass);
