@@ -223,7 +223,7 @@ PUBLIC_PATHS = {'/login', '/register', '/static', '/favicon.ico'}
 @app.before_request
 def require_login():
     path = request.path
-    if path in ('/', '/verify', '/model', '/thesis', '/drawing', '/generate', '/drawing/generate', '/drawing/dl'):
+    if path in ('/', '/tool', '/verify', '/model', '/thesis', '/drawing', '/generate', '/drawing/generate', '/drawing/dl'):
         if not current_user():
             if path == '/drawing/generate' or path == '/drawing/dl':
                 return jsonify({"ok": False, "error": "请先登录"}), 401
@@ -662,6 +662,11 @@ def page_model():
 
 @app.route('/thesis')
 def page_thesis():
+    return send_from_directory(BASE, 'index.html')
+
+
+@app.route('/tool')
+def page_tool():
     return send_from_directory(BASE, 'index.html')
 
 

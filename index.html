@@ -285,6 +285,7 @@ body {
     <!-- 流程导航条 -->
     <nav class="flow-nav" id="flowNav">
         <a href="/" data-m="home">🏠 工作台</a>
+        <a href="/tool" data-m="tool">🧮 水闸设计计算工具</a>
         <a href="/verify" data-m="verify">① 参数验证</a>
         <a href="/model" data-m="model">② 三维仿真</a>
         <a href="/drawing" data-m="drawing">③ 工程图纸</a>
@@ -335,25 +336,12 @@ body {
 
         <!-- Section 2: 流域及河道参数 -->
         
-                <!-- Section 工具: 水闸设计计算工具 -->
-        <div class="section">
-            <div class="section-header" onclick="toggleSection(this)">
-                <h2><span class="icon">🧮</span>一、水闸设计计算工具 <span style="font-size:12px;color:#1d9e50;font-weight:600;">（免费使用）</span></h2>
-                <span class="arrow">▼</span>
-            </div>
-            <div class="section-body">
-                <div style="font-size:13px;color:#5a6270;margin-bottom:10px;">按 SL265-2016 规范计算，输入参数后点击计算即可得到结果。</div>
-                <iframe src="/static/calc_tool.html" style="width:100%;height:1100px;border:1px solid #e5e5ea;border-radius:12px;background:#fff;"></iframe>
-            </div>
-        </div>
-
-        
         
 
         <!-- Section 2: 流域及河道参数 -->
         <div class="section">
             <div class="section-header" onclick="toggleSection(this)">
-                <h2><span class="icon">🌊</span>二、流域及河道参数</h2>
+                <h2><span class="icon">🌊</span>一、流域及河道参数</h2>
                 <span class="arrow">▼</span>
             </div>
             <div class="section-body" id="section2">
@@ -441,7 +429,7 @@ body {
         <!-- Section 3: 水文设计参数 -->
         <div class="section">
             <div class="section-header" onclick="toggleSection(this)">
-                <h2><span class="icon">💧</span>三、水文设计参数</h2>
+                <h2><span class="icon">💧</span>二、水文设计参数</h2>
                 <span class="arrow">▼</span>
             </div>
             <div class="section-body" id="section3">
@@ -496,7 +484,7 @@ body {
         <!-- Section 6: 闸孔设计参数 -->
         <div class="section">
             <div class="section-header" onclick="toggleSection(this)">
-                <h2><span class="icon">📐</span>四、闸孔设计参数</h2>
+                <h2><span class="icon">📐</span>三、闸孔设计参数</h2>
                 <span class="arrow">▼</span>
             </div>
             <div class="section-body" id="section6">
@@ -546,7 +534,7 @@ body {
         <!-- Section 7: 消能防冲参数 -->
         <div class="section">
             <div class="section-header" onclick="toggleSection(this)">
-                <h2><span class="icon">💨</span>五、消能防冲设计参数</h2>
+                <h2><span class="icon">💨</span>四、消能防冲设计参数</h2>
                 <span class="arrow">▼</span>
             </div>
             <div class="section-body" id="section7">
@@ -611,7 +599,7 @@ body {
         <!-- Section 1: 基本信息 -->
         <div class="section">
             <div class="section-header" onclick="toggleSection(this)">
-                <h2><span class="icon">📋</span>六、基本信息</h2>
+                <h2><span class="icon">📋</span>五、基本信息</h2>
                 <span class="arrow">▼</span>
             </div>
             <div class="section-body" id="section1">
@@ -665,7 +653,7 @@ body {
         <!-- Section 4: 工程地质参数 -->
         <div class="section">
             <div class="section-header" onclick="toggleSection(this)">
-                <h2><span class="icon">🏔️</span>七、工程地质参数</h2>
+                <h2><span class="icon">🏔️</span>六、工程地质参数</h2>
                 <span class="arrow">▼</span>
             </div>
             <div class="section-body" id="section4">
@@ -748,7 +736,7 @@ body {
         <!-- Section 5: 建筑物设计等级 -->
         <div class="section">
             <div class="section-header" onclick="toggleSection(this)">
-                <h2><span class="icon">🏗️</span>八、建筑物设计等级与结构类型</h2>
+                <h2><span class="icon">🏗️</span>七、建筑物设计等级与结构类型</h2>
                 <span class="arrow">▼</span>
             </div>
             <div class="section-body" id="section5">
@@ -819,7 +807,7 @@ body {
         <!-- Section 8: 结构材料参数 -->
         <div class="section">
             <div class="section-header" onclick="toggleSection(this)">
-                <h2><span class="icon">⚙️</span>九、结构材料与荷载参数</h2>
+                <h2><span class="icon">⚙️</span>八、结构材料与荷载参数</h2>
                 <span class="arrow">▼</span>
             </div>
             <div class="section-body" id="section8">
@@ -902,7 +890,7 @@ body {
         <!-- Section 9: 防渗设计参数 -->
         <div class="section">
             <div class="section-header" onclick="toggleSection(this)">
-                <h2><span class="icon">🔍</span>十、防渗排水设计参数</h2>
+                <h2><span class="icon">🔍</span>九、防渗排水设计参数</h2>
                 <span class="arrow">▼</span>
             </div>
             <div class="section-body" id="section9">
@@ -948,7 +936,7 @@ body {
         <!-- Section 10: 闸室布置参数 -->
         <div class="section">
             <div class="section-header" onclick="toggleSection(this)">
-                <h2><span class="icon">🏛️</span>十一、闸室布置详细参数</h2>
+                <h2><span class="icon">🏛️</span>十、闸室布置详细参数</h2>
                 <span class="arrow">▼</span>
             </div>
             <div class="section-body" id="section10">
@@ -1024,6 +1012,12 @@ body {
         <h2>📊 验证与计算结果</h2>
         <div id="validationResults"></div>
         <div id="calculationResults"></div>
+    </div>
+
+    <!-- 水闸设计计算工具（免费） -->
+    <div class="result-panel" id="toolPanel" style="display:none;">
+        <h2>🧮 水闸设计计算工具（SL 265-2016 · 免费）</h2>
+        <iframe src="/static/calc_tool.html" style="width:100%;height:1100px;border:1px solid #e5e5ea;border-radius:12px;background:#fff;"></iframe>
     </div>
 </div>
 
@@ -1110,7 +1104,8 @@ body {
 // ============================================================
 var PAGE_MODE = 'home';
 var _p = location.pathname;
-if (_p.indexOf('/verify') === 0) PAGE_MODE = 'verify';
+if (_p.indexOf('/tool') === 0) PAGE_MODE = 'tool';
+else if (_p.indexOf('/verify') === 0) PAGE_MODE = 'verify';
 else if (_p.indexOf('/model') === 0) PAGE_MODE = 'model';
 else if (_p.indexOf('/thesis') === 0) PAGE_MODE = 'thesis';
 else if (_p.indexOf('/drawing') === 0) PAGE_MODE = 'drawing';
@@ -1118,6 +1113,7 @@ else if (_p.indexOf('/drawing') === 0) PAGE_MODE = 'drawing';
 function applyPageMode() {
     var show = {};
     show.home = (PAGE_MODE === 'home');
+    show.tool = (PAGE_MODE === 'tool');
     show.verify = (PAGE_MODE === 'verify');
     show.model = (PAGE_MODE === 'model');
     show.thesis = (PAGE_MODE === 'thesis');
@@ -1131,6 +1127,7 @@ function applyPageMode() {
     if (el('resultPanel')) el('resultPanel').style.display = show.verify ? 'block' : 'none';
     if (el('modelPanel')) el('modelPanel').style.display = show.model ? 'block' : 'none';
     if (el('thesisPanel')) el('thesisPanel').style.display = show.thesis ? 'block' : 'none';
+    if (el('toolPanel')) el('toolPanel').style.display = show.tool ? 'block' : 'none';
     // 导航高亮
     var nav = el('flowNav');
     if (nav) {
