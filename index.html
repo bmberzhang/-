@@ -1554,8 +1554,8 @@ function buildWaterGateModel(data, gate) {
         box(B_total, 1.0, 0.6, matConcreteDark, 0, -0.8, fl / 2 + spLen + rpLen + 0.3);
     }
 
-    // ===== 下游两侧翼墙（从闸室下游端延伸覆盖消力池+海漫，约束出闸水流导至下游河道）=====
-    var dwLen = Math.max(10, spLen + rpLen + 2);      // 翼墙长度（覆盖消力池+海漫）
+    // ===== 下游两侧翼墙（覆盖消力池段，约束出闸水流）=====
+    var dwLen = Math.max(4, spLen + 3);               // 翼墙长度（消力池 + 3m 过渡）
     var dsY = Math.max(dsWL - sill, 0.3);             // 下游水位相对高程
     var dwTop = dsY + 0.6;                            // 墙顶高于下游水位
     var dwHgt = Math.max(dwTop - bedY + 0.3, 2.0);    // 墙底嵌入河床
