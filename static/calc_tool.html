@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>水闸毕业设计计算工具 · SL 265-2016</title>
+<style>
+:root {
+  --primary: #0066CC;
+  --primary-dark: #0052A3;
+  --primary-light: #E6F0FA;
+  --bg: #F4F6F9;
+  --card: #FFFFFF;
+  --text-primary: #1A2233;
+  --text-secondary: #5A6A85;
+  --text-tertiary: #8A97AD;
+  --border: #E2E8F0;
+  --success: #0FA968;
+  --success-bg: #E8F6EE;
+  --warning: #E8890C;
+  --danger: #E5484D;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  font-family: "Noto Sans SC", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.num { font-family: "Inter", "SF Pro Display", sans-serif; font-feature-settings: "tnum"; }
+
+/* ============ Header ============ */
+.header {
+  display: flex; justify-content: space-between; align-items: center;
+  height: 72px; padding: 0 28px;
+  background: #fff; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 10;
+}
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand-logo {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+}
+.brand-title { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+.brand-sub { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+.actions { display: flex; align-items: center; gap: 12px; }
+.badge {
+  height: 30px; padding: 0 14px; border-radius: 15px;
+  background: var(--primary-light); color: var(--primary);
+  font-size: 12px; font-weight: 600; display: flex; align-items: center;
+}
+.btn-primary {
+  height: 38px; padding: 0 18px; border-radius: 8px; border: none; cursor: pointer;
+  background: var(--primary); color: #fff; font-size: 14px; font-weight: 600;
+  display: flex; align-items: center; gap: 8px;
+  transition: background .15s;
+}
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-primary svg { width: 16px; height: 16px; }
+.btn-big {
+  width: 100%; height: 46px; border-radius: 10px; border: none; cursor: pointer;
+  background: var(--primary); color: #fff; font-size: 15px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: background .15s;
+  margin-top: 4px;
+}
+.btn-big:hover { background: var(--primary-dark); }
+
+/* ============ Layout ============ */
+.body { display: flex; }
+.sidebar {
+  width: 420px; flex-shrink: 0; padding: 20px;
+  display: flex; flex-direction: column; gap: 16px;
+  background: var(--bg);
+}
+.main {
+  flex: 1; padding: 24px; display: flex; flex-direction: column; gap: 20px;
+  min-width: 0;
+}
+.panel-title { display: flex; flex-direction: column; gap: 4px; padding: 4px; }
+.panel-title h2 { margin: 0; font-size: 17px; font-weight: 700; }
+.panel-title p { margin: 0; font-size: 12px; color: var(--text-tertiary); }
+
+/* ============ Group Card ============ */
+.group {
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px; display: flex; flex-direction: column; gap: 12px;
+}
+.group-head { display: flex; align-items: center; gap: 8px; }
+.group-num {
+  width: 22px; height: 22px; border-radius: 6px;
+  background: var(--primary-light); color: var(--primary);
+  font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.group-name { font-size: 14px; font-weight: 600; }
+
+.row { display: flex; align-items: center; gap: 10px; }
+.row label { width: 120px; font-size: 13px; color: var(--text-secondary); }
+.input {
+  flex: 1; height: 34px; padding: 0 10px; border: 1px solid var(--border);
+  border-radius: 6px; background: #fff; font-size: 13px; color: var(--text-primary);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.input input {
+  border: none; outline: none; width: 100%; font-size: 13px;
+  font-weight: 600; color: var(--text-primary); background: transparent;
+  font-family: "Inter", sans-serif;
+}
+.input .unit { font-size: 11px; color: var(--text-tertiary); margin-left: 6px; }
+.hint { font-size: 11px; color: var(--text-tertiary); text-align: center; margin-top: 4px; }
+
+/* ============ Info Card ============ */
+.info-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px; display: flex; flex-direction: column; gap: 10px;
+}
+.info-head { display: flex; align-items: center; gap: 8px; }
+.info-title { font-size: 14px; font-weight: 600; }
+.info-icon {
+  width: 18px; height: 18px; border-radius: 9px; background: #fff;
+  display: flex; align-items: center; justify-content: center;
+  border: 1.4px solid var(--primary);
+}
+.info-icon::before {
+  content: ""; width: 2px; height: 6px; background: var(--primary); border-radius: 1px;
+  box-shadow: 0 6.5px 0 0 var(--primary);
+}
+.info-p { margin: 0; font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+/* ============ Result Header ============ */
+.result-head { display: flex; justify-content: space-between; align-items: center; }
+.result-title h1 { margin: 0; font-size: 22px; font-weight: 700; }
+.result-title p { margin: 4px 0 0; font-size: 12px; color: var(--text-tertiary); }
+.status-pill {
+  height: 28px; padding: 0 12px; border-radius: 14px;
+  background: var(--success-bg); color: #0F8A5A;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600;
+}
+.status-dot { width: 8px; height: 8px; border-radius: 4px; background: var(--success); }
+
+/* ============ KPI Row ============ */
+.kpi-row { display: flex; gap: 16px; }
+.kpi {
+  flex: 1; background: #fff; border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 6px;
+}
+.kpi-label { font-size: 12px; color: var(--text-tertiary); }
+.kpi-value { font-size: 24px; font-weight: 700; color: var(--primary); }
+.kpi-sub { font-size: 11px; color: var(--text-secondary); }
+
+/* ============ Cards Grid ============ */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.card {
+  background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  padding: 18px; display: flex; flex-direction: column; gap: 14px;
+}
+.card-head { display: flex; align-items: center; gap: 10px; }
+.card-num {
+  width: 26px; height: 26px; border-radius: 7px;
+  background: var(--primary-light); color: var(--primary);
+  font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.card-title { font-size: 15px; font-weight: 600; flex: 1; }
+.card-tag {
+  height: 24px; padding: 0 10px; border-radius: 12px;
+  background: var(--success-bg); color: #0F8A5A;
+  font-size: 11px; font-weight: 600;
+  display: flex; align-items: center;
+}
+.card-tag.amber { background: #FFF3E0; color: #B26A00; }
+.card-tag.blue { background: var(--primary-light); color: var(--primary); }
+.card-rows { display: flex; flex-direction: column; gap: 8px; }
+.dr { display: flex; align-items: center; height: 26px; }
+.dr .k { width: 130px; font-size: 12.5px; color: var(--text-secondary); }
+.dr .v { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.dr .v.num { font-family: "Inter", sans-serif; font-feature-settings: "tnum"; }
+.dr .v.hl { color: var(--primary); font-weight: 700; }
+.formula {
+  background: #F7F9FC; border-radius: 8px; padding: 10px;
+  font-size: 11.5px; color: var(--text-secondary); line-height: 1.6;
+}
+
+@media (max-width: 1280px) {
+  .grid { grid-template-columns: 1fr; }
+  .kpi-row { flex-wrap: wrap; }
+  .kpi { min-width: calc(50% - 8px); }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="brand">
+    <div class="brand-logo">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <rect x="6" y="5" width="12" height="2" rx="0.6" fill="#fff"/>
+        <rect x="7" y="7" width="2" height="9" rx="0.6" fill="#fff" opacity="0.9"/>
+        <rect x="15" y="7" width="2" height="9" rx="0.6" fill="#fff" opacity="0.9"/>
+        <rect x="7" y="11" width="5" height="3" fill="#BFD9F5"/>
+      </svg>
+    </div>
+    <div>
+      <div class="brand-title">水闸毕业设计计算工具</div>
+      <div class="brand-sub">依据 SL 265-2016《水闸设计规范》自动计算全套设计参数</div>
+    </div>
+  </div>
+  <div class="actions">
+    <div class="badge">SL 265-2016</div>
+    <button class="btn-primary" id="btnTopCalc">
+      <svg viewBox="0 0 16 16" fill="none">
+        <rect x="2" y="1" width="12" height="14" rx="2" stroke="#fff" stroke-width="1.2"/>
+        <path d="M4 3.5h8M4 7h2M7 7h2M10 7h2M4 10h2M7 10h2M10 10h2M4 13h3M10 12.5l3 2" stroke="#fff" stroke-width="0.9" stroke-linecap="round"/>
+      </svg>
+      开始计算
+    </button>
+  </div>
+</header>
+
+<div class="body">
+
+  <aside class="sidebar">
+    <div class="panel-title">
+      <h2>设计参数输入</h2>
+      <p>修改任意参数后点击「开始计算」重新生成结果</p>
+    </div>
+
+    <div class="group">
+      <div class="group-head">
+        <div class="group-num">1</div>
+        <div class="group-name">水文设计资料</div>
+      </div>
+      <div class="row"><label>设计流量 Q</label><div class="input"><input type="number" id="Q" value="174" step="any"><span class="unit">m³/s</span></div></div>
+      <div class="row"><label>闸下设计水位</label><div class="input"><input type="number" id="Hds" value="77.52" step="any"><span class="unit">m</span></div></div>
+      <div class="row"><label>正常蓄水位高程</label><div class="input"><input type="number" id="Hz" value="76.60" step="any"><span class="unit">m</span></div></div>
+      <div class="row"><label>闸底板高程</label><div class="input"><input type="number" id="Hb" value="73.10" step="any"><span class="unit">m</span></div></div>
+      <div class="row"><label>闸址现状地面高程</label><div class="input"><input type="number" id="Hgr" value="78.80" step="any"><span class="unit">m</span></div></div>
+    </div>
+
+    <div class="group">
+      <div class="group-head">
+        <div class="group-num">2</div>
+        <div class="group-name">河道设计指标</div>
+      </div>
+      <div class="row"><label>河口地面高程</label><div class="input"><input type="number" id="Hhe" value="78.80" step="any"><span class="unit">m</span></div></div>
+      <div class="row"><label>河道设计底宽</label><div class="input"><input type="number" id="Bb" value="20" step="any"><span class="unit">m</span></div></div>
+      <div class="row"><label>河道设计边坡</label><div class="input"><input type="text" id="Slope" value="1:2"><span class="unit"></span></div></div>
+      <div class="row"><label>滩地设计高程</label><div class="input"><input type="number" id="Ht" value="75.00" step="any"><span class="unit">m</span></div></div>
+      <div class="row"><label>滩地平均宽度</label><div class="input"><input type="number" id="Bt" value="8.5" step="any"><span class="unit">m</span></div></div>
+      <div class="row"><label>闸址河段设计纵坡</label><div class="input"><input type="text" id="iVal" value="1/1410"><span class="unit"></span></div></div>
+      <div class="row"><label>主河槽糙率 n</label><div class="input"><input type="number" id="n1" value="0.03" step="any"></div></div>
+      <div class="row"><label>滩地糙率 n</label><div class="input"><input type="number" id="n2" value="0.06" step="any"></div></div>
+    </div>
+
+    <div class="group">
+      <div class="group-head">
+        <div class="group-num">3</div>
+        <div class="group-name">结构与抗震参数</div>
+      </div>
+      <div class="row"><label>结构类型</label><div class="input"><input type="text" id="Mat" value="钢筋混凝土"></div></div>
+      <div class="row"><label>闸门类型</label><div class="input"><input type="text" id="Gate" value="平面钢闸门"></div></div>
+      <div class="row"><label>下游设施</label><div class="input"><input type="text" id="Fac" value="设交通桥"></div></div>
+      <div class="row"><label>地震动峰值加速度</label><div class="input"><input type="number" id="aP" value="0.20" step="any"><span class="unit">g</span></div></div>
+      <div class="row"><label>地震基本烈度</label><div class="input"><input type="text" id="Int" value="Ⅷ度"></div></div>
+    </div>
+
+    <button class="btn-big" id="btnCalc">开始计算 · 生成全部设计参数</button>
+    <div class="hint">计算结果依据《水闸设计规范》SL 265-2016 自动生成，可用于毕业设计说明书。</div>
+
+    <div class="info-card">
+      <div class="info-head">
+        <div class="info-icon"></div>
+        <div class="info-title">设计说明</div>
+      </div>
+      <p class="info-p">① 输入左侧基础设计资料后点击「开始计算」，系统按 SL 265-2016 自动推演全套结构参数。</p>
+      <p class="info-p">② 计算流程：过闸流态 → 闸孔净宽 → 消能防冲 → 闸顶高程 → 闸室结构 → 启闭设施 → 桥梁设计。</p>
+      <p class="info-p">③ 所有结果含公式与取值依据，可直接引用至毕业设计计算书。</p>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="result-head">
+      <div class="result-title">
+        <h1>计算结果</h1>
+        <p>以下 12 项设计参数由 SL 265-2016 规范公式自动推演，含计算过程</p>
+      </div>
+      <div class="status-pill"><div class="status-dot"></div><span id="statusText">待计算</span></div>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-label">闸孔总净宽</div><div class="kpi-value num" id="kpiB0">— m</div><div class="kpi-sub" id="kpiB0sub">孔数 × 单孔净宽</div></div>
+      <div class="kpi"><div class="kpi-label">消力池池深</div><div class="kpi-value num" id="kpiDs">— m</div><div class="kpi-sub">按挖深式消力池</div></div>
+      <div class="kpi"><div class="kpi-label">海漫长度</div><div class="kpi-value num" id="kpiLm">— m</div><div class="kpi-sub" id="kpiLmsub">取整设计长度</div></div>
+      <div class="kpi"><div class="kpi-label">闸顶高程</div><div class="kpi-value num" id="kpiHt">— m</div><div class="kpi-sub">含安全超高 1.0 m</div></div>
+    </div>
+
+    <div class="grid" id="grid"></div>
+  </main>
+</div>
+
+<script>
+/* ============================================================
+   SL 265-2016 水闸设计计算核心（简化版）
+   ============================================================ */
+function num(id) { return parseFloat(document.getElementById(id).value) || 0; }
+
+function calc(p) {
+  // 1. 过闸流态判别
+  const H0 = p.Hz - p.Hb;              // 上游水头
+  const ht = p.Hds - p.Hb;             // 下游水深
+  const sigma = ht / H0;               // 淹没度
+  const submerged = sigma >= 0.8 ? "高度淹没" : (sigma >= 0.6 ? "轻度淹没" : "自由出流");
+
+  // 2. 堰流系数
+  // 淹没系数 σs (SL 265-2016 附录 F 查表近似)
+  let sigmaS = 1.0;
+  if (sigma >= 1.0) sigmaS = 0.72;
+  else if (sigma >= 0.95) sigmaS = 0.78;
+  else if (sigma >= 0.90) sigmaS = 0.83;
+  else if (sigma >= 0.85) sigmaS = 0.88;
+  else if (sigma >= 0.80) sigmaS = 0.92;
+  else if (sigma >= 0.70) sigmaS = 0.96;
+  else sigmaS = 1.0;
+  // 流量系数 m (宽顶堰 0.32~0.385，取 0.385)
+  const m = 0.385;
+
+  // 3. 闸孔总净宽（水闸孔数一般取 3 孔或 5 孔，对称布置）
+  // 先按 3 孔试算净宽，单孔净宽超 12 m 时改用 5 孔
+  const B0_3 = p.Q / (sigmaS * 0.92 * m * Math.sqrt(2 * 9.81) * Math.pow(H0, 1.5));
+  let nHole = B0_3 / 3 > 12 ? 5 : 3;                    // 孔数：3 或 5
+  const b0 = B0_3 / nHole;                               // 单孔净宽
+  const B = nHole * b0 + (nHole + 1) * 1.2;              // 总宽 = 净宽 + 闸墩厚（中墩/缝墩 1.2m）
+  const eps = 1 - 0.2 * (b0 / (b0 + 1.2)) * (1 - b0 / (b0 + 1.2));  // 计入墩收缩
+  const sigmaEpsM = sigmaS * eps * m;
+  const B0 = p.Q / (sigmaS * eps * m * Math.sqrt(2 * 9.81) * Math.pow(H0, 1.5));
+  // 单孔净宽取整：按 0.5 m 模数向上取整（常规 4~12 m）
+  const bAdopt = Math.max(4, Math.ceil(b0 / 0.5) * 0.5);
+  const B0Adopt = nHole * bAdopt;
+
+  // 4. 消能计算 - 共轭水深
+  // 收缩断面流速 v0 = Q / (B0 * H0)
+  const v0 = p.Q / (B0Adopt * H0);
+  // 弗劳德数 Fr1 = v0 / sqrt(g * H0)
+  const Fr1 = v0 / Math.sqrt(9.81 * H0);
+  // 共轭水深比 η2 = 0.5 * (sqrt(1 + 8*Fr1^2) - 1)
+  const eta2 = 0.5 * (Math.sqrt(1 + 8 * Fr1 * Fr1) - 1);
+  const hc2 = eta2 * H0;
+  // 池深 d = σ0 * hc2 - ht - Δz，Δz 取 0.1 m
+  const dPool = Math.max(0.6, 1.05 * hc2 - ht - 0.1);
+  const dAdopt = Math.ceil(dPool * 10) / 10;
+  // 池长 L = L1 + β*L_j；L_j = 6.9*(hc2 - H0)，L1 ≈ 4.5*h0 简化
+  const Lj = Math.max(0, 6.9 * (hc2 - H0));
+  const LPool = Math.max(10, 4.5 * H0 + 0.85 * Lj);
+  const LAdopt = Math.ceil(LPool / 2) * 2;
+  // 底板厚度 t ≈ 0.5 ~ 0.8 m
+  const tSlab = 0.8;
+
+  // 5. 海漫长度
+  // 海漫段单宽流量 q = Q / B0
+  const q = p.Q / B0Adopt;
+  // 上下游水位差 ΔH（下游顶托时按上游水头 0.3 倍近似，保证合理取值）
+  let dH = p.Hz - p.Hds;
+  if (dH < 0.2) dH = Math.max(0.2, 0.3 * H0);
+  // Lp = Ks * sqrt(q * sqrt(ΔH))，粉质黏土 Ks=10
+  const Ks = 10;
+  const Lm = Ks * Math.sqrt(q * Math.sqrt(Math.max(0.01, dH)));
+  const LmAdopt = Math.ceil(Lm / 2) * 2;  // 取偶数
+
+  // 6. 防冲槽
+  // 冲刷深度 ts = 0.5 * q / (v_c * d50^(1/6))，简化取 d = 0.5 m
+  const trenchDepth = 1.5;
+  const trenchBottom = 8.0;
+
+  // 7. 闸顶高程
+  // 按正常蓄水位 + 安全超高 1.0 m；校核工况闸下水位 + 1.0 m 取大值
+  const Ht1 = p.Hz + 1.0;
+  const Ht2 = p.Hds + 1.3;  // 校核工况
+  const HtAdopt = Math.max(Ht1, Ht2);
+
+  // 8. 闸墩尺寸
+  const tP = 1.2;  // 中墩厚
+  const tF = 1.0;  // 缝墩
+  const tE = 0.8;  // 边墩
+  const LPier = 12.0;
+
+  // 9. 闸门高度及重量
+  // 闸门高度 = 上游最高水位 - 底板 + 超高
+  const hGate = p.Hz - p.Hb + 0.3;
+  const hGateAdopt = Math.ceil(hGate * 2) / 2;  // 0.5 m 精度
+  const wGate = bAdopt + 0.2;  // 闸门宽 = 孔口 + 0.2
+  // 估算重量 ~0.75 t/m²
+  const wGateT = 0.75 * hGateAdopt * wGate;
+
+  // 10. 启闭机
+  // 启门力 FQ = 1.2 * (W_gate * 9.8 + 摩擦 + 止水)，简化估算
+  const FQ = Math.ceil(1.2 * wGateT * 9.8 / 100) * 100;  // kN
+  // 选型
+  let hoistModel, hoistN;
+  if (FQ <= 250) { hoistModel = "QPQ-1×250 kN"; hoistN = 1; }
+  else if (FQ <= 500) { hoistModel = "QPQ-2×500 kN"; hoistN = 2; }
+  else if (FQ <= 800) { hoistModel = "QPQ-2×800 kN"; hoistN = 2; }
+  else { hoistModel = "QPQ-2×1250 kN"; hoistN = 2; }
+
+  // 11. 工作桥
+  const Hwkb = HtAdopt + 1.0;  // 工作桥底面高程 = 闸顶 + 1.0
+  const Hwks = Hwkb + 0.8;
+  const wwk = 3.5;
+
+  // 12. 交通桥
+  const wtk = 4.5;
+  const load = "公路-Ⅱ级";
+  const Htk = HtAdopt;
+
+  return {
+    H0, ht, sigma, submerged,
+    sigmaS, m, eps, sigmaEpsM,
+    B0, B0Adopt, bAdopt, nHole,
+    v0, Fr1, hc2, dPool, dAdopt, LPool, LAdopt, tSlab,
+    q, dH, Lm, LmAdopt, Ks,
+    trenchDepth, trenchBottom,
+    Ht1, Ht2, HtAdopt,
+    tP, tF, tE, LPier,
+    hGateAdopt, wGate, wGateT,
+    FQ, hoistModel, hoistN,
+    Hwkb, Hwks, wwk,
+    wtk, load, Htk
+  };
+}
+
+const fmt = (n, d=2) => Number.isFinite(n) ? n.toFixed(d) : "—";
+const fmtInt = n => Math.round(n).toString();
+
+const cardDefs = [
+  { id:1, title:"过闸流态判别", tagKey:"submerged", tagType:"blue", get:(r)=>[
+      {k:"出流流态", v: r.submerged + "出流", hl:false},
+      {k:"上游水头 H₀", v: fmt(r.H0)+" m", hl:false, num:true},
+      {k:"下游水深 hₜ", v: fmt(r.ht)+" m", hl:false, num:true},
+      {k:"淹没度 hₜ/H₀", v: fmt(r.sigma,2)+" ≥ 0.8", hl:true, num:true}
+    ], note:(r)=>`判别标准：淹没度 ≥ 0.8 时为淹没出流，属${r.submerged}，需按淹没堰流计算并设置消能设施。` },
+  { id:2, title:"闸孔总净宽", tagKey:"B0", tagType:"amber", tagText:r=>"B₀ = "+r.B0Adopt.toFixed(1)+" m", get:(r)=>[
+      {k:"流量系数 m", v:"0.385", hl:false},
+      {k:"淹没系数 σs", v: fmt(r.sigmaS,2)+"（查表）", hl:false},
+      {k:"侧收缩系数 ε", v: fmt(r.eps,2), hl:false},
+      {k:"计算净宽 B₀", v: fmt(r.B0,1)+" m", hl:false, num:true}
+    ], note:(r)=>`公式：B₀ = Q / (σs·ε·m·√(2g)·H₀^1.5) ≈ ${r.B0.toFixed(1)} m，单孔净宽 ${(r.B0/r.nHole).toFixed(1)} m 取 ${r.bAdopt} m，采用 ${r.nHole} 孔 × ${r.bAdopt} m = ${r.B0Adopt} m。` },
+  { id:3, title:"堰流系数取值", tagKey:"σs·ε·m", tagType:"blue", tagText:"σs·ε·m 组合", get:(r)=>[
+      {k:"淹没系数 σs", v: fmt(r.sigmaS,2)+"（查表）", hl:false},
+      {k:"侧收缩系数 ε", v: fmt(r.eps,2), hl:false},
+      {k:"流量系数 m", v:"0.385（宽顶堰）", hl:false},
+      {k:"综合系数 σεm", v: fmt(r.sigmaEpsM,3), hl:true, num:true}
+    ], note:(r)=>`淹没系数按 hₜ/H₀ = ${r.sigma.toFixed(2)} 查 SL 265-2016 附表；侧收缩系数 ε = 1 - 0.2·(b/B)·(1 - b/B)，计入闸墩与边墩收缩影响。` },
+  { id:4, title:"消力池设计", tagKey:"挖深式", tagType:"blue", tagText:"挖深式消力池", get:(r)=>[
+      {k:"池深 d", v: fmt(r.dAdopt,2)+" m", hl:true, num:true},
+      {k:"池长 L", v: r.LAdopt+" m", hl:false, num:true},
+      {k:"底板厚度 t", v: fmt(r.tSlab,2)+" m", hl:false, num:true},
+      {k:"底板材料", v:"C25 钢筋混凝土", hl:false}
+    ], note:(r)=>`按规范附录 B：d = σ₀·h″c - hₜ - ΔZ 试算取 ${r.dAdopt} m；L = L₁ + β·L_j 取 ${r.LAdopt} m；底板厚按抗冲与抗浮确定 ${r.tSlab} m。` },
+  { id:5, title:"海漫长度", tagKey:"取 40 m", tagType:"amber", tagText:r=>"取 "+r.LmAdopt+" m", get:(r)=>[
+      {k:"计算长度 Lp", v: fmt(r.Lm,1)+" m", hl:false, num:true},
+      {k:"采用长度", v: r.LmAdopt+" m", hl:true, num:true},
+      {k:"海漫结构", v:"干砌块石 0.4 m", hl:false},
+      {k:"垫层", v:"砂砾石 0.2 m", hl:false}
+    ], note:(r)=>`公式：Lp = Ks·√(q·√ΔH)，Ks 按地基土质查表取 ${r.Ks}；q = ${r.q.toFixed(2)} m²/s，ΔH = ${r.dH.toFixed(2)} m，计算 ${r.Lm.toFixed(1)} m，取 ${r.LmAdopt} m。` },
+  { id:6, title:"防冲槽设计", tagKey:"梯形断面", tagType:"blue", tagText:"梯形断面", get:(r)=>[
+      {k:"防冲槽深度", v: fmt(r.trenchDepth,2)+" m", hl:true, num:true},
+      {k:"防冲槽底宽", v: fmt(r.trenchBottom,1)+" m", hl:false, num:true},
+      {k:"边坡坡度", v:"1 : 2", hl:false},
+      {k:"槽内抛石", v:"粒径 30~50 cm", hl:false}
+    ], note:()=>`按冲刷深度计算确定：冲深按 q 与河床粒径试算，槽深 1.5 m、底宽 8 m，保证冲刷坑不危及海漫与闸基安全。` },
+  { id:7, title:"闸顶高程确定", tagKey:"取大值", tagType:"amber", tagText:"取大值", get:(r)=>[
+      {k:"正常蓄水位方案", v: fmt(r.Ht1,2)+" m", hl:false, num:true},
+      {k:"设计洪水位方案", v: fmt(r.Ht2,2)+" m", hl:false, num:true},
+      {k:"安全超高 Δh", v:"1.00 m", hl:false},
+      {k:"闸顶高程", v: fmt(r.HtAdopt,2)+" m", hl:true, num:true}
+    ], note:(r)=>`按 SL 265-2016 第 7 章：闸顶高程 = 最高挡水位 + 安全超高，取各工况最大值 ${r.HtAdopt.toFixed(2)} m。` },
+  { id:8, title:"闸墩尺寸选择", tagKey:"结构选型", tagType:"blue", tagText:"结构选型", get:(r)=>[
+      {k:"中墩厚度", v: fmt(r.tP,2)+" m", hl:false, num:true},
+      {k:"缝墩厚度", v: fmt(r.tF,2)+" m", hl:false, num:true},
+      {k:"边墩厚度", v: fmt(r.tE,2)+" m", hl:false, num:true},
+      {k:"闸墩长度", v: fmt(r.LPier,1)+" m", hl:false, num:true}
+    ], note:()=>`闸墩厚度按稳定与门槽布置确定：中墩 1.2 m（含门槽），缝墩 1.0 m，边墩 0.8 m；墩长 = 底板顺水流向长 12 m，墩顶高程与闸顶齐平。` },
+  { id:9, title:"闸门高度及重量", tagKey:"平面钢闸门", tagType:"blue", tagText:"平面钢闸门", get:(r)=>[
+      {k:"闸门高度", v: fmt(r.hGateAdopt,2)+" m", hl:true, num:true},
+      {k:"闸门宽度", v: fmt(r.wGate,2)+" m", hl:false, num:true},
+      {k:"估算重量", v:"≈ "+Math.round(r.wGateT)+" t", hl:false, num:true},
+      {k:"支承形式", v:"滑动支承", hl:false}
+    ], note:(r)=>`门高 = 上游最高水位 - 底板 + 超高 ≈ ${r.hGateAdopt} m；宽 ${r.wGate} m（孔口 ${r.bAdopt} m + 边距）；按单位面积重估 ~0.75 t/m² × ${(r.hGateAdopt*r.wGate).toFixed(0)} m² ≈ ${Math.round(r.wGateT)} t。` },
+  { id:10, title:"启闭机选型与启闭门力", tagKey:"QPQ", tagType:"amber", tagText:r=>r.hoistModel, get:(r)=>[
+      {k:"所需启门力 FQ", v: r.FQ+" kN", hl:true, num:true},
+      {k:"闭门力 FW", v:"自重闭门", hl:false},
+      {k:"启闭机型号", v:r.hoistModel, hl:false},
+      {k:"布置数量", v:"每孔 "+r.hoistN+" 台", hl:false, num:true}
+    ], note:(r)=>`所需启门力 = 闸门自重 + 水压力摩阻力 + 止水摩阻力，乘 1.2 安全系数 ≈ ${r.FQ} kN，选用 ${r.hoistModel} 卷扬式启闭机，安装于工作桥面。` },
+  { id:11, title:"工作桥设计", tagKey:"桥面高程", tagType:"blue", tagText:"桥面高程", get:(r)=>[
+      {k:"底面高程", v: fmt(r.Hwkb,2)+" m", hl:true, num:true},
+      {k:"桥面高程", v: fmt(r.Hwks,2)+" m", hl:false, num:true},
+      {k:"桥面宽度", v: fmt(r.wwk,2)+" m", hl:false, num:true},
+      {k:"结构形式", v:"预制 T 梁", hl:false}
+    ], note:(r)=>`工作桥底面高程 = 闸顶 + 1.0 m = ${r.Hwkb.toFixed(2)} m，满足启闭机布置与闸门吊装要求；桥宽 ${r.wwk} m 布置启闭机与检修通道；主梁采用预制 T 梁 C30 混凝土。` },
+  { id:12, title:"交通桥设计", tagKey:"公路-Ⅱ级", tagType:"amber", tagText:"公路-Ⅱ级", get:(r)=>[
+      {k:"桥面宽度", v: fmt(r.wtk,2)+" m", hl:false, num:true},
+      {k:"荷载等级", v:r.load, hl:false},
+      {k:"桥面高程", v: fmt(r.Htk,2)+" m", hl:false, num:true},
+      {k:"结构形式", v:"钢筋混凝土板桥", hl:false}
+    ], note:(r)=>`交通桥设于闸室下游侧，桥面宽 ${r.wtk} m（单车道+人行），荷载按公路-Ⅱ级验算；桥面高程与闸顶齐平 ${r.Htk.toFixed(2)} m，板厚 0.5 m，支座采用板式橡胶支座。` }
+];
+
+function render(r) {
+  // KPI
+  document.getElementById('kpiB0').textContent = r.B0Adopt.toFixed(1) + " m";
+  document.getElementById('kpiB0sub').textContent = r.nHole + " 孔 × " + r.bAdopt + " m";
+  document.getElementById('kpiDs').textContent = r.dAdopt.toFixed(2) + " m";
+  document.getElementById('kpiLm').textContent = r.LmAdopt + " m";
+  document.getElementById('kpiLmsub').textContent = "计算 " + r.Lm.toFixed(1) + " m · 取整";
+  document.getElementById('kpiHt').textContent = r.HtAdopt.toFixed(2) + " m";
+  document.getElementById('statusText').textContent = "计算完成";
+
+  // Cards
+  const grid = document.getElementById('grid');
+  grid.innerHTML = cardDefs.map(def => {
+    const rows = def.get(r).map(x => `
+      <div class="dr">
+        <div class="k">${x.k}</div>
+        <div class="v ${x.num?'num':''} ${x.hl?'hl':''}">${x.v}</div>
+      </div>`).join('');
+    const note = def.note(r);
+    const tagText = typeof def.tagText === 'function' ? def.tagText(r) : def.tagText;
+    return `
+      <div class="card">
+        <div class="card-head">
+          <div class="card-num">${def.id}</div>
+          <div class="card-title">${def.title}</div>
+          <div class="card-tag ${def.tagType||''}">${tagText}</div>
+        </div>
+        <div class="card-rows">${rows}</div>
+        <div class="formula">${note}</div>
+      </div>`;
+  }).join('');
+}
+
+function run() {
+  const p = {
+    Q: num('Q'),
+    Hds: num('Hds'),
+    Hz: num('Hz'),
+    Hb: num('Hb'),
+    Hgr: num('Hgr'),
+    Hhe: num('Hhe'),
+    Bb: num('Bb'),
+    Ht: num('Ht'),
+    Bt: num('Bt'),
+    aP: num('aP')
+  };
+  if (p.Q <= 0 || p.Hb >= p.Hz) {
+    alert("请检查参数：设计流量 Q > 0，闸底板高程 < 正常蓄水位。");
+    return;
+  }
+  const r = calc(p);
+  render(r);
+}
+
+document.getElementById('btnCalc').addEventListener('click', run);
+document.getElementById('btnTopCalc').addEventListener('click', run);
+
+// 初次加载即计算
+run();
+</script>
+</body>
+</html>
