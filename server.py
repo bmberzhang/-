@@ -79,7 +79,9 @@ def init_db():
             is_admin INTEGER DEFAULT 0,
             to_user_id INTEGER DEFAULT 0,
             created_at TEXT DEFAULT (datetime('now','localtime')),
-            is_read INTEGER DEFAULT 0
+            is_read INTEGER DEFAULT 0,
+            type TEXT DEFAULT 'text',
+            file_url TEXT DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS generation_records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -105,6 +107,10 @@ def init_db():
         mcols = [r[1] for r in conn.execute('PRAGMA table_info(messages)').fetchall()]
         if 'to_user_id' not in mcols:
             conn.execute('ALTER TABLE messages ADD COLUMN to_user_id INTEGER DEFAULT 0')
+        if 'type' not in mcols:
+            conn.execute("ALTER TABLE messages ADD COLUMN type TEXT DEFAULT 'text'")
+        if 'file_url' not in mcols:
+            conn.execute("ALTER TABLE messages ADD COLUMN file_url TEXT DEFAULT ''")
         # 收费配置（settings 表）
         defaults = [
             ('drawing_price', '5'), ('thesis_price', '10'),
@@ -516,11 +522,43 @@ def msg_send():
     if not u:
         return jsonify({"ok": False, "error": "请先登录"}), 401
     data = request.get_json(force=True, silent=True) or {}
+    msg_type = str(data.get('type', 'text')) or 'text'
     content = str(data.get('content', '')).strip()
-    if not content:
-        return jsonify({"ok": False, "error": "消息不能为空"}), 400
-    if len(content) > 2000:
-        content = content[:2000]
+    file_url = ''
+    if msg_type == 'image':
+        # 图片消息：image_data 为 dataURL（data:image/png;base64,xxxx）
+        image_data = str(data.get('image_data', '') or '')
+        if not image_data.startswith('data:image'):
+            return jsonify({"ok": False, "error": "图片格式不正确"}), 400
+        try:
+            import base64
+            header, b64 = image_data.split(',', 1)
+            ext = '.png'
+            mime = header.split(';')[0].split('/')[-1].lower()
+            if mime in ('jpeg', 'jpg'):
+                ext = '.jpg'
+            elif mime == 'gif':
+                ext = '.gif'
+            elif mime == 'webp':
+                ext = '.webp'
+            raw = base64.b64decode(b64)
+            if len(raw) > 8 * 1024 * 1024:
+                return jsonify({"ok": False, "error": "图片过大（限 8MB）"}), 400
+            img_dir = os.path.join(DATA_DIR, 'msg_imgs')
+            os.makedirs(img_dir, exist_ok=True)
+            fname = f"msg_{int(time.time()*1000)}_{u['id']}{ext}"
+            with open(os.path.join(img_dir, fname), 'wb') as f:
+                f.write(raw)
+            file_url = f"/api/msg/image/{fname}"
+            content = '发来一张图片'
+        except Exception as e:
+            print('[msg] 图片保存失败:', e)
+            return jsonify({"ok": False, "error": "图片保存失败"}), 500
+    else:
+        if not content:
+            return jsonify({"ok": False, "error": "消息不能为空"}), 400
+        if len(content) > 2000:
+            content = content[:2000]
     is_admin_flag = 1 if is_admin(u) else 0
     # 管理员回复时可指定发给哪个用户（to_user_id），否则发给管理员(0)
     to_user_id = 0
@@ -530,11 +568,25 @@ def msg_send():
         except (ValueError, TypeError):
             to_user_id = 0
     conn = get_db()
-    conn.execute('INSERT INTO messages (user_id, username, content, is_admin, to_user_id) VALUES (?,?,?,?,?)',
-                 (u['id'], u['username'], content, is_admin_flag, to_user_id))
+    conn.execute('INSERT INTO messages (user_id, username, content, is_admin, to_user_id, type, file_url) VALUES (?,?,?,?,?,?,?)',
+                 (u['id'], u['username'], content, is_admin_flag, to_user_id, msg_type, file_url))
     conn.commit()
     conn.close()
     return jsonify({"ok": True})
+
+
+@app.route('/api/msg/image/<path:filename>')
+def msg_image(filename):
+    """返回聊天图片（需登录，且属于当前用户或管理员）"""
+    u = current_user()
+    if not u:
+        return jsonify({"ok": False, "error": "请先登录"}), 401
+    img_dir = os.path.join(DATA_DIR, 'msg_imgs')
+    safe = os.path.basename(filename)
+    path = os.path.join(img_dir, safe)
+    if not os.path.exists(path):
+        return jsonify({"ok": False, "error": "图片不存在"}), 404
+    return send_from_directory(img_dir, safe)
 
 
 @app.route('/api/msg/list')

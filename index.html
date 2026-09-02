@@ -2344,13 +2344,35 @@ function loadCSMsgs() {
     list.forEach(function(m){
       var mine = d.is_admin ? m.is_admin : !m.is_admin;
       var who = m.is_admin ? '客服' : '我';
+      var body = '';
+      if (m.type === 'image' && m.file_url) {
+        body = '<img src="' + m.file_url + '" alt="图片" style="max-width:220px;max-height:220px;border-radius:10px;display:block;cursor:pointer;" onclick="window.open(this.src)">' +
+               (m.content && m.content !== '发来一张图片' ? '<div style="margin-top:4px;">' + escHtml(m.content) + '</div>' : '');
+      } else {
+        body = escHtml(m.content);
+      }
       h += '<div class="item ' + (mine ? 'mine' : 'theirs') + '">' +
-        '<div class="bubble">' + escHtml(m.content) + '</div>' +
+        '<div class="bubble">' + body + '</div>' +
         '<div class="meta">' + who + ' · ' + escHtml(m.created_at) + '</div></div>';
     });
     box.innerHTML = h;
     box.scrollTop = box.scrollHeight;
   }).catch(function(){});
+}
+function sendCSImage(fileInput) {
+  var f = fileInput.files && fileInput.files[0];
+  if (!f) return;
+  if (f.size > 8 * 1024 * 1024) { alert('图片过大（限 8MB）'); fileInput.value = ''; return; }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    fetch('/api/msg/send', {method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:'image', image_data: e.target.result})})
+    .then(function(r){return r.json();}).then(function(d){
+      if (d.ok) { fileInput.value = ''; loadCSMsgs(); }
+      else alert(d.error || '发送失败');
+    }).catch(function(){ alert('发送失败'); });
+  };
+  reader.readAsDataURL(f);
 }
 function sendCS() {
   var input = document.getElementById('csInput');
@@ -2618,9 +2640,11 @@ if ('serviceWorker' in navigator) {
   </div>
   <div class="cs-msg" id="csMsg"><div style="color:#86868b;font-size:13px;text-align:center;padding:20px;">加载中…</div></div>
   <div class="cs-input">
+    <button onclick="document.getElementById('csImgFile').click()" title="发送图片" style="padding:8px 10px;font-size:14px;cursor:pointer;border:none;background:#f0f0f2;border-radius:8px;">📷</button>
     <input type="text" id="csInput" placeholder="输入你的问题…" onkeydown="if(event.key==='Enter')sendCS()">
     <button onclick="sendCS()">发送</button>
   </div>
+  <input type="file" id="csImgFile" accept="image/*" style="display:none;" onchange="sendCSImage(this)">
 </div>
 </body>
 </html>
