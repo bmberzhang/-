@@ -1476,36 +1476,37 @@ function buildWaterGateModel(data, gate) {
         }
         var fpOff = 0;   // 滩地偏移（无滩地为 0）
         if (hasFlood && fpw > 0.01) {
-            // 滩地（复式断面）
+            // 滩地平台（仅复式断面有）
             var fpCx = chanHalf + slopeX + fpw / 2;     // 滩地中心 X
             box(fpw, 0.5, zl, matGrass, -fpCx, floodY - 0.25, zc);
             box(fpw, 0.5, zl, matGrass, fpCx, floodY - 0.25, zc);
             fpOff = fpw;
-            // 岸顶绿化（草绿色）
-            var dh2 = groundY - topY;               // 岸顶高差（无滩地时为 0）
-            var bankW = Math.max(3, 2 * dh2 + 3);   // 岸顶土体宽
-            var bankCx = chanHalf + slopeX + fpOff + bankW / 2;
-            box(bankW, Math.max(0.3, dh2 + 0.3), zl, matGrass, -bankCx, (topY + groundY) / 2 + 0.15, zc);
-            box(bankW, Math.max(0.3, dh2 + 0.3), zl, matGrass, bankCx, (topY + groundY) / 2 + 0.15, zc);
-            // 树木（沿 z 方向每 12m 一棵，每岸两排）
-            for (var ts = -1; ts <= 1; ts += 2) {
-                var treesPerSide = Math.max(2, Math.floor(zl / 12));
-                for (var ti = 0; ti < treesPerSide; ti++) {
-                    var tz = zc - zl / 2 + (ti + 0.5) * (zl / treesPerSide);
-                    var tx = ts * (chanHalf + slopeX + fpw + bankW * 0.3);
-                    // 树干
-                    var trunk = new THREE.Mesh(
-                        new THREE.CylinderGeometry(0.15, 0.22, 1.6, 6), matTree);
-                    trunk.position.set(tx, groundY + 0.8, tz);
-                    trunk.castShadow = true;
-                    modelGroup.add(trunk);
-                    // 树冠（圆锥）
-                    var crown = new THREE.Mesh(
-                        new THREE.ConeGeometry(1.1, 2.4, 8), matLeaf);
-                    crown.position.set(tx, groundY + 2.6, tz);
-                    crown.castShadow = true;
-                    modelGroup.add(crown);
-                }
+        }
+        // ===== 岸边（岸顶绿带 + 树木）—— 所有断面都有，和有滩地时一致 =====
+        var dh2 = groundY - topY;               // 岸顶高差（无滩地时为 0，坡顶即地面）
+        var bankW = Math.max(6, 2 * dh2 + 4);   // 岸顶土体宽（无滩地也留出岸边）
+        var bankY = (topY + groundY) / 2 + 0.15;
+        var bankCx0 = chanHalf + slopeX + fpOff + bankW / 2;
+        box(bankW, Math.max(0.35, dh2 + 0.3), zl, matGrass, -bankCx0, bankY, zc);
+        box(bankW, Math.max(0.35, dh2 + 0.3), zl, matGrass, bankCx0, bankY, zc);
+        // 树木（沿 z 方向每 12m 一棵，每岸两排）
+        for (var ts = -1; ts <= 1; ts += 2) {
+            var treesPerSide = Math.max(2, Math.floor(zl / 12));
+            for (var ti = 0; ti < treesPerSide; ti++) {
+                var tz = zc - zl / 2 + (ti + 0.5) * (zl / treesPerSide);
+                var tx = ts * (chanHalf + slopeX + fpOff + bankW * 0.3);
+                // 树干
+                var trunk = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.15, 0.22, 1.6, 6), matTree);
+                trunk.position.set(tx, groundY + 0.8, tz);
+                trunk.castShadow = true;
+                modelGroup.add(trunk);
+                // 树冠（圆锥）
+                var crown = new THREE.Mesh(
+                    new THREE.ConeGeometry(1.1, 2.4, 8), matLeaf);
+                crown.position.set(tx, groundY + 2.6, tz);
+                crown.castShadow = true;
+                modelGroup.add(crown);
             }
         }
     }
