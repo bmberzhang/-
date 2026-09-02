@@ -403,6 +403,10 @@ function calc(p, plan) {
   const wCheckAdopt = Math.round((bAdopt + 0.3) * 2) / 2;
   const wCheckT = 0.75 * hCheckAdopt * wCheckAdopt;
 
+  // 闸门厚度：工作门为钢闸门（面板+梁格）取 0.6 m；检修门为叠梁式取 0.4 m
+  const tGate = 0.6;
+  const tCheck = 0.4;
+
   const Hwkb = HtAdopt + 1.0;
   const Hwks = Hwkb + 0.8;
 
@@ -416,7 +420,7 @@ function calc(p, plan) {
     Ht1, Ht2, HtAdopt,
     tP, tF, tE, LPier,
     hGateAdopt, wGate, wGateT, FQ, hoistModel, hoistN,
-    hCheckAdopt, wCheckAdopt, wCheckT,
+    hCheckAdopt, wCheckAdopt, wCheckT, tGate, tCheck,
     Hwkb, Hwks, wwk: 3.5, wtk: 4.5, load: "公路-Ⅱ级", Htk: HtAdopt
   };
 }
@@ -476,9 +480,10 @@ function cardDefs(r) {
     { id:9, title:"闸门高度及重量", tag:"平面钢闸门", tagType:"blue", rows:[
         {k:"闸门高度", v:fmt(r.hGateAdopt,2)+" m", hl:true, num:true},
         {k:"闸门宽度", v:fmt(r.wGate,2)+" m", num:true},
+        {k:"闸门厚度", v:fmt(r.tGate,2)+" m", num:true},
         {k:"估算重量", v:"≈ "+Math.round(r.wGateT)+" t", num:true},
         {k:"支承形式", v:"滑动支承"}],
-      note:`门高 = 上游最高水位 - 底板 + 超高 ≈ ${r.hGateAdopt} m；宽 ${r.wGate} m（孔口 ${r.bAdopt} m + 边距 0.2）；按单位面积重估 ~0.75 t/m² ≈ ${Math.round(r.wGateT)} t。` },
+      note:`门高 = 上游最高水位 - 底板 + 超高 ≈ ${r.hGateAdopt} m；宽 ${r.wGate} m（孔口 ${r.bAdopt} m + 边距 0.2）；门厚按面板+梁格综合取 ${r.tGate.toFixed(2)} m；按单位面积重估 ~0.75 t/m² ≈ ${Math.round(r.wGateT)} t。` },
     { id:10, title:"启闭机选型与启闭门力", tag:r.hoistModel, tagType:"amber", rows:[
         {k:"所需启门力 FQ", v:r.FQ+" kN", hl:true, num:true},
         {k:"闭门力 FW", v:"自重闭门"},
@@ -500,9 +505,10 @@ function cardDefs(r) {
     { id:13, title:"检修闸门尺寸", tag:"叠梁式", tagType:"blue", rows:[
         {k:"检修门高度", v:fmt(r.hCheckAdopt,2)+" m", hl:true, num:true},
         {k:"检修门宽度", v:fmt(r.wCheckAdopt,2)+" m", num:true},
+        {k:"检修门厚度", v:fmt(r.tCheck,2)+" m", num:true},
         {k:"估算重量", v:"≈ "+Math.round(r.wCheckT)+" t", num:true},
         {k:"门型", v:"叠梁式钢闸门"}],
-      note:`检修门高 = 正常蓄水位 - 闸底板高程 + 0.5 m 超高 ≈ ${r.hCheckAdopt.toFixed(2)} m；宽 = 孔口净宽 ${r.bAdopt} m + 两侧门槽各 0.15 m = ${r.wCheckAdopt.toFixed(2)} m；采用叠梁式检修闸门，平时存放于门库。` }
+      note:`检修门高 = 正常蓄水位 - 闸底板高程 + 0.5 m 超高 ≈ ${r.hCheckAdopt.toFixed(2)} m；宽 = 孔口净宽 ${r.bAdopt} m + 两侧门槽各 0.15 m = ${r.wCheckAdopt.toFixed(2)} m；叠梁门厚取 ${r.tCheck.toFixed(2)} m；采用叠梁式检修闸门，平时存放于门库。` }
   ];
 }
 
