@@ -59,6 +59,22 @@ body {
 }
 .section { border-bottom: 1px solid #eef1f6; }
 .section:last-child { border-bottom: none; }
+/* 断面方案切换（带滩地/不带滩地） */
+.plan-seg {
+    display: flex; gap: 10px; padding: 14px 30px; background: #fff;
+    border-bottom: 1px solid #eef1f6; flex-wrap: wrap; align-items: center;
+}
+.plan-seg .seg-label { font-size: 13px; font-weight: 700; color: #4a4a55; margin-right: 4px; }
+.plan-seg button {
+    padding: 9px 20px; border-radius: 22px; border: 1.5px solid #d2d2d7; background: #fff;
+    font-size: 13px; font-weight: 600; color: #4a4a55; cursor: pointer; transition: all 0.18s;
+}
+.plan-seg button:hover { border-color: #0066cc; color: #0066cc; }
+.plan-seg button.active {
+    background: #0066cc; border-color: #0066cc; color: #fff;
+    box-shadow: 0 4px 12px rgba(0,102,204,0.25);
+}
+.tand-row.hidden { display: none !important; }
 .section-header {
     background: #fff; color: #1d1d1f;
     padding: 18px 30px; cursor: pointer;
@@ -332,7 +348,15 @@ body {
         <div style="background:linear-gradient(135deg,#e6f1fb,#d6e8fb);border-left:4px solid #0066cc;padding:12px 16px;border-radius:10px;margin-bottom:14px;font-size:14px;color:#0c447c;">
             <b>📌 重要参数（计算必需）</b> — 请填写以下参数用于计算；<b>如缺少某部分数据，可直接按默认值</b>。
         </div>
-        
+
+        <!-- 断面方案切换：带滩地（复式断面）/ 不带滩地（单一主槽） -->
+        <div class="plan-seg">
+            <span class="seg-label">🌊 河道断面方案：</span>
+            <button type="button" id="planAbtn" class="active" onclick="setTandPlan('A')">带滩地 · 复式断面</button>
+            <button type="button" id="planBbtn" onclick="setTandPlan('B')">不带滩地 · 单一主槽</button>
+            <span style="font-size:12px;color:#86868b;margin-left:6px;">按实际河段选择，可随时切换</span>
+        </div>
+
 
         <!-- Section 2: 流域及河道参数 -->
         
@@ -400,11 +424,11 @@ body {
                         <label>河道设计边坡</label>
                         <input type="text" id="channelSlope" value="1:2" placeholder="例如：1:2">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group tand-row">
                         <label>滩地设计高程 <span class="unit">(m)</span></label>
                         <input type="number" id="floodplainElevation" value="75.00" step="0.01">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group tand-row">
                         <label>滩地平均宽度 <span class="unit">(m)</span></label>
                         <input type="number" id="floodplainWidth" value="8.5" step="0.1">
                     </div>
@@ -416,7 +440,7 @@ body {
                         <label>主河槽糙率系数 n</label>
                         <input type="number" id="mainChannelRoughness" value="0.03" step="0.001">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group tand-row">
                         <label>滩地糙率系数 n</label>
                         <input type="number" id="floodplainRoughness" value="0.06" step="0.001">
                     </div>
@@ -1143,6 +1167,61 @@ function getFormStorageKey() {
     var u = (window.currentUsername || (document.getElementById('userName')||{}).textContent || 'anon').trim();
     return 'sluice_form_' + (u || 'anon');
 }
+// ===== 断面方案切换（带滩地 A / 不带滩地 B）=====
+var tandPlan = 'A';
+function setTandPlan(plan) {
+    tandPlan = plan;
+    document.getElementById('planAbtn').classList.toggle('active', plan === 'A');
+    document.getElementById('planBbtn').classList.toggle('active', plan === 'B');
+    // 河道断面形式同步
+    var ct = document.getElementById('channelType');
+    if (ct) ct.value = plan === 'A' ? '复式断面' : '梯形断面';
+    // 滩地字段显示/隐藏
+    var rows = document.querySelectorAll('.tand-row');
+    for (var i = 0; i < rows.length; i++) rows[i].classList.toggle('hidden', plan === 'B');
+    try { localStorage.setItem('tand_plan', getFormStorageKey() + ':' + plan); } catch (e) {}
+    // 若已生成 3D 模型则按新方案重建
+    if (currentModelData && currentModelData.data) {
+        var cd = currentModelData.data;
+        // 同步方案字段
+        cd.channelType = plan === 'A' ? '复式断面' : '梯形断面';
+        try { update3DModel(cd, currentModelData.gate, currentModelData.energy, currentModelData.seep); } catch (e) {}
+    }
+    showPlanTip();
+}
+function showPlanTip() {
+    // 在方案条下方提示（如有提示容器）
+    var tip = document.getElementById('planTip');
+    if (tip) tip.textContent = tandPlan === 'A'
+        ? '当前：复式断面（主河槽 + 两侧滩地），滩地参与行洪'
+        : '当前：单一主槽（无滩地），仅主河槽过流';
+}
+// 页面加载后恢复上次选择的方案
+function initTandPlan() {
+    var saved = null;
+    try { saved = localStorage.getItem('tand_plan'); } catch (e) {}
+    if (saved) {
+        var idx = saved.indexOf(':');
+        var key = idx >= 0 ? saved.slice(0, idx) : saved;
+        var val = idx >= 0 ? saved.slice(idx + 1) : 'A';
+        if (key === getFormStorageKey() && (val === 'A' || val === 'B')) {
+            setTandPlan(val);
+            return;
+        }
+    }
+    setTandPlan('A');
+}
+// 表单收集后附加断面方案（用于计算/存储）
+function patchFormDataForPlan(data) {
+    data['channelType'] = tandPlan === 'A' ? '复式断面' : '梯形断面';
+    if (tandPlan === 'B') {
+        data['floodplainElevation'] = data['floodplainElevation'] || '';
+        data['floodplainWidth'] = 0;
+        data['floodplainRoughness'] = data['mainChannelRoughness'] || data['floodplainRoughness'] || 0.03;
+    }
+    return data;
+}
+
 function saveFormToStorage() {
     try {
         var data = getFormData();
@@ -1322,13 +1401,16 @@ function buildWaterGateModel(data, gate) {
     var floodElev = parseFloat(data.floodplainElevation) || 75.00;
     var groundElev = parseFloat(data.groundElevation) || 78.80;
     var cbw = parseFloat(data.channelBottomWidth) || 20;   // 河底宽
-    var fpw = parseFloat(data.floodplainWidth) || 8.5;     // 滩地宽
+    // 断面方案：复式断面（带滩地）/ 其他（梯形、矩形 = 不带滩地）
+    var hasFlood = !(data.channelType && String(data.channelType).indexOf('复式') === -1);
+    var fpw = hasFlood ? (parseFloat(data.floodplainWidth) || 8.5) : 0;   // 滩地宽
     var bedY = -(Math.max(spDepth, 0.5) + 0.8);            // 河底相对高程（消力池底板下 0.8m）
     var floodY = floodElev - sill;                         // 滩地相对高程
     var groundY = groundElev - sill;                       // 地面相对高程
     if (bedY >= -0.5) bedY = -0.5;
     if (floodY <= bedY) floodY = bedY + 1.5;
     if (groundY <= floodY) groundY = floodY + 3.5;
+    if (!hasFlood && groundY <= bedY) groundY = bedY + 4.0;
 
     // 材质
     var matConcrete = new THREE.MeshLambertMaterial({color: 0xcdd0d2});
@@ -1368,38 +1450,44 @@ function buildWaterGateModel(data, gate) {
 
     // 河道断面构建（zc=中心，zl=长度）：岸坡 + 草坡覆盖 + 滩地 + 岸顶绿化 + 树木
     function channelBank(zc, zl) {
-        var dh = floodY - bedY;                     // 岸坡高差
-        var slopeX = 2 * dh;                        // 岸坡水平投影（边坡 1:2）
+        // 岸坡顶：有滩地 → 滩面高程；无滩地 → 直接到地面（单一主槽）
+        var topY = hasFlood ? floodY : groundY;
+        var dh = topY - bedY;                   // 岸坡高差
+        var slopeX = 2 * dh;                    // 岸坡水平投影（边坡 1:2）
         var slopeLen = Math.sqrt(dh * dh + slopeX * slopeX);
-        var theta = Math.atan2(dh, slopeX);         // 坡角
-        var slopeCx = chanHalf + slopeX / 2;        // 岸坡中心 X
+        var theta = Math.atan2(dh, slopeX);     // 坡角
+        var slopeCx = chanHalf + slopeX / 2;    // 岸坡中心 X
         for (var s = -1; s <= 1; s += 2) {
             // 裸土岸坡
             var sp = new THREE.Mesh(new THREE.BoxGeometry(slopeLen, 0.35, zl), matSoil);
-            sp.rotation.z = -s * theta;             // 坡向河道
-            sp.position.set(s * slopeCx, (bedY + floodY) / 2, zc);
+            sp.rotation.z = -s * theta;         // 坡向河道
+            sp.position.set(s * slopeCx, (bedY + topY) / 2, zc);
             sp.castShadow = true; sp.receiveShadow = true;
             modelGroup.add(sp);
             // 岸坡上半覆盖草皮（让土与草分清，延伸到岸坡最上端与滩地连接）
             var grassLen = slopeLen * 0.72;
             var grassX = s * (chanHalf + slopeX * 0.64);
-            var grassY = (bedY + floodY) / 2 + dh * 0.22;
+            var grassY = (bedY + topY) / 2 + dh * 0.22;
             var grass = new THREE.Mesh(new THREE.BoxGeometry(grassLen, 0.12, zl), matGrassDark);
             grass.rotation.z = -s * theta;
             grass.position.set(grassX, grassY, zc);
             grass.receiveShadow = true;
             modelGroup.add(grass);
         }
-        // 滩地
-        var fpCx = chanHalf + slopeX + fpw / 2;     // 滩地中心 X
-        box(fpw, 0.5, zl, matGrass, -fpCx, floodY - 0.25, zc);
-        box(fpw, 0.5, zl, matGrass, fpCx, floodY - 0.25, zc);
+        var fpOff = 0;   // 滩地偏移（无滩地为 0）
+        if (hasFlood && fpw > 0.01) {
+            // 滩地（复式断面）
+            var fpCx = chanHalf + slopeX + fpw / 2;     // 滩地中心 X
+            box(fpw, 0.5, zl, matGrass, -fpCx, floodY - 0.25, zc);
+            box(fpw, 0.5, zl, matGrass, fpCx, floodY - 0.25, zc);
+            fpOff = fpw;
+        }
         // 岸顶绿化（草绿色）
-        var dh2 = groundY - floodY;                 // 岸顶高差
-        var bankW = 2 * dh2 + 3;                    // 岸顶土体宽
-        var bankCx = chanHalf + slopeX + fpw + bankW / 2;
-        box(bankW, dh2 + 0.3, zl, matGrass, -bankCx, (floodY + groundY) / 2, zc);
-        box(bankW, dh2 + 0.3, zl, matGrass, bankCx, (floodY + groundY) / 2, zc);
+        var dh2 = groundY - topY;               // 岸顶高差（无滩地时为 0）
+        var bankW = Math.max(3, 2 * dh2 + 3);   // 岸顶土体宽
+        var bankCx = chanHalf + slopeX + fpOff + bankW / 2;
+        box(bankW, Math.max(0.3, dh2 + 0.3), zl, matGrass, -bankCx, (topY + groundY) / 2 + 0.15, zc);
+        box(bankW, Math.max(0.3, dh2 + 0.3), zl, matGrass, bankCx, (topY + groundY) / 2 + 0.15, zc);
         // 树木（沿 z 方向每 12m 一棵，每岸两排）
         for (var ts = -1; ts <= 1; ts += 2) {
             var treesPerSide = Math.max(2, Math.floor(zl / 12));
@@ -2548,6 +2636,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }).catch(function(){}).then(function(){
         // fetch 完成后才回填表单（保证 getFormStorageKey 拿到正确的用户名）
         restoreFormFromStorage();
+        if (typeof initTandPlan === 'function') initTandPlan();
         applyPageMode();
         // 3D 初始化（model 模式才显示）
         var panel = document.getElementById('modelPanel');
