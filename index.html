@@ -1523,13 +1523,21 @@ function buildWaterGateModel(data, gate) {
     // ===== 上游两侧导流翼墙（引导水流进入闸孔，防止水流从闸室两侧绕流淘刷）=====
     var uwLen = blanketLen + 3;                 // 翼墙长度（覆盖铺盖并向上游延伸）
     var uwBottom = bedY - 0.4;                  // 墙底（嵌入河床）
-    var uwTop = groundY + 0.2;                  // 墙顶（高于岸顶/最高水位）
+    var uwTop = gateH;                          // 墙顶 = 闸门顶高程（与闸门顶对齐）
     var uwHgt = uwTop - uwBottom;
     var uwYc = (uwBottom + uwTop) / 2;
     var uwZc = -fl / 2 - uwLen / 2;             // 墙 z 中心（闸室上游端向上游）
     var uwOff = 0.15;                           // 贴边墩外缘
     box(0.7, uwHgt, uwLen, matConcrete, -(B_total / 2 + 0.35 + uwOff), uwYc, uwZc);
     box(0.7, uwHgt, uwLen, matConcrete,  B_total / 2 + 0.35 + uwOff, uwYc, uwZc);
+    // 上游八字喇叭段（接在直翼墙上游端，向外张开引导上游来水顺畅进闸）
+    var upFlareStart = -fl / 2 - uwLen;          // 直翼墙上游端 z
+    for (var uk = 1; uk <= 2; uk++) {
+        var upDx = uk * 1.1;                     // 每段再外扩
+        var upFl = 3;                            // 每段长
+        box(0.7, uwHgt, upFl, matConcrete, -(B_total / 2 + 0.35 + uwOff + upDx), uwYc, upFlareStart - upFl * (uk - 0.5));
+        box(0.7, uwHgt, upFl, matConcrete,  (B_total / 2 + 0.35 + uwOff + upDx), uwYc, upFlareStart - upFl * (uk - 0.5));
+    }
 
     // ===== 闸室底板 =====
     box(B_total, ft, fl, matConcrete, 0, -ft / 2, 0);
@@ -1554,14 +1562,21 @@ function buildWaterGateModel(data, gate) {
         box(B_total, 1.0, 0.6, matConcreteDark, 0, -0.8, fl / 2 + spLen + rpLen + 0.3);
     }
 
-    // ===== 下游两侧翼墙（覆盖消力池段，约束出闸水流）=====
+    // ===== 下游两侧翼墙（覆盖消力池段，约束出闸水流；顶与闸门顶齐平）=====
     var dwLen = Math.max(4, spLen + 3);               // 翼墙长度（消力池 + 3m 过渡）
-    var dsY = Math.max(dsWL - sill, 0.3);             // 下游水位相对高程
-    var dwTop = dsY + 0.6;                            // 墙顶高于下游水位
+    var dwTop = gateH;                                // 墙顶 = 闸门顶高程
     var dwHgt = Math.max(dwTop - bedY + 0.3, 2.0);    // 墙底嵌入河床
     var dwYc = (bedY - 0.3 + dwTop) / 2;
     box(0.7, dwHgt, dwLen, matConcrete, -(B_total / 2 + 0.2), dwYc, fl / 2 + dwLen / 2 - 0.2);
     box(0.7, dwHgt, dwLen, matConcrete,  (B_total / 2 + 0.2), dwYc, fl / 2 + dwLen / 2 - 0.2);
+    // 下游八字喇叭段（接在直翼墙下游端，向外张开引导出闸水流平稳扩散）
+    var dnFlareStart = fl / 2 + dwLen - 0.2;          // 直翼墙下游端 z
+    for (var dk = 1; dk <= 2; dk++) {
+        var dnDx = dk * 1.1;                          // 每段再外扩
+        var dnFl = 3;                                 // 每段长
+        box(0.7, dwHgt, dnFl, matConcrete, -(B_total / 2 + 0.2 + dnDx), dwYc, dnFlareStart + dnFl * (dk - 0.5));
+        box(0.7, dwHgt, dnFl, matConcrete,  (B_total / 2 + 0.2 + dnDx), dwYc, dnFlareStart + dnFl * (dk - 0.5));
+    }
 
     // ===== 闸墩（流线型：直段 + 两端半圆墩头） =====
     for (var i = 0; i <= n; i++) {
