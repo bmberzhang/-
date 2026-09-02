@@ -397,6 +397,12 @@ function calc(p, plan) {
   else if (FQ <= 800) { hoistModel = "QPQ-2×800 kN"; hoistN = 2; }
   else { hoistModel = "QPQ-2×1250 kN"; hoistN = 2; }
 
+  // 检修闸门尺寸：高度按正常蓄水位-底板+0.5 超高；宽度按孔口净宽 + 两侧门槽各 0.15 m
+  const hCheck = p.Hz - p.Hb + 0.5;
+  const hCheckAdopt = Math.ceil(hCheck * 2) / 2;
+  const wCheckAdopt = Math.round((bAdopt + 0.3) * 2) / 2;
+  const wCheckT = 0.75 * hCheckAdopt * wCheckAdopt;
+
   const Hwkb = HtAdopt + 1.0;
   const Hwks = Hwkb + 0.8;
 
@@ -410,6 +416,7 @@ function calc(p, plan) {
     Ht1, Ht2, HtAdopt,
     tP, tF, tE, LPier,
     hGateAdopt, wGate, wGateT, FQ, hoistModel, hoistN,
+    hCheckAdopt, wCheckAdopt, wCheckT,
     Hwkb, Hwks, wwk: 3.5, wtk: 4.5, load: "公路-Ⅱ级", Htk: HtAdopt
   };
 }
@@ -489,7 +496,13 @@ function cardDefs(r) {
         {k:"荷载等级", v:r.load},
         {k:"桥面高程", v:fmt(r.Htk,2)+" m", num:true},
         {k:"结构形式", v:"钢筋混凝土板桥"}],
-      note:`交通桥设于闸室下游侧，桥面宽 ${r.wtk} m（单车道+人行），荷载按公路-Ⅱ级验算；桥面高程与闸顶齐平 ${r.Htk.toFixed(2)} m，板厚 0.5 m。` }
+      note:`交通桥设于闸室下游侧，桥面宽 ${r.wtk} m（单车道+人行），荷载按公路-Ⅱ级验算；桥面高程与闸顶齐平 ${r.Htk.toFixed(2)} m，板厚 0.5 m。` },
+    { id:13, title:"检修闸门尺寸", tag:"叠梁式", tagType:"blue", rows:[
+        {k:"检修门高度", v:fmt(r.hCheckAdopt,2)+" m", hl:true, num:true},
+        {k:"检修门宽度", v:fmt(r.wCheckAdopt,2)+" m", num:true},
+        {k:"估算重量", v:"≈ "+Math.round(r.wCheckT)+" t", num:true},
+        {k:"门型", v:"叠梁式钢闸门"}],
+      note:`检修门高 = 正常蓄水位 - 闸底板高程 + 0.5 m 超高 ≈ ${r.hCheckAdopt.toFixed(2)} m；宽 = 孔口净宽 ${r.bAdopt} m + 两侧门槽各 0.15 m = ${r.wCheckAdopt.toFixed(2)} m；采用叠梁式检修闸门，平时存放于门库。` }
   ];
 }
 
