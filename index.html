@@ -1540,9 +1540,6 @@ function buildWaterGateModel(data, gate) {
         box(B_total, ft, spLen, matConcreteDark, 0, -spDepth - ft / 2, fl / 2 + spLen / 2);
         // 消力坎（尾槛，池末端）
         box(B_total, spDepth + 0.5, 0.6, matConcrete, 0, -spDepth / 2 + 0.25, fl / 2 + spLen - 0.3);
-        // 消力池两侧导墙（边墙，约束水流）
-        box(0.5, spDepth + 1.2, spLen, matConcrete, -B_total / 2 + 0.25, -spDepth / 2 + 0.6, fl / 2 + spLen / 2);
-        box(0.5, spDepth + 1.2, spLen, matConcrete, B_total / 2 - 0.25, -spDepth / 2 + 0.6, fl / 2 + spLen / 2);
     }
     // ===== 海漫（反滤层 + 浆砌石面板 + 齿坎 + 末端防冲槽） =====
     if (rpLen > 0) {
@@ -1556,6 +1553,15 @@ function buildWaterGateModel(data, gate) {
         // 海漫末端防冲槽（齿墙下挖）
         box(B_total, 1.0, 0.6, matConcreteDark, 0, -0.8, fl / 2 + spLen + rpLen + 0.3);
     }
+
+    // ===== 下游两侧翼墙（从闸室下游端延伸覆盖消力池+海漫，约束出闸水流导至下游河道）=====
+    var dwLen = Math.max(10, spLen + rpLen + 2);      // 翼墙长度（覆盖消力池+海漫）
+    var dsY = Math.max(dsWL - sill, 0.3);             // 下游水位相对高程
+    var dwTop = dsY + 0.6;                            // 墙顶高于下游水位
+    var dwHgt = Math.max(dwTop - bedY + 0.3, 2.0);    // 墙底嵌入河床
+    var dwYc = (bedY - 0.3 + dwTop) / 2;
+    box(0.7, dwHgt, dwLen, matConcrete, -(B_total / 2 + 0.2), dwYc, fl / 2 + dwLen / 2 - 0.2);
+    box(0.7, dwHgt, dwLen, matConcrete,  (B_total / 2 + 0.2), dwYc, fl / 2 + dwLen / 2 - 0.2);
 
     // ===== 闸墩（流线型：直段 + 两端半圆墩头） =====
     for (var i = 0; i <= n; i++) {
