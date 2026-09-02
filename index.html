@@ -328,57 +328,10 @@ body {
     </div>
 
     <div class="form-container" id="mainForm">
-        <!-- Section 1: 基本信息 -->
-        <div class="section">
-            <div class="section-header" onclick="toggleSection(this)">
-                <h2><span class="icon">📋</span>一、基本信息</h2>
-                <span class="arrow">▼</span>
-            </div>
-            <div class="section-body" id="section1">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>项目/水闸名称</label>
-                        <input type="text" id="projectName" value="" placeholder="请输入项目名称">
-                    </div>
-                    <div class="form-group">
-                        <label>项目简称 <span class="unit">(正文用)</span></label>
-                        <input type="text" id="projectShort" value="" placeholder="请输入项目简称">
-                    </div>
-                    <div class="form-group">
-                        <label>项目缩写 <span class="unit">(英文用)</span></label>
-                        <input type="text" id="projectAbbr" value="" placeholder="请输入项目缩写">
-                    </div>
-                    <div class="form-group">
-                        <label>学校名称</label>
-                        <input type="text" id="university" value="" placeholder="请输入学校名称">
-                    </div>
-                    <div class="form-group">
-                        <label>学生姓名</label>
-                        <input type="text" id="studentName" value="" placeholder="请输入姓名">
-                    </div>
-                    <div class="form-group">
-                        <label>学号</label>
-                        <input type="text" id="studentId" value="" placeholder="请输入学号">
-                    </div>
-                    <div class="form-group">
-                        <label>学院</label>
-                        <input type="text" id="college" value="" placeholder="请输入学院">
-                    </div>
-                    <div class="form-group">
-                        <label>专业班级</label>
-                        <input type="text" id="majorClass" value="" placeholder="请输入专业班级">
-                    </div>
-                    <div class="form-group">
-                        <label>指导教师</label>
-                        <input type="text" id="advisor" value="" placeholder="请输入指导教师">
-                    </div>
-                    <div class="form-group">
-                        <label>日期 <span class="unit">(年-月-日)</span></label>
-                        <input type="text" id="thesisDate" value="" placeholder="请输入日期">
-                    </div>
-                </div>
-            </div>
+        <div style="background:linear-gradient(135deg,#e6f1fb,#d6e8fb);border-left:4px solid #0066cc;padding:12px 16px;border-radius:10px;margin-bottom:14px;font-size:14px;color:#0c447c;">
+            <b>📌 重要参数（计算必需）</b> — 请填写以下参数用于计算；<b>如缺少某部分数据，可直接按默认值</b>。
         </div>
+        
 
         <!-- Section 2: 流域及河道参数 -->
         <div class="section">
@@ -465,6 +418,7 @@ body {
                 </div>
             </div>
         </div>
+                
 
         <!-- Section 3: 水文设计参数 -->
         <div class="section">
@@ -518,6 +472,174 @@ body {
                 </div>
             </div>
         </div>
+                
+
+        <!-- Section 6: 闸孔设计参数 -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2><span class="icon">📐</span>六、闸孔设计参数</h2>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-body" id="section6">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>闸孔总净宽 <span class="unit">(m) — 自动计算</span></label>
+                        <input type="number" id="gateTotalWidth" value="0" step="0.01" readonly style="background:#eee;">
+                    </div>
+                    <div class="form-group">
+                        <label>单孔净宽 <span class="unit">(m)</span></label>
+                        <input type="number" id="singleGateWidth" value="6" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>闸孔数量 <span class="unit">(孔)</span></label>
+                        <input type="number" id="gateCount" value="3" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>中墩厚度 <span class="unit">(m)</span></label>
+                        <input type="number" id="middlePierThickness" value="1.2" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>边墩厚度 <span class="unit">(m)</span></label>
+                        <input type="number" id="sidePierThickness" value="1.0" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>闸底板顺水流方向长度 <span class="unit">(m)</span></label>
+                        <input type="number" id="floorLength" value="14" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>闸底板厚度 <span class="unit">(m)</span></label>
+                        <input type="number" id="floorThickness" value="1.2" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>铺盖长度 <span class="unit">(m)</span></label>
+                        <input type="number" id="blanketLength" value="15" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>铺盖厚度 <span class="unit">(m)</span></label>
+                        <input type="number" id="blanketThickness" value="0.5" step="0.1">
+                    </div>
+                </div>
+            </div>
+        </div>
+                
+
+        <!-- Section 7: 消能防冲参数 -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2><span class="icon">💨</span>七、消能防冲设计参数</h2>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-body" id="section7">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>水跃淹没系数 σ₀</label>
+                        <input type="number" id="jumpSubmergence" value="1.05" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>水跃长度校正系数 β</label>
+                        <input type="number" id="jumpCorrection" value="0.75" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>水流动能校正系数 α</label>
+                        <input type="number" id="kineticCorrection" value="1.0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>消力池底板计算系数 K₁</label>
+                        <input type="number" id="stillingBasinK1" value="0.2" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>海漫长度计算系数 Ks</label>
+                        <input type="number" id="riprapKs" value="9" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>过闸单宽流量 <span class="unit">(m³/s/m) — 自动计算</span></label>
+                        <input type="number" id="unitDischarge" value="0" step="0.001" readonly style="background:#eee;">
+                    </div>
+                    <div class="form-group">
+                        <label>河床土质类型</label>
+                        <select id="bedMaterial">
+                            <option value="粉质黏土" selected>粉质黏土</option>
+                            <option value="粉砂、细砂">粉砂、细砂</option>
+                            <option value="中砂、粗砂、粉质土壤">中砂、粗砂、粉质土壤</option>
+                            <option value="坚硬黏土">坚硬黏土</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>消力池末端河床水深 <span class="unit">(m)</span></label>
+                        <input type="number" id="downstreamDepth" value="4.42" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>海漫末端不冲流速 <span class="unit">(m/s)</span></label>
+                        <input type="number" id="nonScouringVelocity" value="0.7" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>消力池首端宽度 <span class="unit">(m)</span></label>
+                        <input type="number" id="stillingPoolB1" value="22.4" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>消力池末端宽度 <span class="unit">(m)</span></label>
+                        <input type="number" id="stillingPoolB2" value="22.4" step="0.1">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="background:#fff8e6;border-left:4px solid #f5a623;padding:12px 16px;border-radius:10px;margin:24px 0 14px;font-size:14px;color:#8a5a00;">
+            <b>📝 次要参数（可选）</b> — 以下参数一般保持默认即可，按需修改。
+        </div>
+        
+        <!-- Section 1: 基本信息 -->
+        <div class="section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2><span class="icon">📋</span>一、基本信息</h2>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-body" id="section1">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>项目/水闸名称</label>
+                        <input type="text" id="projectName" value="" placeholder="请输入项目名称">
+                    </div>
+                    <div class="form-group">
+                        <label>项目简称 <span class="unit">(正文用)</span></label>
+                        <input type="text" id="projectShort" value="" placeholder="请输入项目简称">
+                    </div>
+                    <div class="form-group">
+                        <label>项目缩写 <span class="unit">(英文用)</span></label>
+                        <input type="text" id="projectAbbr" value="" placeholder="请输入项目缩写">
+                    </div>
+                    <div class="form-group">
+                        <label>学校名称</label>
+                        <input type="text" id="university" value="" placeholder="请输入学校名称">
+                    </div>
+                    <div class="form-group">
+                        <label>学生姓名</label>
+                        <input type="text" id="studentName" value="" placeholder="请输入姓名">
+                    </div>
+                    <div class="form-group">
+                        <label>学号</label>
+                        <input type="text" id="studentId" value="" placeholder="请输入学号">
+                    </div>
+                    <div class="form-group">
+                        <label>学院</label>
+                        <input type="text" id="college" value="" placeholder="请输入学院">
+                    </div>
+                    <div class="form-group">
+                        <label>专业班级</label>
+                        <input type="text" id="majorClass" value="" placeholder="请输入专业班级">
+                    </div>
+                    <div class="form-group">
+                        <label>指导教师</label>
+                        <input type="text" id="advisor" value="" placeholder="请输入指导教师">
+                    </div>
+                    <div class="form-group">
+                        <label>日期 <span class="unit">(年-月-日)</span></label>
+                        <input type="text" id="thesisDate" value="" placeholder="请输入日期">
+                    </div>
+                </div>
+            </div>
+        </div>
+                
 
         <!-- Section 4: 工程地质参数 -->
         <div class="section">
@@ -599,6 +721,7 @@ body {
                 </div>
             </div>
         </div>
+                
 
         <!-- Section 5: 建筑物设计等级 -->
         <div class="section">
@@ -668,115 +791,7 @@ body {
                 </div>
             </div>
         </div>
-
-        <!-- Section 6: 闸孔设计参数 -->
-        <div class="section">
-            <div class="section-header" onclick="toggleSection(this)">
-                <h2><span class="icon">📐</span>六、闸孔设计参数</h2>
-                <span class="arrow">▼</span>
-            </div>
-            <div class="section-body" id="section6">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>闸孔总净宽 <span class="unit">(m) — 自动计算</span></label>
-                        <input type="number" id="gateTotalWidth" value="0" step="0.01" readonly style="background:#eee;">
-                    </div>
-                    <div class="form-group">
-                        <label>单孔净宽 <span class="unit">(m)</span></label>
-                        <input type="number" id="singleGateWidth" value="6" step="0.1">
-                    </div>
-                    <div class="form-group">
-                        <label>闸孔数量 <span class="unit">(孔)</span></label>
-                        <input type="number" id="gateCount" value="3" step="1">
-                    </div>
-                    <div class="form-group">
-                        <label>中墩厚度 <span class="unit">(m)</span></label>
-                        <input type="number" id="middlePierThickness" value="1.2" step="0.1">
-                    </div>
-                    <div class="form-group">
-                        <label>边墩厚度 <span class="unit">(m)</span></label>
-                        <input type="number" id="sidePierThickness" value="1.0" step="0.1">
-                    </div>
-                    <div class="form-group">
-                        <label>闸底板顺水流方向长度 <span class="unit">(m)</span></label>
-                        <input type="number" id="floorLength" value="14" step="0.1">
-                    </div>
-                    <div class="form-group">
-                        <label>闸底板厚度 <span class="unit">(m)</span></label>
-                        <input type="number" id="floorThickness" value="1.2" step="0.1">
-                    </div>
-                    <div class="form-group">
-                        <label>铺盖长度 <span class="unit">(m)</span></label>
-                        <input type="number" id="blanketLength" value="15" step="0.1">
-                    </div>
-                    <div class="form-group">
-                        <label>铺盖厚度 <span class="unit">(m)</span></label>
-                        <input type="number" id="blanketThickness" value="0.5" step="0.1">
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Section 7: 消能防冲参数 -->
-        <div class="section">
-            <div class="section-header" onclick="toggleSection(this)">
-                <h2><span class="icon">💨</span>七、消能防冲设计参数</h2>
-                <span class="arrow">▼</span>
-            </div>
-            <div class="section-body" id="section7">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>水跃淹没系数 σ₀</label>
-                        <input type="number" id="jumpSubmergence" value="1.05" step="0.01">
-                    </div>
-                    <div class="form-group">
-                        <label>水跃长度校正系数 β</label>
-                        <input type="number" id="jumpCorrection" value="0.75" step="0.01">
-                    </div>
-                    <div class="form-group">
-                        <label>水流动能校正系数 α</label>
-                        <input type="number" id="kineticCorrection" value="1.0" step="0.01">
-                    </div>
-                    <div class="form-group">
-                        <label>消力池底板计算系数 K₁</label>
-                        <input type="number" id="stillingBasinK1" value="0.2" step="0.01">
-                    </div>
-                    <div class="form-group">
-                        <label>海漫长度计算系数 Ks</label>
-                        <input type="number" id="riprapKs" value="9" step="1">
-                    </div>
-                    <div class="form-group">
-                        <label>过闸单宽流量 <span class="unit">(m³/s/m) — 自动计算</span></label>
-                        <input type="number" id="unitDischarge" value="0" step="0.001" readonly style="background:#eee;">
-                    </div>
-                    <div class="form-group">
-                        <label>河床土质类型</label>
-                        <select id="bedMaterial">
-                            <option value="粉质黏土" selected>粉质黏土</option>
-                            <option value="粉砂、细砂">粉砂、细砂</option>
-                            <option value="中砂、粗砂、粉质土壤">中砂、粗砂、粉质土壤</option>
-                            <option value="坚硬黏土">坚硬黏土</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>消力池末端河床水深 <span class="unit">(m)</span></label>
-                        <input type="number" id="downstreamDepth" value="4.42" step="0.01">
-                    </div>
-                    <div class="form-group">
-                        <label>海漫末端不冲流速 <span class="unit">(m/s)</span></label>
-                        <input type="number" id="nonScouringVelocity" value="0.7" step="0.1">
-                    </div>
-                    <div class="form-group">
-                        <label>消力池首端宽度 <span class="unit">(m)</span></label>
-                        <input type="number" id="stillingPoolB1" value="22.4" step="0.1">
-                    </div>
-                    <div class="form-group">
-                        <label>消力池末端宽度 <span class="unit">(m)</span></label>
-                        <input type="number" id="stillingPoolB2" value="22.4" step="0.1">
-                    </div>
-                </div>
-            </div>
-        </div>
+                
 
         <!-- Section 8: 结构材料参数 -->
         <div class="section">
@@ -858,6 +873,7 @@ body {
                 </div>
             </div>
         </div>
+                
 
         <!-- Section 9: 防渗设计参数 -->
         <div class="section">
@@ -902,6 +918,7 @@ body {
                 </div>
             </div>
         </div>
+                
 
         <!-- Section 10: 闸室布置参数 -->
         <div class="section">
@@ -966,8 +983,7 @@ body {
                 </div>
             </div>
         </div>
-
-        <!-- Actions -->
+                <!-- Actions -->
         <div class="actions">
             <button class="btn btn-primary" onclick="validateAndCalculate()">
                 🔍 第一步：参数验证与设计计算
