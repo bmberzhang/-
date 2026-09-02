@@ -1520,6 +1520,17 @@ function buildWaterGateModel(data, gate) {
     // ===== 上游铺盖 =====
     box(B_total, ft * 0.4, blanketLen, matConcreteDark, 0, -ft * 0.2, -fl / 2 - blanketLen / 2);
 
+    // ===== 上游两侧导流翼墙（引导水流进入闸孔，防止水流从闸室两侧绕流淘刷）=====
+    var uwLen = blanketLen + 3;                 // 翼墙长度（覆盖铺盖并向上游延伸）
+    var uwBottom = bedY - 0.4;                  // 墙底（嵌入河床）
+    var uwTop = groundY + 0.2;                  // 墙顶（高于岸顶/最高水位）
+    var uwHgt = uwTop - uwBottom;
+    var uwYc = (uwBottom + uwTop) / 2;
+    var uwZc = -fl / 2 - uwLen / 2;             // 墙 z 中心（闸室上游端向上游）
+    var uwOff = 0.15;                           // 贴边墩外缘
+    box(0.7, uwHgt, uwLen, matConcrete, -(B_total / 2 + 0.35 + uwOff), uwYc, uwZc);
+    box(0.7, uwHgt, uwLen, matConcrete,  B_total / 2 + 0.35 + uwOff, uwYc, uwZc);
+
     // ===== 闸室底板 =====
     box(B_total, ft, fl, matConcrete, 0, -ft / 2, 0);
 
