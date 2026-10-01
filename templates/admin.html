@@ -115,6 +115,15 @@
 .muted { font-size: 12.5px; color: var(--ink-3); }
 .center { text-align: center; padding: 40px 20px; color: var(--ink-4); font-size: 13px; }
 
+/* ---------- 在线支付订单 ---------- */
+.order-row { padding: 11px 0; border-bottom: 1px solid var(--line-soft); }
+.order-row:last-child { border-bottom: none; }
+.order-main { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.order-user { font-size: 13.5px; font-weight: 600; color: var(--ink-1); }
+.order-item { font-size: 12.5px; color: var(--ink-2); }
+.order-amt { font-size: 13.5px; font-weight: 600; color: var(--brand); margin-left: auto; }
+.order-sub { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-4); margin-top: 4px; }
+
 @media (max-width: 720px) {
   .wrap { padding: 16px 12px 52px; }
   .cs-layout { flex-direction: column; }
@@ -301,7 +310,66 @@
           </form>
         </div>
       </div>
-      <p class="muted" style="margin-top:10px">上传后，用户付费弹窗会展示对应收款码。</p>
+      <p class="muted" style="margin-top:10px">仅在「在线支付」关闭时使用：用户扫码付款后提交申请，你再手工开通次数。</p>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:{% if gw.ready %}#cfe6d8{% else %}var(--line){% endif %}">
+    <div class="card-head">
+      <h2>在线支付 · 付完自动到账</h2>
+      {% if gw.ready %}
+        <span class="tag tag-ok">已开启</span>
+      {% else %}
+        <span class="tag">未开启</span>
+      {% endif %}
+    </div>
+    <div class="card-body">
+      {% if gw.ready %}
+      <p class="muted" style="margin-bottom:14px">用户付款成功后，支付平台会回调本站，系统自动为他开通次数——不再需要人工确认。用户的付费弹窗已切换成扫码支付。</p>
+      {% else %}
+      <p class="muted" style="margin-bottom:14px">填好下面三项并保存，付费弹窗就会切换成「扫码 → 自动到账」。不填则维持现在的「收款码 + 人工确认」流程，互不影响。</p>
+      {% endif %}
+      <form method="post" action="/admin">
+        <input type="hidden" name="action" value="update_gateway">
+        <div class="form-grid">
+          <div class="fld">
+            <label>在线支付开关</label>
+            <select name="pay_gateway" class="input">
+              <option value=""{% if gw.mode != 'epay' %} selected{% endif %}>关闭（走收款码人工确认）</option>
+              <option value="epay"{% if gw.mode == 'epay' %} selected{% endif %}>开启（易支付协议）</option>
+            </select>
+          </div>
+          <div class="fld">
+            <label>接口地址</label>
+            <input type="text" name="epay_api" class="input" value="{{ gw.api }}" placeholder="https://支付平台域名">
+            <span class="muted" style="font-size:12px">平台后台给的接口地址，不带结尾斜杠</span>
+          </div>
+          <div class="fld">
+            <label>商户 ID（PID）</label>
+            <input type="text" name="epay_pid" class="input" value="{{ gw.pid }}" placeholder="1000">
+          </div>
+          <div class="fld">
+            <label>商户密钥（KEY）</label>
+            <input type="password" name="epay_key" class="input" autocomplete="new-password"
+                   placeholder="{% if gw.key_set %}已设置（末尾 {{ gw.key_tail }}），留空则不改动{% else %}粘贴平台的商户密钥{% endif %}">
+            <span class="muted" style="font-size:12px">只保存在服务器，不会下发给用户</span>
+          </div>
+        </div>
+        <div class="fld" style="margin-top:14px">
+          <label>本站地址</label>
+          <input type="text" name="pay_site_url" class="input" value="{{ gw.site }}" placeholder="https://你的站点域名">
+          <span class="muted" style="font-size:12px">用于生成回调地址；留空则自动用当前访问地址。在支付平台里把「异步通知地址」填成：本站地址 + /api/pay/notify</span>
+        </div>
+        <div style="margin-top:14px"><button class="btn btn-primary" type="submit">保存在线支付设置</button></div>
+      </form>
+      {% if gw.key_set %}
+      <form method="post" action="/admin" style="margin-top:10px"
+            onsubmit="return confirm('确定清空商户密钥吗？清空后在线支付立即失效，用户会回到人工确认流程。');">
+        <input type="hidden" name="action" value="clear_gateway_key">
+        <button class="btn btn-sm btn-danger" type="submit">清空商户密钥</button>
+      </form>
+      {% endif %}
+      <p class="muted" style="margin-top:12px">开启前请先确认：本站能通过公网访问（回调要打得通），且支付平台后台已填写异步通知地址。没有公网地址时回调收不到，用户仍可用「我已支付，立即核验」手动触发查单。</p>
     </div>
   </div>
 
@@ -311,6 +379,37 @@
       <span class="muted">核对收款记录后填写开通次数</span>
     </div>
     <div class="card-body"><div id="payReqList" class="center">加载中…</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>在线支付订单</h2>
+      <span class="muted">最近 100 笔 · 已支付的由系统自动开通</span>
+    </div>
+    <div class="card-body">
+      {% if orders %}
+      <div>
+        {% for o in orders %}
+        <div class="order-row">
+          <div class="order-main">
+            <span class="order-user">{{ o['username'] }}</span>
+            <span class="order-item">{{ qlabel.get(o['kind'], o['kind']) }} × {{ o['num'] }}</span>
+            <span class="order-amt">¥{{ '%.2f'|format(o['amount']) }}</span>
+            {% if o['status'] == 'paid' %}<span class="tag tag-ok">已到账</span>{% else %}<span class="tag">待支付</span>{% endif %}
+          </div>
+          <div class="order-sub">
+            <span>{{ o['created_at'] }}</span>
+            <span>{{ '微信支付' if o['pay_type'] == 'wxpay' else '支付宝' }}</span>
+            <span>{{ o['out_trade_no'] }}</span>
+            {% if o['trade_no'] %}<span>平台单号 {{ o['trade_no'] }}</span>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="center">暂无在线支付订单</div>
+      {% endif %}
+    </div>
   </div>
 
   <div class="card">

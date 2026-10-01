@@ -396,6 +396,72 @@ select.input { cursor: pointer; }
 }
 .pay-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
+/* ---------- 在线支付（付款后自动到账） ---------- */
+.pay-online { text-align: left; }
+.po-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; margin-bottom: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft); border-radius: var(--r-md);
+}
+.po-label { font-size: 13px; color: var(--ink-2); }
+.po-num { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.po-num button {
+  width: 28px; height: 28px; padding: 0; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--ink-2);
+  font-size: 15px; line-height: 1; font-family: inherit;
+}
+.po-num button:hover:not(:disabled) { border-color: var(--brand); color: var(--brand); }
+.po-num button:disabled { opacity: .35; cursor: not-allowed; }
+.po-num i { min-width: 36px; text-align: center; font-style: normal; font-size: 14px; font-weight: 600; color: var(--ink-1); }
+.po-total { font-size: 13px; color: var(--ink-2); }
+.po-total b { font-size: 17px; font-weight: 600; color: var(--brand); }
+.po-types { display: flex; gap: 8px; margin-bottom: 12px; }
+.po-types button {
+  flex: 1; padding: 9px 0; cursor: pointer; font-family: inherit;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface); color: var(--ink-2); font-size: 13px;
+}
+.po-types button.active {
+  border-color: var(--brand); color: var(--brand);
+  background: var(--brand-wash); font-weight: 600;
+}
+.po-btn-go { width: 100%; }
+.po-qr { text-align: center; margin-top: 4px; }
+.po-qr img {
+  width: 168px; height: 168px; object-fit: contain;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: #fff; padding: 6px;
+}
+.po-qr-tip { font-size: 12.5px; color: var(--ink-3); margin-top: 8px; }
+.po-qr-st { font-size: 13px; color: var(--ink-2); margin-top: 8px; min-height: 19px; }
+.po-qr-st.ok { color: var(--ok); font-weight: 600; }
+.po-qr-st.err { color: var(--danger); }
+.po-qr-st.wait::after {
+  content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--brand); margin-left: 5px; vertical-align: middle;
+  animation: po-blink 1s steps(2, start) infinite;
+}
+@keyframes po-blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: .15; } }
+.po-link { display: inline-block; margin-top: 8px; font-size: 12.5px; color: var(--brand); }
+.po-err {
+  font-size: 12.5px; color: var(--danger);
+  background: var(--danger-wash); border: 1px solid #f0d5d4;
+  border-radius: var(--r-md); padding: 9px 12px; margin-bottom: 12px; line-height: 1.6;
+}
+.po-done {
+  text-align: center; padding: 6px 0 2px;
+}
+.po-done .po-ok-mark {
+  width: 46px; height: 46px; margin: 0 auto 12px;
+  border-radius: 50%; background: var(--ok-wash);
+  display: flex; align-items: center; justify-content: center;
+}
+.po-done .po-ok-mark svg { width: 24px; height: 24px; stroke: var(--ok); }
+.po-done .po-done-t { font-size: 15px; font-weight: 600; color: var(--ink-1); margin-bottom: 6px; }
+.po-done .po-done-s { font-size: 13px; color: var(--ink-3); line-height: 1.7; }
+
 /* ---------- 页头 ---------- */
 .page-head {
   display: flex; align-items: flex-end; justify-content: space-between;

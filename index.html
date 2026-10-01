@@ -2598,10 +2598,214 @@ async function loadMeT() {
   } catch (e) {}
 }
 
+// ===== 在线支付（聚合支付网关）：下单 → 扫码 → 平台回调 → 自动到账 =====
+// 后台配好网关（接口地址 / 商户ID / 商户密钥）后，付费弹窗自动切换成这套流程，
+// 用户付完钱次数当场到账，不用再等管理员手动确认。
+var PO = {};                 // 每个弹窗的运行时状态，键为 'T' / 'G'
+
+function poState(sfx) {
+  if (!PO[sfx]) {
+    PO[sfx] = { sfx: sfx, kind: '', label: '', unit: 5, num: 1, payType: 'alipay',
+                outTradeNo: '', timer: null, busy: false, done: false };
+  }
+  return PO[sfx];
+}
+function poEsc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+
+// 打开弹窗：pay.online 为真走在线支付，否则保持原有的人工收款码流程
+function poMount(sfx, pay, kind, label, unit) {
+  var st = poState(sfx);
+  st.kind = kind; st.label = label;
+  st.unit = parseFloat(unit) || 5;
+  st.num = 1; st.payType = 'alipay'; st.outTradeNo = '';
+  st.done = false; st.busy = false;
+  poStopPoll(sfx);
+  var onlineBox = document.getElementById('payOnline' + sfx);
+  var manualBox = document.getElementById('payManual' + sfx);
+  if (pay && pay.online) {
+    if (onlineBox) onlineBox.style.display = '';
+    if (manualBox) manualBox.style.display = 'none';
+    poRenderForm(sfx);
+  } else {
+    if (onlineBox) onlineBox.style.display = 'none';
+    if (manualBox) manualBox.style.display = '';
+  }
+}
+
+function poRenderForm(sfx) {
+  var st = poState(sfx);
+  var box = document.getElementById('payOnline' + sfx);
+  if (!box) return;
+  box.innerHTML =
+    '<div id="poErr' + sfx + '"></div>' +
+    '<div class="po-row">' +
+      '<span class="po-label">购买数量</span>' +
+      '<div class="po-num">' +
+        '<button type="button" onclick="poStep(\'' + sfx + '\',-1)"' + (st.num <= 1 ? ' disabled' : '') + '>−</button>' +
+        '<i>' + st.num + '</i>' +
+        '<button type="button" onclick="poStep(\'' + sfx + '\',1)"' + (st.num >= 99 ? ' disabled' : '') + '>+</button>' +
+      '</div>' +
+      '<span class="po-total">合计 <b>' + (st.unit * st.num).toFixed(2) + '</b> 元</span>' +
+    '</div>' +
+    '<div class="po-types">' +
+      '<button type="button" class="' + (st.payType === 'alipay' ? 'active' : '') + '" onclick="poSetType(\'' + sfx + '\',\'alipay\')">支付宝</button>' +
+      '<button type="button" class="' + (st.payType === 'wxpay' ? 'active' : '') + '" onclick="poSetType(\'' + sfx + '\',\'wxpay\')">微信支付</button>' +
+    '</div>' +
+    '<button class="btn btn-primary po-btn-go" onclick="poSubmit(\'' + sfx + '\')">立即支付</button>' +
+    '<div class="po-qr" id="poQr' + sfx + '" style="display:none;"></div>';
+}
+
+function poStep(sfx, d) {
+  var st = poState(sfx);
+  st.num = Math.max(1, Math.min(99, st.num + d));
+  poStopPoll(sfx);
+  st.outTradeNo = '';
+  poRenderForm(sfx);
+}
+function poSetType(sfx, t) {
+  var st = poState(sfx);
+  st.payType = t;
+  poStopPoll(sfx);
+  st.outTradeNo = '';
+  poRenderForm(sfx);
+}
+function poErr(sfx, msg) {
+  var el = document.getElementById('poErr' + sfx);
+  if (!el) return;
+  el.innerHTML = msg ? '<div class="po-err">' + poEsc(msg) + '</div>' : '';
+}
+
+// ---- 下单 ----
+function poSubmit(sfx) {
+  var st = poState(sfx);
+  if (st.busy) return;
+  st.busy = true;
+  poErr(sfx, '正在创建订单…');
+  fetch('/api/pay/create', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kind: st.kind, num: st.num, pay_type: st.payType })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    st.busy = false;
+    if (!d.ok) { poErr(sfx, d.error || '下单失败，请稍后重试'); return; }
+    st.outTradeNo = d.out_trade_no;
+    poShowQr(sfx, d);
+    poStartPoll(sfx);
+  }).catch(function () {
+    st.busy = false;
+    poErr(sfx, '网络异常，请稍后重试');
+  });
+}
+
+function poShowQr(sfx, d) {
+  poErr(sfx, '');
+  var goBtn = document.querySelector('#payOnline' + sfx + ' .po-btn-go');
+  if (goBtn) goBtn.style.display = 'none';
+  var box = document.getElementById('poQr' + sfx);
+  if (!box) return;
+  var app = (d.pay_type === 'wxpay') ? '微信' : '支付宝';
+  box.innerHTML =
+    '<img src="/api/pay/qr/' + encodeURIComponent(d.out_trade_no) + '?t=' + Date.now() + '" alt="支付二维码">' +
+    '<div class="po-qr-tip">请用 <b>' + app + '</b> 扫码支付 <b>' + Number(d.amount).toFixed(2) + '</b> 元' +
+      '（' + poEsc(d.label) + ' × ' + d.num + '）</div>' +
+    '<div class="po-qr-st wait" id="poSt' + sfx + '">等待支付…付款成功后自动到账，无需联系管理员</div>' +
+    (d.payurl ? '<a class="po-link" href="' + poEsc(d.payurl) + '" target="_blank" rel="noopener">二维码扫不了？点这里打开支付页</a>' : '') +
+    '<div style="margin-top:12px;"><button class="btn btn-secondary" onclick="poSync(\'' + sfx + '\')">我已支付，立即核验</button></div>';
+  box.style.display = '';
+}
+
+// ---- 轮询订单状态（回调到达后由这里感知）----
+function poStartPoll(sfx) {
+  var st = poState(sfx);
+  poStopPoll(sfx);
+  var tries = 0;
+  st.timer = setInterval(function () {
+    tries++;
+    if (tries > 100) { poStopPoll(sfx); return; }   // 约 5 分钟，超时停止
+    if (!st.outTradeNo || st.done) return;
+    if (document.hidden) return;                    // 页面不在前台就不查，省请求
+    fetch('/api/pay/status?out_trade_no=' + encodeURIComponent(st.outTradeNo), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (d && d.ok && d.status === 'paid') poSuccess(sfx, d);
+      }).catch(function () {});
+  }, 3000);
+}
+function poStopPoll(sfx) {
+  var st = poState(sfx);
+  if (st.timer) { clearInterval(st.timer); st.timer = null; }
+}
+
+// ---- 主动核验（回调万一丢了，钱付了也不能没到账）----
+function poSync(sfx) {
+  var st = poState(sfx);
+  if (!st.outTradeNo) return;
+  var el = document.getElementById('poSt' + sfx);
+  if (el) { el.className = 'po-qr-st wait'; el.textContent = '正在向支付平台核验…'; }
+  fetch('/api/pay/sync', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ out_trade_no: st.outTradeNo })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (d && d.status === 'paid') { poSuccess(sfx, d); return; }
+    var e2 = document.getElementById('poSt' + sfx);
+    if (e2) { e2.className = 'po-qr-st err'; e2.textContent = (d && (d.msg || d.error)) || '暂未查到支付记录'; }
+  }).catch(function () {
+    var e2 = document.getElementById('poSt' + sfx);
+    if (e2) { e2.className = 'po-qr-st err'; e2.textContent = '核验失败，请稍后重试'; }
+  });
+}
+
+// ---- 到账 ----
+function poSuccess(sfx, d) {
+  var st = poState(sfx);
+  if (st.done) return;      // 轮询与主动核验可能同时命中，只处理一次
+  st.done = true;
+  poStopPoll(sfx);
+  // 弹窗标题也跟着换成成功态，别让用户以为还没付上
+  var tEl = document.getElementById('payTitle' + sfx);
+  if (tEl) tEl.textContent = '支付成功';
+  var pEl = document.getElementById('payPrice' + sfx);
+  if (pEl) pEl.textContent = '';
+  var box = document.getElementById('payOnline' + sfx);
+  var left = (d && typeof d.quota === 'number') ? d.quota : null;
+  if (box) {
+    box.innerHTML =
+      '<div class="po-done">' +
+        '<div class="po-ok-mark"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>' +
+        '<div class="po-done-t">支付成功，次数已自动到账</div>' +
+        '<div class="po-done-s">已开通 ' + poEsc(st.label) + ' × ' + st.num + ' 次' +
+          (left !== null ? '<br>当前剩余 <b>' + left + '</b> 次' : '') +
+          '<br>页头次数已刷新，可以直接使用</div>' +
+        '<div style="margin-top:16px;"><button class="btn btn-primary" onclick="poFinish(\'' + sfx + '\')">开始使用</button></div>' +
+      '</div>';
+  }
+  poRefreshQuota(st.kind);
+}
+
+// 支付成功后同步页头上的次数标签
+function poRefreshQuota(kind) {
+  fetch('/api/me', { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (!d) return;
+      var meta = QUOTA_META[kind];
+      if (meta) paintQuotaTag(kind, d[meta.quotaKey], (d.pay || {})[meta.priceKey]);
+      if (kind === 'thesis') {
+        thesisQuota = d.thesis_quota;
+        var el = document.getElementById('thesisQuotaBar');
+        if (el) el.textContent = '剩余论文次数：' + thesisQuota + '（每次生成消耗 1 次）';
+      }
+    }).catch(function () {});
+}
+
+function poFinish(sfx) {
+  if (sfx === 'G') { closePayG(); } else { closePayT(); }
+}
+
 function showPayT() {
   var pay = myPayT || {};
   document.getElementById('payPriceT').textContent =
     '论文：' + (pay.thesis_price || '10') + ' 元/篇';
+  poMount('T', pay, 'thesis', '生成论文', pay.thesis_price || 10);
   var pairs = [
     ['payWechatT', 'payWechatNoT', pay.wechat_qr],
     ['payAlipayT', 'payAlipayNoT', pay.alipay_qr]
@@ -2616,6 +2820,8 @@ function showPayT() {
 }
 
 function closePayT() {
+  poStopPoll('T');
+  var st = poState('T'); st.outTradeNo = '';
   document.getElementById('payMaskT').style.display = 'none';
 }
 
@@ -2639,10 +2845,11 @@ function submitPayReqT() {
 function showPayG(pay, label) {
   pay = pay || {};
   label = label || '计算工具';
-  var meta = null;
-  for (var k in QUOTA_META) { if (QUOTA_META[k].label === label) meta = QUOTA_META[k]; }
-  var price = (meta && pay[meta.priceKey]) || pay.tool_price || '5';
+  var kind = 'tool', meta = QUOTA_META.tool;
+  for (var k in QUOTA_META) { if (QUOTA_META[k].label === label) { meta = QUOTA_META[k]; kind = k; } }
+  var price = pay[meta.priceKey] || pay.tool_price || '5';
   document.getElementById('payPriceG').textContent = label + '：' + price + ' 元/次';
+  poMount('G', pay, kind, label, price);
   var pairs = [
     ['payWechatG', 'payWechatNoG', pay.wechat_qr],
     ['payAlipayG', 'payAlipayNoG', pay.alipay_qr]
@@ -2655,7 +2862,11 @@ function showPayG(pay, label) {
   document.getElementById('payNoteG').textContent = pay.pay_note || '扫码支付后请联系管理员开通次数。';
   document.getElementById('payMaskG').style.display = 'flex';
 }
-function closePayG() { document.getElementById('payMaskG').style.display = 'none'; }
+function closePayG() {
+  poStopPoll('G');
+  var st = poState('G'); st.outTradeNo = '';
+  document.getElementById('payMaskG').style.display = 'none';
+}
 function showPayReqG() { document.getElementById('payReqG').style.display = 'block'; }
 function submitPayReqG() {
   var amount = document.getElementById('payAmtG').value.trim();
@@ -2954,8 +3165,12 @@ if ('serviceWorker' in navigator) {
 <!-- 付费弹窗（论文） -->
 <div class="pay-mask" id="payMaskT" style="display:none;" onclick="if(event.target===this)closePayT()">
   <div class="pay-box">
-    <div class="pay-title">次数不足，请先付费开通</div>
+    <div class="pay-title" id="payTitleT">次数不足，请先付费开通</div>
     <div class="pay-price" id="payPriceT"></div>
+    <!-- 在线支付：下单 → 扫码 → 平台回调 → 自动到账（后台配好网关时显示） -->
+    <div class="pay-online" id="payOnlineT" style="display:none;"></div>
+    <!-- 人工收款码流程（未配置在线支付时的兜底） -->
+    <div id="payManualT">
     <div class="pay-qrs">
       <div class="pay-qr">
         <div class="pay-qr-label">微信支付</div>
@@ -2981,14 +3196,19 @@ if ('serviceWorker' in navigator) {
       <button class="btn btn-primary" onclick="showPayReqT()">我已支付，提交充值申请</button>
       <button class="btn btn-secondary" onclick="closePayT()">关闭</button>
     </div>
+    </div><!-- /payManualT -->
   </div>
 </div>
 
 <!-- 付费弹窗（设计计算工具） -->
 <div class="pay-mask" id="payMaskG" style="display:none;" onclick="if(event.target===this)closePayG()">
   <div class="pay-box">
-    <div class="pay-title">免费次数已用完，请付费开通</div>
+    <div class="pay-title" id="payTitleG">免费次数已用完，请付费开通</div>
     <div class="pay-price" id="payPriceG"></div>
+    <!-- 在线支付：下单 → 扫码 → 平台回调 → 自动到账（后台配好网关时显示） -->
+    <div class="pay-online" id="payOnlineG" style="display:none;"></div>
+    <!-- 人工收款码流程（未配置在线支付时的兜底） -->
+    <div id="payManualG">
     <div class="pay-qrs">
       <div class="pay-qr">
         <div class="pay-qr-label">微信支付</div>
@@ -3014,6 +3234,7 @@ if ('serviceWorker' in navigator) {
       <button class="btn btn-primary" onclick="showPayReqG()">我已支付，提交充值申请</button>
       <button class="btn btn-secondary" onclick="closePayG()">关闭</button>
     </div>
+    </div><!-- /payManualG -->
   </div>
 </div>
 

@@ -13,11 +13,12 @@ import os, sys, time, json, sqlite3
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 from flask import (Flask, request, send_file, jsonify, send_from_directory,
-                   render_template, redirect, url_for, session, flash)
+                   render_template, redirect, url_for, session, flash, Response)
 from werkzeug.security import generate_password_hash, check_password_hash
 import generate_thesis as gt
 import generate_drawing as gd
 import generate_plan as gp
+import pay_gateway as pgw
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 # 数据目录：本地用项目根目录；云端（Railway）通过 DATA_DIR 指向持久卷
@@ -72,6 +73,24 @@ def init_db():
             created_at TEXT DEFAULT (datetime('now','localtime')),
             processed_at TEXT
         );
+        -- 在线支付订单：下单 → 扫码付款 → 平台回调 → 自动发放次数
+        CREATE TABLE IF NOT EXISTS pay_orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            out_trade_no TEXT UNIQUE NOT NULL,
+            user_id INTEGER NOT NULL,
+            username TEXT,
+            kind TEXT NOT NULL,
+            num INTEGER NOT NULL DEFAULT 1,
+            amount REAL NOT NULL DEFAULT 0,
+            pay_type TEXT DEFAULT 'alipay',
+            status TEXT DEFAULT 'pending',
+            trade_no TEXT DEFAULT '',
+            qrcode TEXT DEFAULT '',
+            payurl TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now','localtime')),
+            paid_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_pay_orders_user ON pay_orders(user_id);
         CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -125,6 +144,9 @@ def init_db():
             ('wechat_qr', ''), ('alipay_qr', ''),
             ('register_drawing_bonus', '0'), ('register_thesis_bonus', '0'),
             ('register_tool_bonus', '2'), ('register_verify_bonus', '2'),
+            # 在线支付网关（易支付协议）。pay_gateway 留空或 manual = 走人工收款码流程
+            ('pay_gateway', ''), ('epay_api', ''), ('epay_pid', ''), ('epay_key', ''),
+            ('pay_site_url', ''),
         ]
         for k, v in defaults:
             conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', (k, v))
@@ -164,8 +186,39 @@ def get_setting(key, default=''):
     return row['value'] if row else default
 
 
+def get_gateway_config():
+    """服务端内部使用：聚合支付网关配置（含商户密钥，严禁下发前端）"""
+    return {
+        'api': get_setting('epay_api', '').strip(),
+        'pid': get_setting('epay_pid', '').strip(),
+        'key': get_setting('epay_key', '').strip(),
+    }
+
+
+def is_gateway_ready():
+    """在线支付是否已配置完成。
+    配好后前端走「下单 → 扫码 → 回调自动到账」；没配则回退到人工收款码流程。"""
+    if get_setting('pay_gateway', '').strip() != 'epay':
+        return False
+    c = get_gateway_config()
+    return bool(c['api'] and c['pid'] and c['key'])
+
+
+def site_base_url():
+    """站点根地址，用于拼回调 / 跳转地址"""
+    url = get_setting('pay_site_url', '').strip().rstrip('/')
+    if url:
+        return url
+    # 没配置就从当前请求推断（Railway 等平台会带 X-Forwarded-* 头）
+    try:
+        return request.host_url.rstrip('/')
+    except Exception:
+        return ''
+
+
 def get_pay_config():
-    """返回收费配置（价格 / 收款码 / 说明）"""
+    """返回收费配置（价格 / 收款码 / 说明 / 在线支付开关）。
+    注意：商户密钥绝不在这里下发。"""
     return {
         'drawing_price': get_setting('drawing_price', '5'),
         'thesis_price': get_setting('thesis_price', '10'),
@@ -174,6 +227,7 @@ def get_pay_config():
         'pay_note': get_setting('pay_note', ''),
         'wechat_qr': get_setting('wechat_qr', ''),
         'alipay_qr': get_setting('alipay_qr', ''),
+        'online': is_gateway_ready(),
     }
 
 
@@ -263,6 +317,8 @@ def require_login():
     elif path.startswith('/drawing/dl/'):
         if not current_user():
             return jsonify({"ok": False, "error": "请先登录"}), 401
+    # 注意：/api/pay/notify 是支付平台的回调入口，**刻意不要求登录**——
+    # 平台服务器不会带用户的 session cookie。它的安全由签名验签保证（见 pay_notify）。
 
 
 @app.after_request
@@ -383,6 +439,35 @@ def admin():
             conn.commit()
             conn.close()
             flash('收费设置已保存')
+        elif action == 'update_gateway':
+            # 在线支付网关（易支付协议）：配好后即可「付完钱自动出票」
+            conn = get_db()
+            pairs = {
+                'pay_gateway': request.form.get('pay_gateway', '').strip(),
+                'epay_api': request.form.get('epay_api', '').strip().rstrip('/'),
+                'epay_pid': request.form.get('epay_pid', '').strip(),
+                'pay_site_url': request.form.get('pay_site_url', '').strip().rstrip('/'),
+            }
+            if pairs['pay_gateway'] not in ('', 'epay'):
+                pairs['pay_gateway'] = ''
+            # 密钥留空表示不改动，避免误清空已保存的密钥
+            newkey = request.form.get('epay_key', '').strip()
+            if newkey:
+                pairs['epay_key'] = newkey
+            for k, v in pairs.items():
+                conn.execute("UPDATE settings SET value=? WHERE key=?", (v, k))
+            conn.commit()
+            conn.close()
+            if is_gateway_ready():
+                flash('在线支付已保存并开启：用户付款后自动到账，无需人工确认')
+            else:
+                flash('在线支付设置已保存，但自动出票未开启——请检查「接口地址 / 商户ID / 商户密钥」是否填全')
+        elif action == 'clear_gateway_key':
+            conn = get_db()
+            conn.execute("UPDATE settings SET value='' WHERE key='epay_key'")
+            conn.commit()
+            conn.close()
+            flash('商户密钥已清空，自动出票已关闭')
         elif action == 'upload_qr':
             # 上传微信 / 支付宝收款码
             kind = request.form.get('kind')  # wechat / alipay
@@ -403,8 +488,22 @@ def admin():
         return redirect(url_for('admin'))
     conn = get_db()
     users = conn.execute('SELECT id, username, created_at, drawing_quota, thesis_quota, tool_quota, verify_quota FROM users ORDER BY id').fetchall()
+    orders = conn.execute('SELECT * FROM pay_orders ORDER BY id DESC LIMIT 100').fetchall()
     conn.close()
-    return render_template('admin.html', invite_code=get_invite_code(), users=users, pay=get_pay_config())
+    _key = get_setting('epay_key', '').strip()
+    return render_template(
+        'admin.html', invite_code=get_invite_code(), users=users, pay=get_pay_config(),
+        orders=orders,
+        qlabel=QUOTA_LABEL,
+        gw={
+            'mode': get_setting('pay_gateway', '').strip(),
+            'api': get_setting('epay_api', '').strip(),
+            'pid': get_setting('epay_pid', '').strip(),
+            'site': get_setting('pay_site_url', '').strip(),
+            'key_set': bool(_key),
+            'key_tail': _key[-4:] if len(_key) >= 4 else '',   # 只回显末 4 位，不泄露完整密钥
+            'ready': is_gateway_ready(),
+        })
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -480,6 +579,250 @@ def api_me():
         "verify_quota": vq,
         "pay": get_pay_config(),
     })
+
+
+# ============================================================
+# 在线支付（聚合支付网关）：下单 → 扫码付款 → 平台回调 → 自动发放次数
+# ============================================================
+def gen_out_trade_no():
+    """生成本站订单号：SJ + 时间 + 6 位随机。只用字母数字，兼容各平台要求。"""
+    import random, string
+    return 'SJ' + time.strftime('%Y%m%d%H%M%S') + \
+        ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+
+def grant_order(out_trade_no, trade_no=''):
+    """把订单置为已支付并发放次数。
+
+    幂等：支付平台会重复推送回调直到收到 success，所以这里必须保证
+    「同一订单只发一次次数」——用带条件的 UPDATE 抢占，rowcount=0 说明
+    已被别的回调发过了，直接返回成功，不重复加次数。
+
+    返回 (ok, msg)
+    """
+    conn = get_db()
+    try:
+        row = conn.execute('SELECT * FROM pay_orders WHERE out_trade_no=?', (out_trade_no,)).fetchone()
+        if not row:
+            return False, '订单不存在'
+        if row['status'] == 'paid':
+            return True, '订单已发放（重复通知，已忽略）'
+        col = QUOTA_COL.get(row['kind'])
+        if not col:
+            return False, '订单类型无效'
+        cur = conn.execute(
+            "UPDATE pay_orders SET status='paid', trade_no=?, paid_at=datetime('now','localtime') "
+            "WHERE out_trade_no=? AND status<>'paid'",
+            (trade_no or row['trade_no'], out_trade_no))
+        if cur.rowcount == 0:
+            conn.rollback()
+            return True, '订单已发放（重复通知，已忽略）'
+        # 加次数与改状态在同一事务，避免「状态变了但次数没加」
+        conn.execute('UPDATE users SET %s=%s+? WHERE id=?' % (col, col), (row['num'], row['user_id']))
+        conn.commit()
+        return True, '已自动发放 %s × %d' % (QUOTA_LABEL.get(row['kind'], row['kind']), row['num'])
+    except Exception as e:
+        conn.rollback()
+        return False, '发放失败：%s' % e
+    finally:
+        conn.close()
+
+
+@app.route('/api/pay/create', methods=['POST'])
+def pay_create():
+    """创建支付订单：用户选好要买的次数，向平台下单拿二维码。
+    这是自动出票的起点——付完钱由 /api/pay/notify 自动到账。"""
+    u = current_user()
+    if not u:
+        return jsonify({"ok": False, "error": "请先登录"}), 401
+    if not is_gateway_ready():
+        return jsonify({"ok": False, "error": "在线支付未开通", "online": False}), 400
+    data = request.get_json(force=True, silent=True) or {}
+    kind = str(data.get('kind', '')).strip()
+    pay_type = str(data.get('pay_type', 'alipay')).strip()
+    if kind not in QUOTA_COL:
+        return jsonify({"ok": False, "error": "商品类型无效"}), 400
+    if pay_type not in ('alipay', 'wxpay'):
+        pay_type = 'alipay'
+    try:
+        num = int(data.get('num', 1) or 1)
+    except (ValueError, TypeError):
+        num = 1
+    num = max(1, min(num, 999))
+    try:
+        unit = float(get_setting(kind + '_price', '5') or 5)
+    except (ValueError, TypeError):
+        unit = 5.0
+    amount = round(unit * num, 2)
+    if amount <= 0:
+        return jsonify({"ok": False, "error": "金额无效，请先在后台设置价格"}), 400
+
+    out_trade_no = gen_out_trade_no()
+    base = site_base_url()
+    if not base:
+        return jsonify({"ok": False, "error": "站点地址未配置，无法生成回调地址"}), 400
+    label = QUOTA_LABEL.get(kind, kind)
+    try:
+        res = pgw.create_order(
+            get_gateway_config(), out_trade_no, amount,
+            name='%s×%d' % (label, num),
+            notify_url=base + '/api/pay/notify',
+            return_url=base + '/',
+            pay_type=pay_type,
+        )
+    except pgw.PayError as e:
+        return jsonify({"ok": False, "error": str(e)}), 502
+
+    conn = get_db()
+    conn.execute(
+        'INSERT INTO pay_orders (out_trade_no, user_id, username, kind, num, amount, pay_type, qrcode, payurl) '
+        'VALUES (?,?,?,?,?,?,?,?,?)',
+        (out_trade_no, u['id'], u['username'], kind, num, amount, pay_type,
+         res.get('qrcode', ''), res.get('payurl', '')))
+    conn.commit()
+    conn.close()
+    return jsonify({
+        "ok": True, "out_trade_no": out_trade_no, "amount": amount, "num": num,
+        "kind": kind, "label": label, "pay_type": pay_type,
+        "qrcode": res.get('qrcode', ''), "payurl": res.get('payurl', ''),
+    })
+
+
+@app.route('/api/pay/qr/<out_trade_no>')
+def pay_qr(out_trade_no):
+    """把订单的支付链接渲染成二维码图片（不把链接丢给第三方接口，本地生成）"""
+    u = current_user()
+    if not u:
+        return jsonify({"ok": False, "error": "请先登录"}), 401
+    conn = get_db()
+    row = conn.execute('SELECT * FROM pay_orders WHERE out_trade_no=?', (out_trade_no,)).fetchone()
+    conn.close()
+    if not row:
+        return jsonify({"ok": False, "error": "订单不存在"}), 404
+    if row['user_id'] != u['id'] and not is_admin(u):
+        return jsonify({"ok": False, "error": "无权限"}), 403
+    target = row['qrcode'] or row['payurl']
+    if not target:
+        return jsonify({"ok": False, "error": "该订单没有支付链接"}), 404
+    data = pgw.qr_png_bytes(target)
+    if not data:
+        return jsonify({"ok": False, "error": "二维码组件未安装"}), 503
+    return Response(data, mimetype='image/png',
+                    headers={'Cache-Control': 'no-store, max-age=0'})
+
+
+@app.route('/api/pay/notify', methods=['GET', 'POST'])
+def pay_notify():
+    """【支付平台回调入口】用户付款成功后，平台会主动请求这里。
+
+    三道关卡，缺一不可：
+      1. 验签——签名不对说明不是平台发的，直接拒（否则别人伪造「支付成功」白嫖）
+      2. 金额——回调金额必须与订单金额一致
+      3. 幂等——grant_order 内部保证同一订单只发一次次数
+
+    无论成败都返回 success/FAIL 纯文本，平台收到 success 才会停止重推。
+    """
+    params = {}
+    params.update(request.args.to_dict())
+    if request.method == 'POST':
+        form = request.form.to_dict()
+        if form:
+            params.update(form)
+        else:
+            params.update(request.get_json(force=True, silent=True) or {})
+
+    cfg = get_gateway_config()
+    if not (cfg['api'] and cfg['pid'] and cfg['key']):
+        return 'FAIL', 200
+    if not pgw.verify_sign(params, cfg['key']):
+        print('[pay_notify] 签名校验失败，已拒绝:', dict(params))
+        return 'FAIL', 200
+
+    out_trade_no = str(params.get('out_trade_no', '')).strip()
+    status = str(params.get('trade_status', 'TRADE_SUCCESS')).strip().upper()
+    if status != 'TRADE_SUCCESS':
+        return 'success', 200      # 非成功状态只确认收到，不发货
+
+    conn = get_db()
+    row = conn.execute('SELECT * FROM pay_orders WHERE out_trade_no=?', (out_trade_no,)).fetchone()
+    conn.close()
+    if not row:
+        print('[pay_notify] 订单不存在:', out_trade_no)
+        return 'FAIL', 200
+
+    try:
+        paid = round(float(params.get('money', 0) or 0), 2)
+    except (ValueError, TypeError):
+        paid = 0.0
+    if paid and abs(paid - float(row['amount'])) > 0.01:
+        print('[pay_notify] 金额不符，已拒绝:', out_trade_no, paid, row['amount'])
+        return 'FAIL', 200
+
+    ok, msg = grant_order(out_trade_no, str(params.get('trade_no') or ''))
+    print('[pay_notify]', out_trade_no, '发放' if ok else '失败', '-', msg)
+    return ('success' if ok else 'FAIL'), 200
+
+
+@app.route('/api/pay/status')
+def pay_status():
+    """前端轮询订单状态。已支付时顺带返回最新次数，页面当场刷新。"""
+    u = current_user()
+    if not u:
+        return jsonify({"ok": False, "error": "请先登录"}), 401
+    no = request.args.get('out_trade_no', '').strip()
+    conn = get_db()
+    row = conn.execute('SELECT * FROM pay_orders WHERE out_trade_no=?', (no,)).fetchone()
+    conn.close()
+    if not row:
+        return jsonify({"ok": False, "error": "订单不存在"}), 404
+    if row['user_id'] != u['id'] and not is_admin(u):
+        return jsonify({"ok": False, "error": "无权限"}), 403
+    return jsonify({
+        "ok": True, "status": row['status'], "num": row['num'],
+        "kind": row['kind'], "amount": row['amount'],
+        "quota": get_quota_one(row['user_id'], row['kind']),
+    })
+
+
+@app.route('/api/pay/sync', methods=['POST'])
+def pay_sync():
+    """用户点「我已支付」时主动向平台查单——回调万一丢了，钱付了也不至于没到账。"""
+    u = current_user()
+    if not u:
+        return jsonify({"ok": False, "error": "请先登录"}), 401
+    data = request.get_json(force=True, silent=True) or {}
+    no = str(data.get('out_trade_no', '')).strip()
+    conn = get_db()
+    row = conn.execute('SELECT * FROM pay_orders WHERE out_trade_no=?', (no,)).fetchone()
+    conn.close()
+    if not row:
+        return jsonify({"ok": False, "error": "订单不存在"}), 404
+    if row['user_id'] != u['id'] and not is_admin(u):
+        return jsonify({"ok": False, "error": "无权限"}), 403
+    if row['status'] == 'paid':
+        return jsonify({"ok": True, "status": "paid", "msg": "订单已到账",
+                        "quota": get_quota_one(row['user_id'], row['kind'])})
+    try:
+        res = pgw.query_order(get_gateway_config(), no, row['trade_no'])
+    except pgw.PayError as e:
+        return jsonify({"ok": False, "error": str(e)}), 502
+    if res.get('paid'):
+        ok, msg = grant_order(no, res.get('trade_no', ''))
+        return jsonify({"ok": ok, "status": "paid" if ok else "pending", "msg": msg,
+                        "quota": get_quota_one(row['user_id'], row['kind'])})
+    return jsonify({"ok": True, "status": "pending", "msg": "暂未查到支付记录，请稍候再试"})
+
+
+@app.route('/api/pay/orders')
+def pay_orders_list():
+    """管理员：在线支付订单流水"""
+    u = current_user()
+    if not is_admin(u):
+        return jsonify({"ok": False, "error": "无权限"}), 403
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM pay_orders ORDER BY id DESC LIMIT 200').fetchall()
+    conn.close()
+    return jsonify({"ok": True, "list": [dict(r) for r in rows]})
 
 
 # ============================================================
