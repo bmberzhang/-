@@ -21,6 +21,10 @@ app_server.log
 # 本地验收截图 / 样例产物
 论文页_*.png
 样例_*.png
+# verify_samples.py --charts 的图表核对输出
+_chartcheck/
+# Word 打开文档时产生的锁文件
+~$*
 # 个人本地数据（记忆/缓存），不上传
 .workbuddy/
 *.bak3

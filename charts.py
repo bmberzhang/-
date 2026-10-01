@@ -299,16 +299,289 @@ def fig_levels(top, p):
     return _save(fig)
 
 
+def _rect(ax, x, y, w, h, fc='#eef4fa', ec='#0f5a94', lw=0.9, hatch=None):
+    from matplotlib.patches import Rectangle
+    ax.add_patch(Rectangle((x, y), w, h, facecolor=fc, edgecolor=ec,
+                           linewidth=lw, hatch=hatch, zorder=2))
+
+
+def _plain(ax):
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for s in ('top', 'right', 'bottom', 'left'):
+        ax.spines[s].set_visible(False)
+
+
+def fig_plan(gw, energy, p):
+    """图：闸室平面布置示意图（顺水流方向各段按实际长度成比例）"""
+    plt = _setup()
+    n = int(float(p.get('gateCount') or 3))
+    b0 = float(p.get('singleGateWidth') or 6)
+    dp = float(p.get('middlePierThickness') or 1.0)
+    dsd = float(p.get('sidePierThickness') or 1.2)
+    Lb = float(p.get('blanketLength') or 15)
+    Lf = float(p.get('floorLength') or 14)
+    Lsj = float(energy.get('Lsj_design') or 15) or 15
+    Lp = float(energy.get('Lp_design') or 20) or 20
+    Lt = 5.0
+    B = n * b0 + (n - 1) * dp + 2 * dsd
+
+    fig, ax = plt.subplots(figsize=(FIG_W, FIG_H * 0.86))
+    x = 0.0
+    segs = [('上游铺盖', Lb, '#eef4fa'), ('闸室', Lf, '#dcebf7'),
+            ('消力池', Lsj, '#eaf3ea'), ('海漫', Lp, '#f3f1e8'),
+            ('防冲槽', Lt, '#f0e9e9')]
+    for name, ln, fc in segs:
+        _rect(ax, x, 0, ln, B, fc=fc)
+        ax.text(x + ln / 2, B + B * 0.10, name, ha='center',
+                fontproperties=_font(8.5), color='#333333')
+        x += ln
+    total = x
+
+    # 闸孔与闸墩（平面图里闸孔沿垂直水流方向依次排开）
+    y = dsd
+    for i in range(n):
+        _rect(ax, Lb, y, Lf, b0, fc='#ffffff', ec='#0f5a94', lw=0.8)
+        ax.text(Lb + Lf / 2, y + b0 / 2, '闸门', ha='center', va='center',
+                fontproperties=_font(8), color='#0f5a94')
+        y += b0
+        if i < n - 1:
+            _rect(ax, Lb, y, Lf, dp, fc='#c9dced', ec='#0f5a94', lw=0.8)
+            y += dp
+
+    for x0, lbl in ((0, '0'), (Lb, '%g' % Lb),
+                    (Lb + Lf, '%g' % (Lb + Lf)),
+                    (Lb + Lf + Lsj, '%g' % (Lb + Lf + Lsj)),
+                    (total, '%g' % total)):
+        ax.plot([x0, x0], [-B * 0.06, 0], color='#8a8f98', linewidth=0.6)
+        ax.text(x0, -B * 0.10, lbl, ha='center', va='top',
+                fontproperties=_font(7.5), color='#555555')
+    ax.annotate('', xy=(0, -B * 0.20), xytext=(total, -B * 0.20),
+                arrowprops=dict(arrowstyle='<->', color='#8a8f98', lw=0.7))
+    ax.text(total / 2, -B * 0.27, '顺水流方向长度 (m)', ha='center', va='top',
+            fontproperties=_font(8), color='#555555')
+
+    ax.set_xlim(-total * 0.03, total * 1.03)
+    ax.set_ylim(-B * 0.42, B * 1.30)
+    _plain(ax)
+    return _save(fig)
+
+
+def fig_section(st, top, p):
+    """图：闸室横剖面示意图（垂直水流方向）"""
+    plt = _setup()
+    n = int(float(p.get('gateCount') or 3))
+    b0 = float(p.get('singleGateWidth') or 6)
+    dp = float(p.get('middlePierThickness') or 1.0)
+    dsd = float(p.get('sidePierThickness') or 1.2)
+    B = n * b0 + (n - 1) * dp + 2 * dsd
+    tf = float(p.get('floorThickness') or 1.2)
+    z_top = float(top.get('top') or 0)
+    sill = float(p.get('gateSillElevation') or 0)
+    H = max(z_top - sill, 1.0)
+
+    fig, ax = plt.subplots(figsize=(FIG_W * 0.92, FIG_H * 0.90))
+    _rect(ax, 0, -tf, B, tf, fc='#c9dced')            # 底板
+    x = dsd
+    for i in range(n):                                 # 边墩 + 各孔
+        _rect(ax, x, 0, b0, H, fc='#ffffff', ec='#0f5a94', lw=0.7)
+        ax.plot([x + b0 * 0.12, x + b0 * 0.12], [0, H * 0.86],
+                color='#0f5a94', linewidth=1.0)
+        ax.text(x + b0 / 2, H * 0.45, '闸门', ha='center', va='center',
+                fontproperties=_font(8), color='#0f5a94')
+        x += b0
+        if i < n - 1:
+            _rect(ax, x, 0, dp, H, fc='#c9dced')
+            ax.text(x + dp / 2, H * 0.70, '中墩', ha='center', va='center',
+                    rotation=90, fontproperties=_font(7.5), color='#0f5a94')
+            x += dp
+    _rect(ax, 0, 0, dsd, H, fc='#c9dced')
+    ax.text(dsd / 2, H * 0.70, '边墩', ha='center', va='center',
+            rotation=90, fontproperties=_font(7.5), color='#0f5a94')
+    _rect(ax, B - dsd, 0, dsd, H, fc='#c9dced')
+
+    ax.text(B / 2, -tf * 2.1, '闸底板厚 %.2f m' % tf, ha='center', va='top',
+            fontproperties=_font(8), color='#333333')
+    ax.annotate('', xy=(B * 0.02, H * 1.06), xytext=(0.02 * B, H * 1.06))
+    ax.plot([0, B], [H * 1.06, H * 1.06], color='#8a8f98', linewidth=0.7)
+    ax.annotate('', xy=(0, H * 1.10), xytext=(B, H * 1.10),
+                arrowprops=dict(arrowstyle='<->', color='#8a8f98', lw=0.7))
+    ax.text(B / 2, H * 1.13, '闸室总宽度 %.2f m' % B, ha='center', va='bottom',
+            fontproperties=_font(8), color='#555555')
+    ax.set_xlim(-B * 0.06, B * 1.06)
+    ax.set_ylim(-tf * 3.0, H * 1.35)
+    _plain(ax)
+    return _save(fig)
+
+
+def fig_profile(gw, top, energy, p):
+    """图：沿水流方向的纵剖面示意图（铺盖—闸室—消力池—海漫—防冲槽）"""
+    plt = _setup()
+    Lb = float(p.get('blanketLength') or 15)
+    Lf = float(p.get('floorLength') or 14)
+    Lsj = float(energy.get('Lsj_design') or 15) or 15
+    Lp = float(energy.get('Lp_design') or 20) or 20
+    Lt = 5.0
+    sill = float(p.get('gateSillElevation') or 0)
+    z_up = float(p.get('upstreamWaterLevel') or sill + 4)
+    z_dn = float(p.get('downstreamWaterLevel') or sill + 3)
+    tf = float(p.get('floorThickness') or 1.2)
+    d_pool = float(energy.get('d_design') or 0.5)
+
+    fig, ax = plt.subplots(figsize=(FIG_W * 1.02, FIG_H * 0.94))
+    _rect(ax, 0, sill - 0.5, Lb, 0.5, fc='#f3f1e8')                 # 铺盖
+    _rect(ax, Lb, sill - tf, Lf, tf, fc='#c9dced')                  # 闸室底板
+    _rect(ax, Lb + Lf, sill - tf - d_pool, Lsj, tf + d_pool, fc='#eaf3ea')  # 消力池
+    _rect(ax, Lb + Lf + Lsj, sill - tf, Lp, 0.35, fc='#f3f1e8')     # 海漫
+    _rect(ax, Lb + Lf + Lsj + Lp, sill - tf - 2.85, Lt, 2.85 + 0.35, fc='#f0e9e9')
+
+    total = Lb + Lf + Lsj + Lp + Lt
+    y_lo, y_hi = sill - tf - 3.4, z_up + 1.5
+    span = y_hi - y_lo
+    ax.plot([0, total], [z_up, z_up], color=_C_MAIN, linestyle='--', linewidth=1.0)
+    ax.plot([0, total], [z_dn, z_dn], color=_C_ALT, linestyle='--', linewidth=1.0)
+    # 上下游水位只差零点几米，在 20 m 的量程里几乎是同一条线：
+    # 一个标签写在上方、另一个压到下方，各带一条细引线，免得读成一行字
+    ax.text(0.5, z_up + span * 0.02, '上游水位 %.2f m' % z_up, ha='left',
+            va='bottom', fontproperties=_font(8), color=_C_MAIN)
+    ax.plot([0.5, 0.5], [z_up, z_up + span * 0.018], color=_C_MAIN, linewidth=0.6)
+    ax.text(total - 0.5, z_dn - span * 0.055, '下游水位 %.2f m' % z_dn, ha='right',
+            va='top', fontproperties=_font(8), color=_C_ALT)
+    ax.plot([total - 0.5, total - 0.5], [z_dn, z_dn - span * 0.05],
+            color=_C_ALT, linewidth=0.6)
+    for xx, lbl in ((Lb * 0.5, '铺盖'), (Lb + Lf * 0.5, '闸室底板'),
+                    (Lb + Lf + Lsj * 0.5, '消力池'), (Lb + Lf + Lsj + Lp * 0.5, '海漫'),
+                    (Lb + Lf + Lsj + Lp + Lt * 0.5, '防冲槽')):
+        ax.text(xx, sill - tf - 1.5, lbl, ha='center', va='top',
+                fontproperties=_font(8), color='#333333')
+    ax.set_xlim(-1, total + 1)
+    ax.set_ylim(y_lo, y_hi)
+    ax.set_ylabel('高程 (m)', fontproperties=_font(9))
+    ax.set_xlabel('顺水流方向距离 (m)', fontproperties=_font(9))
+    ax.grid(True, color='#d8d8d8', linewidth=0.5)
+    ax.set_axisbelow(True)
+    for s in ('top', 'right'):
+        ax.spines[s].set_visible(False)
+    ax.tick_params(labelsize=8, length=3, width=0.6, colors='#333333')
+    return _save(fig)
+
+
+def fig_seep_profile(sp, p):
+    """图：闸基防渗布置与分段水头损失示意"""
+    plt = _setup()
+    Lb = float(p.get('blanketLength') or 15)
+    Lf = float(p.get('floorLength') or 14)
+    sill = float(p.get('gateSillElevation') or 0)
+    tf = float(p.get('floorThickness') or 1.2)
+    hs = sp.get('h_list') or []
+    if not hs:
+        return None
+    Te = float(sp.get('Te') or 10)
+
+    # 上下两个分图共用横坐标：上面画地下轮廓线，下面画各段水头损失。
+    # 画在同一坐标系里会看成两座建筑物。
+    fig, (ax, ax2) = plt.subplots(
+        2, 1, sharex=True, figsize=(FIG_W, FIG_H * 1.05),
+        gridspec_kw={'height_ratios': [1.5, 1.0], 'hspace': 0.18})
+    _rect(ax, 0, sill - 0.6, Lb, 0.6, fc='#f3f1e8')     # 铺盖
+    _rect(ax, Lb, sill - tf, Lf, tf, fc='#c9dced')       # 底板
+    ax.plot([Lb + Lf, Lb + Lf], [sill - tf, sill - tf - 2.2], color='#7a5c2e',
+            linewidth=2.4)                                # 板桩
+    ax.plot([Lb, Lb], [sill - tf, sill - tf - 0.8], color='#7a5c2e', linewidth=2.4)
+    ax.text(Lb + Lf + 0.4, sill - tf - 1.8, '板桩', fontproperties=_font(8),
+            color='#7a5c2e')
+    ax.text(Lb * 0.5, sill - 0.15, '铺盖', ha='center', va='bottom',
+            fontproperties=_font(8), color='#333333')
+    ax.text(Lb + Lf * 0.5, sill - tf * 0.5, '闸底板', ha='center', va='center',
+            fontproperties=_font(8), color='#0f5a94')
+    ax.set_ylim(sill - 3.6, sill + 0.8)
+    ax.set_ylabel('高程 (m)', fontproperties=_font(9))
+    ax.grid(True, color='#d8d8d8', linewidth=0.5)
+    ax.set_axisbelow(True)
+    ax.tick_params(labelsize=8, length=3, width=0.6, colors='#333333')
+
+    x, seg_len = 0.0, [1.0, 12.0, 1.2, 14.0, 0.5, 0.5, 1.0, 2.2]
+    for i, h in enumerate(hs):
+        w = seg_len[i] if i < len(seg_len) else 1.0
+        _rect(ax2, x, 0, w, h, fc='#dcebf7', ec='#0f5a94', lw=0.7)
+        x += w
+    ax2.plot([0, x], [0, 0], color='#4a4a4a', linewidth=0.7)
+    ax2.set_ylim(0, max(hs) * 1.35)
+    ax2.set_ylabel('水头损失 (m)', fontproperties=_font(9))
+    ax2.set_xlabel('顺水流方向距离 (m)', fontproperties=_font(9))
+    ax2.grid(True, color='#d8d8d8', linewidth=0.5)
+    ax2.set_axisbelow(True)
+    ax2.tick_params(labelsize=8, length=3, width=0.6, colors='#333333')
+    for a in (ax, ax2):
+        for s in ('top', 'right'):
+            a.spines[s].set_visible(False)
+    return _save(fig)
+
+
+def fig_loads(st, p):
+    """图：闸室荷载分项（竖向力向下为正，水平力按方向分列）"""
+    plt = _setup()
+    loads = st.get('loads') or []
+    if not loads:
+        return None
+    names, vals = [], []
+    for nm, v, _d in loads:
+        names.append(nm.split('（')[0][:8])
+        vals.append(abs(v))
+    order = sorted(range(len(vals)), key=lambda i: vals[i])
+    names = [names[i] for i in order]
+    vals = [vals[i] for i in order]
+
+    fig, ax = plt.subplots(figsize=(FIG_W * 0.98, FIG_H * 0.92))
+    bars = ax.barh(names, vals, color=_C_MAIN, alpha=0.85, height=0.6)
+    for b, v in zip(bars, vals):
+        ax.text(v, b.get_y() + b.get_height() / 2, ' %.0f' % v,
+                va='center', fontproperties=_font(8), color='#333333')
+    ax.set_xlim(0, max(vals) * 1.22)
+    ax.set_xlabel('荷载 (kN)', fontproperties=_font(9))
+    ax.grid(True, axis='x', color='#d8d8d8', linewidth=0.5)
+    ax.set_axisbelow(True)
+    for s in ('top', 'right'):
+        ax.spines[s].set_visible(False)
+    ax.tick_params(labelsize=8, length=3, width=0.6, colors='#333333')
+    return _save(fig)
+
+
+def fig_hq(energy, p):
+    """图：闸下水位流量关系曲线"""
+    plt = _setup()
+    rows = energy.get('rows') or []
+    if len(rows) < 3:
+        return None
+    sill = float(p.get('gateSillElevation') or 0)
+    xs = [r['Q'] for r in rows]
+    ys = [r['hs'] + sill for r in rows]
+
+    fig, ax = plt.subplots(figsize=(FIG_W * 0.78, FIG_H * 0.88))
+    ax.plot(xs, ys, color=_C_MAIN, linewidth=1.6, marker='o', markersize=3)
+    ax.fill_between(xs, min(ys) - 0.2, ys, color=_C_MAIN, alpha=0.10)
+    ax.set_xlabel('闸下流量 Q (m³/s)', fontproperties=_font(9))
+    ax.set_ylabel('闸下水位 (m)', fontproperties=_font(9))
+    _frame(ax)
+    return _save(fig)
+
+
 # ============================================================
 # 总入口
 # ============================================================
 # (key, 生成函数, 图题, 归属章节关键词)
 SPECS = [
     ('gate_width', fig_gate_width, '闸孔总净宽随上下游水位差变化关系', '闸孔'),
+    ('plan', fig_plan, '闸室平面布置示意图', '闸孔'),
+    ('hq', fig_hq, '闸下水位流量关系曲线', '闸孔'),
     ('energy', fig_energy, '消力池尺寸与海漫长度随下泄流量变化关系', '消能'),
     ('levels', fig_levels, '闸顶高程控制高程线', '高程'),
+    ('profile', fig_profile, '水闸纵剖面布置示意图', '高程'),
+    ('section', fig_section, '闸室横剖面示意图', '高程'),
     ('seepage', fig_seepage, '闸基渗流水头损失沿地下轮廓线分布', '防渗'),
+    ('seep_profile', fig_seep_profile, '闸基防渗布置与分段水头损失示意图', '防渗'),
     ('stress', fig_stress, '闸基底板地基反力分布', '稳定'),
+    ('loads', fig_loads, '闸室荷载分项图', '稳定'),
 ]
 
 
@@ -326,7 +599,11 @@ def render_all(gw, top, sp, energy, st, params):
 
     args = {'gate_width': (gw, params), 'energy': (energy, params),
             'levels': (top, params), 'seepage': (sp, params),
-            'stress': (st, params)}
+            'stress': (st, params),
+            'plan': (gw, energy, params), 'hq': (energy, params),
+            'profile': (gw, top, energy, params),
+            'section': (st, top, params),
+            'seep_profile': (sp, params), 'loads': (st, params)}
     import warnings
     for key, fn, title, chapter in SPECS:
         try:

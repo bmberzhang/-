@@ -282,7 +282,7 @@ def calc_gate_width_mu0(d):
 
     hs = dsWL - sill
     rows = []
-    for dH in (0.1, 0.2, 0.3):
+    for dH in (0.1, 0.2, 0.3, 0.4, 0.5, 0.6):
         H = hs + dH                                   # 上游水深
         A = (b_ch + m * H) * H                        # 过水断面面积（单式梯形）
         v = Q / A if A > 0 else 0                     # 行进流速
@@ -483,6 +483,20 @@ _MU_TABLE = {0.1: 0.578, 0.3: 0.571, 0.5: 0.563, 0.7: 0.556, 0.9: 0.550,
              1.1: 0.543, 1.3: 0.537, 1.5: 0.530, 1.7: 0.524, 1.9: 0.518}
 
 
+def mu_at(he):
+    """孔口流量系数：表内点直取，表间点线性内插，超出范围按端点延伸。"""
+    ks = sorted(_MU_TABLE)
+    if he <= ks[0]:
+        return _MU_TABLE[ks[0]]
+    if he >= ks[-1]:
+        return _MU_TABLE[ks[-1]]
+    for a, b in zip(ks, ks[1:]):
+        if a <= he <= b:
+            t = (he - a) / (b - a)
+            return _MU_TABLE[a] + t * (_MU_TABLE[b] - _MU_TABLE[a])
+    return 0.55
+
+
 def calc_energy_mu0(d, gw):
     """第4章消能：闸门不同开度孔口出流→水跃→消力池深度/长度→海漫/防冲槽，取最不利。"""
     g = _f(d.get('gravity'), 9.81)
@@ -511,10 +525,12 @@ def calc_energy_mu0(d, gw):
     H = dsWL - sill                           # 消能工况上游水深（设计洪水位-底板）
     if H <= 0:
         H = 4.42
-    he_list = [0.1, 0.3, 0.5, 0.7, 0.9, 1.1, 1.3, 1.5, 1.7, 1.9]
+    # 开度扫描步长 0.1 m：粗步长会漏掉池深/池长的控制开度，
+    # 逐级加密后表里能直接看出控制工况落在哪个开度上。
+    he_list = [round(0.1 + 0.1 * i, 1) for i in range(19)]
     rows = []
     for he in he_list:
-        mu = _MU_TABLE.get(he, 0.55)
+        mu = mu_at(he)
         Q_he = mu * he * B0 * math.sqrt(2 * g * H)
         hs = _compound_flow_depth(Q_he, b_ch, m_slope, n_main, n_flood, z_flood, b_flood, sill, i_slope)
         q = Q_he / B0
@@ -605,9 +621,79 @@ def calc_stability_mu0(d, gate_mu0, top_mu0):
     sigma_min = sigma_avg * 0.85
     eta = sigma_max / sigma_min if sigma_min > 0 else 1
 
+    # 荷载分项：稳定验算表要逐项列出，不能只给一个合力
+    loads = [
+        ('闸室自重（底板、闸墩、工作桥、交通桥、闸门及启闭机）', W_self, '↓'),
+        ('闸室内水重', W_water, '↓'),
+        ('浮托力', -U1, '↑'),
+        ('渗透压力', -U2, '↑'),
+        ('上游水压力', P_up, '→'),
+        ('下游水压力', P_down, '←'),
+    ]
+
     return {
         'sigmaG': sigmaG, 'sigmaH': sigmaH, 'Kc': Kc,
         'sigma_max': sigma_max, 'sigma_min': sigma_min, 'sigma': sigma_avg,
         'eta': eta, 'bearing': bearing, 'f': f,
-        'stabCheck': Kc >= 1.2, 'bearCheck': sigma_max <= bearing
+        'stabCheck': Kc >= 1.2, 'bearCheck': sigma_max <= bearing,
+        'loads': loads, 'B_total': B_total, 'A_base': A_base,
+        'W_self': W_self, 'W_water': W_water, 'U1': U1, 'U2': U2,
+        'P_up': P_up, 'P_down': P_down, 'wd_up': wd_up, 'wd_dn': wd_dn,
+        'floorLen': floorLen, 'normalWL': normalWL,
+    }
+
+
+# ============ 十二、工程量与主要尺寸汇总 ============
+def calc_quantities(d, R):
+    """按几何尺寸估算主要工程量。
+
+    全部由参数直接算出，不含任何标定常数；成果用于「工程量估算表」，
+    并供结构尺寸汇总表引用。数值为估算量，施工图阶段应以配筋图为准。
+    """
+    n = _i(d.get('gateCount'), 3)
+    b0 = _f(d.get('singleGateWidth'), 6)
+    dp = _f(d.get('middlePierThickness'), 1.0)
+    dside = _f(d.get('sidePierThickness'), 1.2)
+    floorLen = _f(d.get('floorLength'), 14)
+    blanketLen = _f(d.get('blanketLength'), 15)
+    sill = _f(d.get('gateSillElevation'), 73.10)
+    top = R['top'].get('top') or 0
+    en = R['en']
+    sp = R['sp']
+
+    B_total = n * b0 + (n - 1) * dp + 2 * dside
+    H_pier = max(top - sill, 0)
+    t_floor = _f(d.get('floorThickness'), 1.2)
+    t_blanket = _f(d.get('blanketThickness'), 0.5)
+    t_slab = en.get('t_design') or 0.8
+    Lsj = en.get('Lsj_design') or 0
+    Lp = en.get('Lp_design') or 0
+    L_trench = 5.0
+
+    items = []
+    items.append(('闸室底板 C25 混凝土', floorLen * B_total * t_floor))
+    items.append(('闸墩 C25 混凝土（中墩 %d 个、边墩 2 个）' % (n - 1),
+                  (n - 1) * dp * floorLen * H_pier + 2 * dside * floorLen * H_pier))
+    items.append(('上游铺盖黏土填筑', blanketLen * B_total * t_blanket))
+    items.append(('消力池底板 C25 混凝土', Lsj * B_total * t_slab))
+    if Lp > 0:
+        items.append(('海漫浆砌石护面', Lp * B_total * 0.35))
+    items.append(('防冲槽抛石', L_trench * B_total * 1.2))
+
+    # 土方：基坑按底板两侧各放 1.5 m 工作面估算；
+    # 开挖深度取「闸底板底高程以上的覆盖层厚度」，任务书未给覆盖层厚度时
+    # 按开挖深度 3.0 m 计，并在正文中说明该假定。
+    cov = _f(d.get('overburdenThickness'), 0) or 0
+    depth = cov if cov > 0 else 3.0
+    items.append(('基坑土方开挖（按开挖深度 %.1f m 估算）' % depth,
+                  ((B_total + 3) * (floorLen + 6)) * depth))
+    items.append(('闸后土方回填', ((B_total + 3) * (floorLen + 6)) * depth * 0.45))
+
+    total_conc = sum(v for k, v in items if '混凝土' in k)
+
+    rows = [[k, '%.1f' % v] for k, v in items]
+    return {
+        'rows': rows, 'B_total': B_total, 'H_pier': H_pier,
+        't_floor': t_floor, 't_slab': t_slab, 'Lsj': Lsj, 'Lp': Lp,
+        'total_conc': total_conc, 'sp_L_actual': sp.get('L_actual', 0),
     }
