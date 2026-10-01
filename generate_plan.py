@@ -111,7 +111,7 @@ FIELDS = [
     ("wgR", "圆弧半径", "圆弧翼墙", 10.0, "m"),
     ("wgT", "墙厚", "圆弧翼墙", 0.30, "m"),
     # ⑨ 滩地与地面带
-    ("tdon", "画滩地 + 地面双线带", "滩地与地面带", 1, "勾选"),
+    ("tdon", "画滩地（不勾则无滩地，地面带照画）", "滩地与地面带", 1, "勾选"),
     ("tdE", "滩地高程", "滩地与地面带", 75.0, "m"),
     ("tdW", "滩地平台宽", "滩地与地面带", 8.5, "m"),
     ("gdE", "地面高程", "滩地与地面带", 78.8, "m"),
@@ -216,9 +216,14 @@ def compute_geo(p):
     wgT = m(p["wgT"]) if p["wgon"] else 0
     upEnd = Xap - wgR
     dnStart = Xch + wgR
-    Yb1 = YR + (p["tdE"] - p["bed"]) * p["slope"] * K
-    Yb2 = Yb1 + m(p["tdW"])
-    Yd1 = Yb2 + (p["gdE"] - p["tdE"]) * p["slope"] * K
+    if p["tdon"]:
+        Yb1 = YR + (p["tdE"] - p["bed"]) * p["slope"] * K
+        Yb2 = Yb1 + m(p["tdW"])
+        Yd1 = Yb2 + (p["gdE"] - p["tdE"]) * p["slope"] * K
+    else:
+        # 无滩地：地面带从河槽边直接放坡上地面高程（地面始终必须画出）
+        Yb1 = Yb2 = YR
+        Yd1 = YR + (p["gdE"] - p["bed"]) * p["slope"] * K
     Yd2 = Yd1 + m(p["gdW"])
 
     N.update(YR=YR, YS=YS, Xap=Xap, Xch=Xch, Xba=Xba, Xh1=Xh1, Xhd=Xhd,
@@ -344,23 +349,23 @@ def compute_geo(p):
     L(Xs1, by, Xhd, YR, "out", 1); L(Xs2, by, Xs3, YR, "out", 1)
     L(Xs1, -by, Xhd, -YR, "out", 1); L(Xs2, -by, Xs3, -YR, "out", 1)
 
-    # ---- 滩地 / 地面带 ----
-    if p["tdon"]:
-        for sg2 in (-1, 1):
-            upE = upEnd; dnS = dnStart
+    # ---- 滩地 / 地面带（滩地可无，地面带始终绘制）----
+    for sg2 in (-1, 1):
+        upE = upEnd; dnS = dnStart
+        if p["tdon"]:
             L(0, sg2 * Yb1, upE, sg2 * Yb1, "out")
             L(0, sg2 * Yb2, upE, sg2 * Yb2, "out")
             L(Xap, sg2 * Yb1, Xch, sg2 * Yb1, "out")
             L(Xap, sg2 * Yb2, Xch, sg2 * Yb2, "out")
             L(dnS, sg2 * Yb1, Xs3, sg2 * Yb1, "out")
             L(dnS, sg2 * Yb2, Xs3, sg2 * Yb2, "out")
-            L(0, sg2 * Yd1, Xs3, sg2 * Yd1, "out")
-            L(0, sg2 * Yd2, Xs3, sg2 * Yd2, "out")
-            L(0, sg2 * Yd1, 0, sg2 * Yd2, "out")
-            L(Xs3, sg2 * Yd1, Xs3, sg2 * Yd2, "out")
+        L(0, sg2 * Yd1, Xs3, sg2 * Yd1, "out")
+        L(0, sg2 * Yd2, Xs3, sg2 * Yd2, "out")
+        L(0, sg2 * Yd1, 0, sg2 * Yd2, "out")
+        L(Xs3, sg2 * Yd1, Xs3, sg2 * Yd2, "out")
 
     if p["frm"]:
-        ym = Yd2 if p["tdon"] else YS
+        ym = Yd2
         L(0, ym, 0, -ym, "out"); L(Xs3, ym, Xs3, -ym, "out")
 
     # ---- 高程标 ----
@@ -382,8 +387,8 @@ def compute_geo(p):
         if p["tdon"]:
             EB(f2(p["tdE"]), Xba + m(0.5), (Yb1 + Yb2) / 2)
             EB(f2(p["tdE"]), Xba + m(0.5), -(Yb1 + Yb2) / 2)
-            EB(f2(p["gdE"]), Xba + m(0.5), (Yd1 + Yd2) / 2)
-            EB(f2(p["gdE"]), Xba + m(0.5), -(Yd1 + Yd2) / 2)
+        EB(f2(p["gdE"]), Xba + m(0.5), (Yd1 + Yd2) / 2)
+        EB(f2(p["gdE"]), Xba + m(0.5), -(Yd1 + Yd2) / 2)
 
     # ---- 海漫斜坡 1:n 示坡 ----
     if p["hs"]:
@@ -396,10 +401,10 @@ def compute_geo(p):
             T("1:" + num2str(p["hmN"]), Xh1 + U * 0.56, yo + TH * 0.4, TH * 0.45, "show")
 
     # ---- 滩地/地面 1:n 示坡线 ----
-    if p["sm"] and p["tdon"] and p["smn"] > 0:
-        slT = max(0.0, (Yb1 - YR) * 0.85)
-        slG = max(0.0, (Yd1 - Yb2) * 0.85)
-        lnT = [min(v, slT) for v in (U, U / 2, U, U / 2, U)]
+    if p["sm"] and p["smn"] > 0:
+        slT = max(0.0, (Yb1 - YR) * 0.85)   # 滩地坡长（无滩地时为 0，不画滩地示坡）
+        slG = max(0.0, (Yd1 - (Yb2 if p["tdon"] else YR)) * 0.85)
+        lnT = [min(v, slT) for v in (U, U / 2, U, U / 2, U)] if p["tdon"] else []
         lnG = [min(v, slG) for v in (2 * U, U, 2 * U, U, 2 * U)]
 
         def brush(cx, edge, dir_in, lens, wid):
@@ -416,9 +421,10 @@ def compute_geo(p):
                 if seg[0] < cx < seg[1]:
                     ok = False
             if ok:
-                brush(cx, Yb1, -1, lnT, U * 0.22); brush(cx, -Yb1, 1, lnT, U * 0.22)
-                T("1:" + num2str(p["slope"]), cx + U * 0.75, Yb1 - U * 0.5, TH * 0.45, "show")
-                T("1:" + num2str(p["slope"]), cx + U * 0.75, -Yb1 + U * 0.5, TH * 0.45, "show")
+                if lnT:
+                    brush(cx, Yb1, -1, lnT, U * 0.22); brush(cx, -Yb1, 1, lnT, U * 0.22)
+                    T("1:" + num2str(p["slope"]), cx + U * 0.75, Yb1 - U * 0.5, TH * 0.45, "show")
+                    T("1:" + num2str(p["slope"]), cx + U * 0.75, -Yb1 + U * 0.5, TH * 0.45, "show")
                 brush(cx, Yd1, -1, lnG, U * 0.22); brush(cx, -Yd1, 1, lnG, U * 0.22)
                 T("1:" + num2str(p["slope"]), cx + U * 0.75, Yd1 - U, TH * 0.45, "show")
                 T("1:" + num2str(p["slope"]), cx + U * 0.75, -Yd1 + U, TH * 0.45, "show")
@@ -456,14 +462,16 @@ def compute_geo(p):
             T(str(int(round(vb[vi + 1] - vb[vi]))), xL - U * 0.45, (vb[vi] + vb[vi + 1]) / 2, TH * 0.5, "dim", 90)
         L(xL - U * 1.6, -YS, xL - U * 1.6, YS, "dim"); tk(xL - U * 1.6, -YS); tk(xL - U * 1.6, YS)
         T(str(int(round(2 * YS))), xL - U * 2.05, 0, TH * 0.5, "dim", 90)
+        xR = Xs3 + U * 1.6
         if p["tdon"]:
-            xR = Xs3 + U * 1.6
             dV(Yb1, Yb2, xR); dV(-Yb2, -Yb1, xR)
             dV(Yd1, Yd2, xR + U * 1.4); dV(-Yd2, -Yd1, xR + U * 1.4)
+        else:
+            dV(Yd1, Yd2, xR); dV(-Yd2, -Yd1, xR)
 
     # ---- 中文构件注记 ----
     if p["cn"]:
-        yt = (Yd2 if p["tdon"] else YS) + TH * 2.7
+        yt = Yd2 + TH * 2.7
         T("上游铺盖", m(0.02), yt, TH, "out")
         T("闸室", (Xap + Xch) / 2, yt, TH, "out")
         T("消力池", (Xch + Xba) / 2, yt, TH, "out")
