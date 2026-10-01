@@ -244,7 +244,9 @@ PAD_LAYERS = {"反滤层-砾石", "反滤层-碎石", "反滤层-粗砂", "海�
 
 
 def setup_doc():
-    doc = ezdxf.new("R2013", units=units.M)
+    # 单位：mm（坐标值本身就是毫米，$INSUNITS 必须一致，
+    # 否则与平面布置图一起插入同一张图时会差 1000 倍）
+    doc = ezdxf.new("R2013", units=units.MM)
     msp = doc.modelspace()
     # 中文文字样式（黑体，Windows 自带）
     doc.styles.add("CN", font="simhei.ttf")

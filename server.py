@@ -17,6 +17,7 @@ from flask import (Flask, request, send_file, jsonify, send_from_directory,
 from werkzeug.security import generate_password_hash, check_password_hash
 import generate_thesis as gt
 import generate_drawing as gd
+import generate_plan as gp
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 # 数据目录：本地用项目根目录；云端（Railway）通过 DATA_DIR 指向持久卷
@@ -777,21 +778,104 @@ GROUPS = [("铺盖", "结构"), ("底板", "结构"), ("消力池", "结构"), (
           ("工作桥", "上部结构"), ("交通桥", "上部结构"), ("启闭机房", "上部结构"), ("绘图选项", "其他")]
 
 
+PLAN_PREFIX = 'plan.'   # 平面图参数在同一份存档里加前缀，避免与纵剖面图撞名
+
+
 @app.route('/drawing', methods=['GET'])
 def drawing_page():
     u = current_user()
     # 回填该用户上次保存的参数
     saved = load_user_params(u['id'])
-    fields = []
-    for key, name, group, default, unit in FIELDS:
-        val = saved.get(key, default)
-        fields.append((key, name, group, val, unit))
-    return render_template('drawing.html', fields=fields, groups=GROUPS, username=u['username'], is_admin=is_admin(u))
+    saved_plan = {k[len(PLAN_PREFIX):]: v for k, v in saved.items() if k.startswith(PLAN_PREFIX)}
+    fields = [(k, n, g, saved.get(k, d), un) for k, n, g, d, un in FIELDS]
+    plan_fields = [(k, n, g, saved_plan.get(k, d), un) for k, n, g, d, un in gp.FIELDS]
+    return render_template('drawing.html', fields=fields, groups=GROUPS,
+                           plan_fields=plan_fields, plan_groups=gp.GROUPS,
+                           username=u['username'], is_admin=is_admin(u))
+
+
+def _parse_section_params(data):
+    """纵剖面图：表单填米，内部存 mm；比率与文本原样"""
+    p = dict(gd.P)
+    saved = {}
+    for key, *_ in FIELDS:
+        if key not in data or data[key] in ("", None):
+            continue
+        if key in TEXT_KEYS:
+            p[key] = str(data[key])
+            saved[key] = str(data[key])
+        elif key in RATIO_KEYS:
+            p[key] = float(data[key])
+            saved[key] = float(data[key])
+        else:
+            p[key] = float(data[key]) * 1000.0
+            saved[key] = float(data[key])
+    err = None
+    for key in ("pg_len", "db_len", "xl_len", "hm_total"):
+        if p.get(key, 0) <= 0:
+            err = f"{key} 必须大于 0"
+            break
+    return p, saved, err
+
+
+def _parse_plan_params(data):
+    """平面布置图：表单填米，模块内部再 ×1000；勾选项为 0/1；可留空项保持空串"""
+    p = dict(gp.P)
+    saved = {}
+    for key, name, group, default, unit in gp.FIELDS:
+        if key not in data:
+            continue
+        v = data[key]
+        if unit == "勾选":
+            val = 1 if v in (1, '1', True, 'true', 'on') else 0
+        elif unit == "文本":
+            val = str(v)
+        elif key in gp.OPT_KEYS and (v == "" or v is None):
+            val = ""                     # 留空 = 按公式自动
+        elif key == "nBay":
+            val = int(float(v))
+        else:
+            val = float(v)
+        p[key] = val
+        saved[key] = val
+    err = None
+    if p["nBay"] < 1:
+        err = "闸孔数至少为 1"
+    elif p["riverW"] <= 0 or p["bayW"] <= 0 or p["gateL"] <= 0:
+        err = "河道宽、单孔净宽、闸室顺流长必须大于 0"
+    elif p["slope"] <= 0 or p["hmN"] <= 0 or p["fcN"] <= 0:
+        err = "坡比必须大于 0"
+    elif p["fcX"] <= 0 or p["fcY"] <= 0:
+        err = "防冲槽槽底顺流宽 / 横向长必须大于 0"
+    return p, saved, err
 
 
 @app.route('/drawing/generate', methods=['POST'])
 def drawing_generate():
     u = current_user()
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+    except Exception:
+        return jsonify({"ok": False, "error": "请求格式错误"}), 400
+
+    # kind: section=纵剖面图 / plan=平面布置图
+    kind = (data.get('kind') or 'section').strip()
+    if kind not in ('section', 'plan'):
+        kind = 'section'
+
+    # 先解析 + 校验，再扣次数（填错参数不该白扣一次）
+    try:
+        if kind == 'plan':
+            p, saved, err = _parse_plan_params(data)
+            default_title = '水闸枢纽平面布置图'
+        else:
+            p, saved, err = _parse_section_params(data)
+            default_title = '水闸纵剖面图'
+    except (ValueError, TypeError):
+        return jsonify({"ok": False, "error": "存在无效数值，请检查填写内容"}), 400
+    if err:
+        return jsonify({"ok": False, "error": err}), 400
+
     # ===== 付费墙：检查图纸剩余次数 =====
     if not consume_quota(u['id'], 'drawing'):
         return jsonify({
@@ -800,32 +884,6 @@ def drawing_generate():
             "error": "图纸生成次数不足，请先付费开通。",
             "pay": get_pay_config(),
         }), 402
-    try:
-        data = request.get_json(force=True, silent=True) or {}
-    except Exception:
-        return jsonify({"ok": False, "error": "请求格式错误"}), 400
-
-    p = dict(gd.P)
-    saved = {}
-    for key, *_ in FIELDS:
-        if key not in data or data[key] in ("", None):
-            continue
-        try:
-            if key in TEXT_KEYS:
-                p[key] = str(data[key])
-                saved[key] = str(data[key])
-            elif key in RATIO_KEYS:
-                p[key] = float(data[key])
-                saved[key] = float(data[key])
-            else:
-                p[key] = float(data[key]) * 1000.0
-                saved[key] = float(data[key])
-        except (ValueError, TypeError):
-            return jsonify({"ok": False, "error": f"字段 {key} 数值无效"}), 400
-
-    for key in ("pg_len", "db_len", "xl_len", "hm_total"):
-        if p.get(key, 0) <= 0:
-            return jsonify({"ok": False, "error": f"{key} 必须大于 0"}), 400
 
     # 图纸文件按用户分目录存储
     user_dir = os.path.join(DRAW_OUT, str(u['id']))
@@ -835,20 +893,36 @@ def drawing_generate():
     dxf_path = os.path.join(user_dir, base + ".dxf")
     svg_path = os.path.join(user_dir, base + ".svg")
     try:
-        gd.generate_dxf(p, dxf_path)
-        gd.generate_svg(p, svg_path)
+        mod = gp if kind == 'plan' else gd
+        mod.generate_dxf(p, dxf_path)
+        mod.generate_svg(p, svg_path)
     except Exception as e:
         return jsonify({"ok": False, "error": f"生成失败: {e}"}), 500
 
-    # 保存该用户的参数（下次自动回填）
-    save_user_params(u['id'], saved)
+    # 保存该用户的参数（下次自动回填）；两张图共用一份存档，各改各的键
+    try:
+        allp = load_user_params(u['id'])
+        if kind == 'plan':
+            for k in [k for k in allp if k.startswith(PLAN_PREFIX)]:
+                allp.pop(k)
+            for k, v in saved.items():
+                allp[PLAN_PREFIX + k] = v
+        else:
+            for k in [k for k in allp if not k.startswith(PLAN_PREFIX)]:
+                allp.pop(k)
+            allp.update(saved)
+        save_user_params(u['id'], allp)
+    except Exception as e:
+        print('[drawing] 参数保存失败:', e)
+
+    title = str(p.get('title') or default_title).strip() or default_title
 
     # 自动记录生成历史（供"我的生成记录"回看/下载）
     try:
         conn = get_db()
         conn.execute(
             'INSERT INTO generation_records (user_id, username, type, title, file_url, file2_url) VALUES (?,?,?,?,?,?)',
-            (u['id'], u['username'], 'drawing', p.get('title', '水闸纵剖面图'),
+            (u['id'], u['username'], 'drawing', title,
              f"/drawing/dl/{u['id']}/{os.path.basename(dxf_path)}",
              f"/drawing/dl/{u['id']}/{os.path.basename(svg_path)}"))
         conn.commit()
@@ -858,6 +932,7 @@ def drawing_generate():
 
     return jsonify({
         "ok": True,
+        "name": title,
         "dxf_url": f"/drawing/dl/{u['id']}/{os.path.basename(dxf_path)}",
         "svg_url": f"/drawing/dl/{u['id']}/{os.path.basename(svg_path)}",
     })

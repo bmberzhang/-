@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>工程图纸生成器 · 水闸纵剖面图</title>
+<title>工程图纸生成器 · 水闸纵剖面图 / 平面布置图</title>
 <!-- PWA -->
 <link rel="manifest" href="/static/manifest.json">
 <meta name="theme-color" content="#171d24">
@@ -42,6 +42,28 @@
     position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
     font-size: 11.5px; color: var(--ink-4); pointer-events: none;
 }
+/* 勾选项：单行，高度与输入框对齐 */
+.field .chk {
+    display: flex; align-items: center; gap: 8px; height: 36px;
+    font-size: 13.5px; color: var(--ink-1); cursor: pointer;
+}
+.field .chk input { width: 16px; height: 16px; accent-color: var(--brand); cursor: pointer; }
+/* 文本类字段（工程名称/图名/文件名）内容长，占满整行 */
+.field.wide { grid-column: 1 / -1; }
+
+/* ===== 图种子页签 ===== */
+.dtabs {
+    display: flex; gap: 2px; margin-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+}
+.dtabs button {
+    appearance: none; background: none; border: 0; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; padding: 10px 18px; cursor: pointer;
+    font-family: inherit; font-size: 14px; font-weight: 600; color: var(--ink-3);
+    transition: color .15s, border-color .15s;
+}
+.dtabs button:hover { color: var(--ink-1); }
+.dtabs button.active { color: var(--brand); border-bottom-color: var(--brand); }
 
 /* ===== 操作与结果 ===== */
 .actions {
@@ -61,6 +83,8 @@
     border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--sh-1);
 }
 .preview-box img { display: block; width: 100%; }
+.preview-box a { display: block; cursor: zoom-in; }
+.preview-hint { text-align: center; font-size: 12px; color: var(--ink-4); margin-top: 8px; }
 .dl-bar { display: flex; justify-content: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
 
 @media (max-width: 980px) {
@@ -109,7 +133,7 @@
 <div class="wrap">
   <div class="page-head">
     <div>
-      <h1>水闸纵剖面图</h1>
+      <h1>水闸工程图纸</h1>
       <p>按顺序填写各部分尺寸（单位：米），填好后点击「生成图纸」</p>
     </div>
     <div class="stat">剩余图纸次数 <b id="quotaNum">…</b>
@@ -117,46 +141,65 @@
     </div>
   </div>
 
-  {% set nums = { '铺盖':'1', '底板':'2', '消力池':'3', '反滤层':'4', '海漫':'5',
-                  '防冲槽':'6', '高程':'7', '闸门':'8', '排架':'9', '工作桥':'10',
-                  '交通桥':'11', '启闭机房':'12', '绘图选项':'13' } %}
-  <div class="parts-grid">
-  {% for group, cat in groups %}
-  <div class="part">
-    <div class="head">
-      <span class="num">{{ nums.get(group, loop.index) }}</span>
-      <span class="name">{{ group }}</span>
-      <span class="cat"><span class="tag">{{ cat }}</span></span>
-    </div>
-    {% if group == "排架" %}
-    <div class="note">
-      高度由第 7 部分高程自动推导（排架高程 − 闸顶高程），无需填写
-    </div>
-    {% endif %}
-    {% if group == "工作桥" %}
-    <div class="note">
-      高度由第 7 部分高程自动推导（工作桥高程 − 排架高程），无需填写
-    </div>
-    {% endif %}
-    <div class="fields">
-      {% for key, name, g, default, unit in fields %}
-        {% if g == group %}
-        <div class="field">
-          <label>{{ name }}</label>
-          <div class="input-wrap">
-            {% if unit == "文本" %}
-            <input type="text" id="{{ key }}" value="{{ default }}" data-key="{{ key }}">
-            {% else %}
-            <input type="number" id="{{ key }}" value="{{ default }}" step="any" data-key="{{ key }}">
-            {% endif %}
-            <span class="unit">{{ unit }}</span>
-          </div>
-        </div>
-        {% endif %}
-      {% endfor %}
-    </div>
+  <div class="dtabs">
+    <button type="button" class="active" data-kind="section" onclick="setKind('section')">纵剖面图</button>
+    <button type="button" data-kind="plan" onclick="setKind('plan')">平面布置图</button>
   </div>
-  {% endfor %}
+
+  {% set section_notes = {
+      '排架': '高度由第 7 部分高程自动推导（排架高程 − 闸顶高程），无需填写',
+      '工作桥': '高度由第 7 部分高程自动推导（工作桥高程 − 排架高程），无需填写' } %}
+  {% set plan_notes = {
+      '海漫': '斜坡段长留空时，按「落差 × 底坡 1:n」自动取顺流投影长',
+      '防冲槽': '槽底高程留空时，按公式自动推算' } %}
+
+  {# 参数分区渲染：两张图共用同一套排版，用 pid 前缀区分元素 id #}
+  {% macro fields_panel(pid, fields, groups, notes) %}
+  <div class="parts-grid">
+    {% for group, cat in groups %}
+    <div class="part">
+      <div class="head">
+        <span class="num">{{ loop.index }}</span>
+        <span class="name">{{ group }}</span>
+        <span class="cat"><span class="tag">{{ cat }}</span></span>
+      </div>
+      {% if notes.get(group) %}<div class="note">{{ notes[group] }}</div>{% endif %}
+      <div class="fields">
+        {% for key, name, g, default, unit in fields %}
+          {% if g == group %}
+          <div class="field{% if unit == '文本' %} wide{% endif %}">
+            {% if unit == "勾选" %}
+            <label class="chk"><input type="checkbox" id="{{ pid }}{{ key }}" data-key="{{ key }}"
+              data-check="1"{% if default %} checked{% endif %}><span>{{ name }}</span></label>
+            {% else %}
+            <label>{{ name }}</label>
+            <div class="input-wrap">
+              {% if unit == "文本" %}
+              <input type="text" id="{{ pid }}{{ key }}" value="{{ default }}" data-key="{{ key }}">
+              {% elif key == "nBay" %}
+              <input type="number" id="{{ pid }}{{ key }}" value="{{ default }}" step="1" min="1" data-key="{{ key }}">
+              {% else %}
+              <input type="number" id="{{ pid }}{{ key }}" value="{{ default }}" step="any"
+                {% if default == "" %}placeholder="自动"{% endif %} data-key="{{ key }}">
+              {% endif %}
+              {% if unit != "文本" %}<span class="unit">{{ unit }}</span>{% endif %}
+            </div>
+            {% endif %}
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endmacro %}
+
+  <div id="panel-section">
+    {{ fields_panel('', fields, groups, section_notes) }}
+  </div>
+
+  <div id="panel-plan" style="display:none;">
+    {{ fields_panel('pl_', plan_fields, plan_groups, plan_notes) }}
   </div>
 
   <div class="actions">
@@ -170,8 +213,11 @@
   <div class="result" id="result">
     <h2>生成结果</h2>
     <div class="preview-box">
-      <img id="previewImg" alt="图纸预览">
+      <a id="previewLink" href="#" target="_blank" rel="noopener" title="在新窗口打开原尺寸图纸">
+        <img id="previewImg" alt="图纸预览">
+      </a>
     </div>
+    <div class="preview-hint">点击图片可在新窗口查看原尺寸预览</div>
     <div class="dl-bar">
       <a class="btn btn-primary" id="dlDxf" href="#" download>下载 DXF 图纸</a>
       <a class="btn btn-secondary" id="dlSvg" href="#" download>下载 SVG 预览图</a>
@@ -334,10 +380,40 @@ function collectParams() {
   return data;
 }
 
+// ===== 图种切换：纵剖面图 / 平面布置图 =====
+var curKind = 'section';
+var KIND_PANEL = { section: 'panel-section', plan: 'panel-plan' };
+
+function setKind(kind) {
+  if (!KIND_PANEL[kind]) kind = 'section';
+  curKind = kind;
+  document.querySelectorAll('.dtabs button').forEach(function(b){
+    b.classList.toggle('active', b.dataset.kind === kind);
+  });
+  Object.keys(KIND_PANEL).forEach(function(k){
+    document.getElementById(KIND_PANEL[k]).style.display = (k === kind) ? '' : 'none';
+  });
+  // 切换图种后先收起上一张图的结果
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('error').textContent = '';
+  document.getElementById('status').textContent = '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function collectParams() {
+  const root = document.getElementById(KIND_PANEL[curKind]);
+  const data = { kind: curKind };
+  root.querySelectorAll('input[data-key]').forEach(function(inp) {
+    data[inp.dataset.key] = inp.dataset.check ? (inp.checked ? 1 : 0) : inp.value;
+  });
+  return data;
+}
+
 async function generate() {
   // 前端付费墙：次数不足直接弹窗
   if (myQuota === 0) { showPay(); return; }
   const btn = document.getElementById('btnGen');
+  const kindAtSend = curKind;
   btn.disabled = true;
   document.getElementById('error').textContent = '';
   document.getElementById('status').textContent = '';
@@ -356,10 +432,15 @@ async function generate() {
       document.getElementById('error').textContent = data.error || '生成失败';
       return;
     }
+    // 图名 → 下载文件名，两张图不会都叫 sluice_xxx
+    const name = (data.name || (kindAtSend === 'plan' ? '水闸枢纽平面布置图' : '水闸纵剖面图'));
     const img = document.getElementById('previewImg');
     img.src = data.svg_url + '?t=' + Date.now();
+    document.getElementById('previewLink').href = data.svg_url;
     document.getElementById('dlDxf').href = data.dxf_url;
+    document.getElementById('dlDxf').setAttribute('download', name + '.dxf');
     document.getElementById('dlSvg').href = data.svg_url;
+    document.getElementById('dlSvg').setAttribute('download', name + '_预览.svg');
     document.getElementById('result').style.display = 'block';
     document.getElementById('status').textContent = '生成成功，可下载 DXF 图纸（已自动保存到「我的生成记录」）';
     if (myQuota > 0) { myQuota -= 1; document.getElementById('quotaNum').textContent = myQuota; }
