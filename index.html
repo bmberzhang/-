@@ -211,6 +211,83 @@
     width: 5px; height: 5px; border-radius: 50%; background: var(--ink-4);
 }
 .side-card .status { font-size: 12.5px; color: var(--ink-4); margin-top: 10px; text-align: center; }
+.sub-note { font-size: 12px; font-weight: 400; color: var(--ink-4); margin-left: 8px; }
+
+/* ---- 上传卡片 ---- */
+.doc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.doc-card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--r-lg); padding: 16px 16px 14px;
+    transition: border-color .15s, box-shadow .15s;
+}
+.doc-card.filled { border-color: #a9c7ea; box-shadow: 0 0 0 3px rgba(0,102,204,.06); }
+.doc-head { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.doc-badge {
+    font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 5px;
+    background: #fdecec; color: #c0392b; letter-spacing: .02em;
+}
+.doc-badge-opt { background: var(--brand-wash); color: var(--brand); }
+.doc-name { font-size: 13.5px; font-weight: 600; color: var(--ink-1); }
+.doc-desc { font-size: 12px; color: var(--ink-4); line-height: 1.6; margin-bottom: 12px; min-height: 34px; }
+.doc-drop {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    padding: 20px 12px; cursor: pointer; text-align: center;
+    border: 1.5px dashed var(--line); border-radius: var(--r-md);
+    background: var(--surface-2);
+    transition: border-color .15s, background-color .15s;
+}
+.doc-drop:hover { border-color: var(--brand); background: var(--brand-wash); }
+.doc-drop input[type=file] { display: none; }
+.doc-ico { display: flex; color: var(--ink-4); }
+.doc-ico svg { width: 22px; height: 22px; }
+.doc-cta { font-size: 12.5px; font-weight: 600; color: var(--brand); }
+.doc-hint { font-size: 11.5px; color: var(--ink-4); }
+.doc-file {
+    display: flex; align-items: center; gap: 9px; margin-top: 12px;
+    padding: 10px 12px; border-radius: var(--r-md);
+    background: #f3f8fd; border: 1px solid #cfe1f4;
+}
+.doc-ok { display: flex; color: #1d8348; flex: none; }
+.doc-ok svg { width: 14px; height: 14px; }
+.doc-file-name {
+    flex: 1; min-width: 0; font-size: 12.5px; color: var(--ink-1);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.doc-del {
+    flex: none; font-size: 12px; color: var(--ink-4); cursor: pointer;
+    background: none; border: none; padding: 2px 4px;
+}
+.doc-del:hover { color: #c0392b; text-decoration: underline; }
+.doc-msg { font-size: 12px; line-height: 1.6; margin-top: 9px; }
+.doc-msg.ok { color: #1d8348; }
+.doc-msg.warn { color: #b7791f; }
+.doc-msg.err { color: #c0392b; }
+.doc-card.uploading .doc-drop { opacity: .55; pointer-events: none; }
+
+/* ---- 解析结果校对表 ---- */
+.parse-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 12px 16px; margin-top: 14px;
+    padding: 16px 18px; border: 1px solid var(--line); border-radius: var(--r-lg);
+    background: var(--surface-2);
+}
+.parse-item { display: flex; flex-direction: column; }
+.parse-item label {
+    font-size: 12px; font-weight: 500; color: var(--ink-2); margin-bottom: 5px;
+    display: flex; align-items: center; gap: 5px;
+}
+.parse-item label .unit { font-size: 11px; font-weight: 400; color: var(--ink-4); }
+.parse-item input {
+    height: 32px; padding: 0 10px; font-size: 13px;
+    border: 1px solid var(--line); border-radius: var(--r-md);
+    background: var(--surface); color: var(--ink-1);
+}
+.parse-item input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(0,102,204,.10); }
+.parse-item .from {
+    font-size: 10.5px; color: var(--ink-4); margin-top: 4px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.parse-empty { font-size: 13px; color: var(--ink-4); padding: 14px 2px; }
 
 .model-body {
     position: relative; width: 100%; height: clamp(440px, 64vh, 720px);
@@ -248,6 +325,7 @@
     .form-layout { grid-template-columns: 1fr; }
     .rail { display: none; }
     .thesis-layout { grid-template-columns: 1fr; }
+    .doc-grid { grid-template-columns: 1fr; }
     .home-foot { grid-template-columns: 1fr; }
 }
 @media (max-width: 768px) {
@@ -1111,28 +1189,90 @@
         </div>
     </div>
 
-    <!-- 论文生成面板（独立页面 /thesis） -->
+    <!-- 论文生成面板（独立页面 /thesis）：
+         客户上传自己的「毕业设计任务书」和「毕业设计规范」，系统据此取数、按规范排版 -->
     <div class="result-panel" id="thesisPanel">
       <div class="thesis-layout">
         <div class="thesis-main">
         <h2>毕业设计论文生成</h2>
-        <div class="notice" style="margin-bottom:16px">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.1"/><path d="M8 7.3v3.9M8 5.2h.01"/></svg>
-            <div>设计参数沿用「参数验证」页的数据。若尚未验证，请先到「参数验证」填写参数并计算，再回来生成论文。</div>
-        </div>
-        <div class="notice notice-info" style="margin-bottom:20px">
+        <div class="notice notice-info" style="margin-bottom:18px">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.6" cy="8" r="3.5"/><path d="M9.1 8H14M12.1 8v2.3"/></svg>
-            <div>论文中的设计参数、计算过程与图纸均由系统按当前参数自动生成，无需重复填写。</div>
+            <div><b>每个学校要求不一样，请上传你自己的文件。</b>系统从「任务书」读取设计数据，从「规范」读取页面、字号、行距与章节框架，再按这些数据重新撰写整本论文（含计算表格与曲线图）。</div>
         </div>
-        <h3 class="sub-title">论文基本信息</h3>
+
+        <!-- 第 1 步：上传两份文件 -->
+        <h3 class="sub-title">第 1 步 · 上传文件</h3>
+        <div class="doc-grid">
+          <div class="doc-card" id="docCard_task">
+            <div class="doc-head">
+              <span class="doc-badge">必传</span>
+              <span class="doc-name">毕业设计任务书</span>
+            </div>
+            <div class="doc-desc">抽取设计流量、水位、闸孔尺寸、地质与材料参数</div>
+            <label class="doc-drop" id="docDrop_task">
+              <input type="file" accept=".doc,.docx" onchange="uploadDoc('task', this)">
+              <span class="doc-ico">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13.6V3.4M6.4 7 10 3.4 13.6 7"/><path d="M3.4 12.6v2.6a1.4 1.4 0 0 0 1.4 1.4h10.4a1.4 1.4 0 0 0 1.4-1.4v-2.6"/></svg>
+              </span>
+              <span class="doc-cta">点击选择 Word 文件</span>
+              <span class="doc-hint">支持 .docx / .doc，≤ 25MB</span>
+            </label>
+            <div class="doc-file" id="docFile_task" style="display:none">
+              <span class="doc-ok">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 8.4 6.4 11.4 12.6 5"/></svg>
+              </span>
+              <span class="doc-file-name" id="docFileTaskName"></span>
+              <button type="button" class="doc-del" onclick="deleteDoc('task')">删除</button>
+            </div>
+            <div class="doc-msg" id="docMsg_task"></div>
+          </div>
+
+          <div class="doc-card" id="docCard_spec">
+            <div class="doc-head">
+              <span class="doc-badge doc-badge-opt">建议</span>
+              <span class="doc-name">毕业设计规范</span>
+            </div>
+            <div class="doc-desc">读取页面设置、字号行距、章节框架，决定论文长什么样</div>
+            <label class="doc-drop" id="docDrop_spec">
+              <input type="file" accept=".doc,.docx" onchange="uploadDoc('spec', this)">
+              <span class="doc-ico">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13.6V3.4M6.4 7 10 3.4 13.6 7"/><path d="M3.4 12.6v2.6a1.4 1.4 0 0 0 1.4 1.4h10.4a1.4 1.4 0 0 0 1.4-1.4v-2.6"/></svg>
+              </span>
+              <span class="doc-cta">点击选择 Word 文件</span>
+              <span class="doc-hint">支持 .docx / .doc，≤ 25MB</span>
+            </label>
+            <div class="doc-file" id="docFile_spec" style="display:none">
+              <span class="doc-ok">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 8.4 6.4 11.4 12.6 5"/></svg>
+              </span>
+              <span class="doc-file-name" id="docFileSpecName"></span>
+              <button type="button" class="doc-del" onclick="deleteDoc('spec')">删除</button>
+            </div>
+            <div class="doc-msg" id="docMsg_spec"></div>
+          </div>
+        </div>
+
+        <!-- 第 2 步：解析结果校对 -->
+        <div id="parseWrap" style="display:none">
+          <h3 class="sub-title" style="margin-top:26px">第 2 步 · 校对识别出的数据
+            <span class="sub-note">系统从任务书里读到的值，可直接修改后再生成</span>
+          </h3>
+          <div id="specSummaryBox" class="notice" style="display:none"></div>
+          <div class="parse-grid" id="parseParams"></div>
+          <div class="notice notice-warn" id="parseWarnBox" style="display:none;margin-top:14px"></div>
+        </div>
+
+        <!-- 第 3 步：封面信息 -->
+        <h3 class="sub-title" style="margin-top:26px">第 3 步 · 封面信息</h3>
         <div class="form-row thesis-form" id="thesisInfo">
-            <div class="form-group"><label>项目/水闸名称</label><input name="projectName" placeholder="请输入项目名称"></div>
+            <div class="form-group"><label>学校名称</label><input name="university" placeholder="如：河北工程大学"></div>
+            <div class="form-group"><label>项目/水闸名称</label><input name="projectName" placeholder="如：滏阳河水闸拆除重建工程"></div>
             <div class="form-group"><label>学生姓名</label><input name="studentName" placeholder="请输入姓名"></div>
             <div class="form-group"><label>学号</label><input name="studentId" placeholder="请输入学号"></div>
             <div class="form-group"><label>指导教师</label><input name="advisor" placeholder="请输入指导教师"></div>
             <div class="form-group"><label>学院</label><input name="college" placeholder="请输入学院"></div>
             <div class="form-group"><label>专业班级</label><input name="majorClass" placeholder="请输入专业班级"></div>
-            <div class="form-group"><label>论文日期</label><input name="thesisDate" placeholder="请输入论文日期"></div>
+            <div class="form-group"><label>论文日期</label><input name="thesisDate" placeholder="如：2026年6月"></div>
         </div>
         </div>
 
@@ -1143,8 +1283,9 @@
             <button class="btn btn-primary btn-lg side-btn" id="thesisGenBtn" onclick="generateThesis()">生成论文（Word 文档）</button>
             <div class="status" id="thesisStatus"></div>
             <ul class="side-list">
-              <li>含封面、摘要、计算书与图纸，约 68 页</li>
-              <li>输出 .docx，可直接在 Word 中编辑</li>
+              <li>整本输出：封面、中英文摘要、目录、正文章节、参考文献、致谢</li>
+              <li>计算表格与曲线图按章节自动插入</li>
+              <li>格式（页面／字号／行距／章节）取自你上传的规范</li>
               <li>生成后自动存入「我的记录」，可重复下载</li>
             </ul>
           </div>
@@ -1158,9 +1299,7 @@
 <script src="three.min.js"></script>
 <script src="OrbitControls.js"></script>
 
-<!-- 论文生成引擎（纯前端，无需后端服务） -->
-<script src="jszip.min.js"></script>
-<script src="template_data.js"></script>
+<!-- 前端计算库（三维仿真与参数验证用） -->
 <script src="calc.js"></script>
 
 <!-- Loading Overlay -->
@@ -1203,7 +1342,9 @@ function renderPageHead() {
 // ===== 按次收费功能的页头次数标签（参数验证 / 设计计算工具，均免费 2 次，用完 5 元/次）=====
 var QUOTA_META = {
     verify: { tag: 'verifyQuotaTag', quotaKey: 'verify_quota', priceKey: 'verify_price', label: '参数验证' },
-    tool:   { tag: 'toolQuotaTag',   quotaKey: 'tool_quota',   priceKey: 'tool_price',   label: '计算工具' }
+    tool:   { tag: 'toolQuotaTag',   quotaKey: 'tool_quota',   priceKey: 'tool_price',   label: '计算工具' },
+    // 论文没有页头标签，但付费弹窗要靠 label 反查 kind，必须登记
+    thesis: { tag: 'thesisQuotaTag', quotaKey: 'thesis_quota', priceKey: 'thesis_price', label: '论文' }
 };
 function paintQuotaTag(kind, quota, price) {
     var meta = QUOTA_META[kind];
@@ -2949,54 +3090,306 @@ function sendCS() {
 
 loadMeT();
 
-function generateThesis() {
-    if (thesisQuota === 0) { showPayT(); return; }
-    var data = getFormData();
-    // 合并论文面板（/thesis 页）填写的项目信息
-    var tInfo = document.getElementById('thesisInfo');
+// ============================================================
+// 论文生成：上传「毕业设计任务书」+「毕业设计规范」→ 服务端取数 → 校对 → 生成整本
+// 每个客户上传自己的文件，格式与数据都来自客户文件，系统不套用固定模板。
+// ============================================================
+var TH_PARAMS = {};      // 解析出来的设计参数（可编辑）
+var TH_SOURCES = [];     // 参数来源说明
+var TH_BUSY = false;
+
+function thEl(id) { return document.getElementById(id); }
+
+function thMsg(kind, text, cls) {
+    var el = thEl('docMsg_' + kind);
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'doc-msg' + (cls ? ' ' + cls : '');
+}
+
+function thSetCard(kind, info) {
+    var card = thEl('docCard_' + kind), fileBox = thEl('docFile_' + kind);
+    if (!card || !fileBox) return;
+    var has = !!(info && info.filename);
+    card.classList.toggle('filled', has);
+    fileBox.style.display = has ? 'flex' : 'none';
+    if (has) {
+        thEl(kind === 'task' ? 'docFileTaskName' : 'docFileSpecName').textContent =
+            info.filename + (info.size ? '（' + (info.size / 1048576).toFixed(2) + ' MB）' : '');
+    }
+}
+
+// ---- 上传 ----
+function uploadDoc(kind, input) {
+    var f = input.files && input.files[0];
+    if (!f) return;
+    var lower = f.name.toLowerCase();
+    if (!/\.(docx?|DOCX?)$/.test(f.name) || !(lower.endsWith('.doc') || lower.endsWith('.docx'))) {
+        thMsg(kind, '只支持 Word 文档（.docx / .doc）', 'err');
+        input.value = '';
+        return;
+    }
+    if (f.size > 25 * 1024 * 1024) {
+        thMsg(kind, '文件超过 25MB，请压缩后重试', 'err');
+        input.value = '';
+        return;
+    }
+    var card = thEl('docCard_' + kind);
+    if (card) card.classList.add('uploading');
+    thMsg(kind, '正在上传…', '');
+    var fd = new FormData();
+    fd.append('kind', kind);
+    fd.append('file', f);
+    fetch('/thesis/doc/upload', { method: 'POST', body: fd })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d || {} }; }); })
+        .then(function (res) {
+            if (card) card.classList.remove('uploading');
+            var d = res.d;
+            input.value = '';
+            if (!res.ok || !d.ok) { thMsg(kind, d.error || '上传失败', 'err'); return; }
+            thSetCard(kind, { filename: d.filename, size: f.size });
+            if (d.warning) { thMsg(kind, d.warning, 'warn'); }
+            else if (kind === 'spec') { thMsg(kind, d.spec_summary || '已读取规范格式', 'ok'); }
+            else { thMsg(kind, '已识别 ' + d.params_n + ' 项设计参数' + (d.n_tables ? '（表 ' + d.n_tables + ' 个）' : ''), 'ok'); }
+            // 上传成功后自动解析一次，让客户立刻看到数据
+            parseDocs();
+        })
+        .catch(function () {
+            if (card) card.classList.remove('uploading');
+            input.value = '';
+            thMsg(kind, '上传失败，请检查网络后重试', 'err');
+        });
+}
+
+// ---- 删除 ----
+function deleteDoc(kind) {
+    if (!confirm('确定删除已上传的' + (kind === 'task' ? '任务书' : '规范') + '吗？')) return;
+    fetch('/thesis/doc/delete', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: kind })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+        if (!d.ok) { alert(d.error || '删除失败'); return; }
+        thSetCard(kind, null);
+        thMsg(kind, '', '');
+        parseDocs();
+    }).catch(function () { alert('删除失败，请稍后重试'); });
+}
+
+// ---- 查询已上传状态（进页面时调）----
+function loadDocStatus() {
+    if (PAGE_MODE !== 'thesis') return;
+    fetch('/thesis/doc/status', { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+            if (!d || !d.ok) return;
+            ['task', 'spec'].forEach(function (k) {
+                var info = (d.docs || {})[k] || {};
+                thSetCard(k, info.has_file ? info : null);
+            });
+            if (typeof d.quota === 'number') {
+                thesisQuota = d.quota;
+                var qel = thEl('thesisQuotaBar');
+                if (qel) qel.textContent = '剩余论文次数：' + thesisQuota + '（每次生成消耗 1 次）';
+            }
+            if ((d.spec_summary || '') && thEl('docMsg_spec')) thMsg('spec', d.spec_summary, 'ok');
+            if (d.parsed && d.parsed.params) {
+                TH_PARAMS = d.parsed.params;
+                TH_SOURCES = d.parsed.sources || [];
+                renderParams();
+            }
+            // 只要上传过文件就重新解析一次：拿到最新的参数、学校名与题目，顺带回填封面
+            if ((d.docs.task || {}).has_file || (d.docs.spec || {}).has_file) {
+                parseDocs();
+            }
+        }).catch(function () {});
+}
+
+// ---- 解析 ----
+function parseDocs() {
+    fetch('/thesis/doc/parse', { method: 'POST' })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d || {} }; }); })
+        .then(function (res) {
+            var d = res.d;
+            if (!d.ok) {
+                if (d.warnings && d.warnings.length) thMsg('task', d.warnings[0], 'warn');
+                return;
+            }
+            TH_PARAMS = d.params || {};
+            TH_SOURCES = d.sources || [];
+            // 规范摘要
+            var box = thEl('specSummaryBox');
+            if (box) {
+                if (d.spec_summary) { box.style.display = 'flex'; box.innerHTML = '<div>已按你上传的规范排版：' + escHtml(d.spec_summary) + '</div>'; }
+                else { box.style.display = 'none'; }
+            }
+            renderParams();
+            // 规范里带学校名、任务书里带题目，直接回填封面抬头
+            if (thEl('thesisInfo')) {
+                var uIn = thEl('thesisInfo').querySelector('input[name=university]');
+                if (d.university && uIn && !uIn.value) uIn.value = d.university;
+                var pIn = thEl('thesisInfo').querySelector('input[name=projectName]');
+                if (d.project_name && pIn && !pIn.value) pIn.value = d.project_name;
+            }
+            // 提示
+            if (d.warnings && d.warnings.length) {
+                var wb = thEl('parseWarnBox');
+                if (wb) { wb.style.display = 'block'; wb.innerHTML = '<div>' + d.warnings.map(escHtml).join('<br>') + '</div>'; }
+            } else {
+                var wb2 = thEl('parseWarnBox');
+                if (wb2) wb2.style.display = 'none';
+            }
+            if (d.has_task) {
+                thMsg('task', '已识别 ' + Object.keys(TH_PARAMS).length + ' 项设计参数', 'ok');
+            }
+        })
+        .catch(function () {});
+}
+
+var PARAM_LABEL = {
+    floodStandard: '防洪标准', designFlow: '设计流量', checkFlow: '校核流量',
+    downstreamWaterLevel: '设计洪水位（下游）', normalStorageLevel: '正常蓄水位',
+    gateSillElevation: '闸底板顶高程', groundElevation: '现状地面高程',
+    checkWaterLevel: '校核洪水位', seismicIntensity: '地震基本烈度',
+    seismicAcceleration: '地震动峰值加速度', foundationBearing: '地基允许承载力',
+    frictionCoefficient: '基底摩擦系数', permeabilityCoefficient: '渗透系数',
+    compressionModulus: '压缩模量', concreteGrade: '混凝土强度等级', rebarType: '钢筋种类',
+    gateCount: '闸孔数', singleGateWidth: '单孔净宽', middlePierThickness: '中墩厚度',
+    sidePierThickness: '边墩厚度', windSpeed: '设计风速', structureGrade: '建筑物级别',
+    riverName: '所在河流', channelBottomWidth: '主河槽底宽', foundationType: '地基类型'
+};
+var PARAM_UNIT = {
+    designFlow: 'm³/s', checkFlow: 'm³/s', downstreamWaterLevel: 'm', normalStorageLevel: 'm',
+    gateSillElevation: 'm', groundElevation: 'm', checkWaterLevel: 'm', seismicIntensity: '度',
+    seismicAcceleration: 'g', foundationBearing: 'kPa', permeabilityCoefficient: 'cm/s',
+    compressionModulus: 'MPa', gateCount: '孔', singleGateWidth: 'm', middlePierThickness: 'm',
+    sidePierThickness: 'm', windSpeed: 'm/s', structureGrade: '级', channelBottomWidth: 'm',
+    floodStandard: '年一遇'
+};
+
+function renderParams() {
+    var wrap = thEl('parseWrap'), grid = thEl('parseParams');
+    if (!wrap || !grid) return;
+    var keys = Object.keys(PARAM_LABEL).filter(function (k) { return TH_PARAMS[k] !== undefined; });
+    wrap.style.display = 'block';
+    if (!keys.length) {
+        grid.innerHTML = '<div class="parse-empty">没有从任务书中识别到设计参数。' +
+            '系统会按通用水闸设计取值计算，你也可以直接联系客服补充数据。</div>';
+        return;
+    }
+    var fromMap = {};
+    (TH_SOURCES || []).forEach(function (s) { fromMap[s.key] = s.from || ''; });
+    grid.innerHTML = keys.map(function (k) {
+        var u = PARAM_UNIT[k] ? '<span class="unit">（' + PARAM_UNIT[k] + '）</span>' : '';
+        var src = fromMap[k] ? '<span class="from" title="' + escHtml(fromMap[k]) + '">来源：' + escHtml(fromMap[k]) + '</span>' : '';
+        return '<div class="parse-item"><label>' + escHtml(PARAM_LABEL[k]) + u + '</label>' +
+               '<input data-pkey="' + k + '" value="' + escHtml(String(TH_PARAMS[k])) + '">' + src + '</div>';
+    }).join('');
+}
+
+function collectParams() {
+    var out = {};
+    var grid = thEl('parseParams');
+    if (grid) {
+        var ins = grid.querySelectorAll('input[data-pkey]');
+        for (var i = 0; i < ins.length; i++) {
+            var v = ins[i].value.trim();
+            if (v !== '') out[ins[i].getAttribute('data-pkey')] = v;
+        }
+    }
+    return out;
+}
+
+function collectCover() {
+    var out = {};
+    var tInfo = thEl('thesisInfo');
     if (tInfo) {
         var tInputs = tInfo.querySelectorAll('input');
         for (var j = 0; j < tInputs.length; j++) {
             var n = tInputs[j].name;
-            if (n && tInputs[j].value) data[n] = tInputs[j].value;
+            if (n && tInputs[j].value) out[n] = tInputs[j].value;
         }
     }
-    if (typeof JSZip === 'undefined' || typeof generateThesisDocx === 'undefined') {
-        alert('论文生成引擎未加载。\n请确认 index.html、calc.js、jszip.min.js、template_data.js 四个文件在同一个文件夹。');
+    return out;
+}
+
+function thSetStatus(text) {
+    var el = thEl('thesisStatus');
+    if (el) el.textContent = text || '';
+}
+
+// ---- 生成整本论文 ----
+function generateThesis() {
+    if (TH_BUSY) return;
+    var taskName = thEl('docFileTaskName');
+    var hasTask = thEl('docFile_task') && thEl('docFile_task').style.display !== 'none';
+    if (!hasTask) {
+        alert('请先上传「毕业设计任务书」。\n系统需要从任务书中读取设计流量、水位、闸孔尺寸等数据。');
         return;
     }
-    showLoading('正在生成毕业设计论文（纯前端，格式完全按模板，约68页）...');
-    generateThesisDocx(data, function(blob) {
-        var url = URL.createObjectURL(blob);
+    if (thesisQuota === 0) { showPayG(myPayT, '论文'); return; }
+
+    TH_BUSY = true;
+    thSetStatus('正在生成…');
+    showLoading('正在按你的任务书与规范生成整本论文（含计算表格与曲线图）…');
+    fetch('/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ params: collectParams(), meta: collectCover(), use_docs: true })
+    }).then(function (r) {
+        if (r.status === 402) {
+            return r.json().then(function (d) {
+                hideLoading(); TH_BUSY = false; thSetStatus('次数已用完');
+                if (typeof d.thesis_quota === 'number') { thesisQuota = d.thesis_quota; }
+                showPayG(d.pay || myPayT, '论文');
+                return null;
+            });
+        }
+        if (!r.ok) {
+            return r.json().then(function (d) {
+                hideLoading(); TH_BUSY = false;
+                thSetStatus('');
+                alert(d.error || '生成失败');
+                return null;
+            }).catch(function () {
+                hideLoading(); TH_BUSY = false;
+                alert('生成失败（HTTP ' + r.status + '）');
+                return null;
+            });
+        }
+        // 生成过程中的提示（哪些章节留白、哪些参数缺失）
+        var warnHdr = r.headers.get('X-Thesis-Warnings') || '';
+        var quotaHdr = r.headers.get('X-Thesis-Quota');
+        var cd = r.headers.get('Content-Disposition') || '';
+        var m = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+        var fname = m ? decodeURIComponent(m[1]) : '毕业设计论文.docx';
+        return r.blob().then(function (blob) { return { blob: blob, fname: fname, warnHdr: warnHdr, quotaHdr: quotaHdr }; });
+    }).then(function (res) {
+        if (!res) return;
+        var url = URL.createObjectURL(res.blob);
         var a = document.createElement('a');
-        a.href = url;
-        a.download = (data.projectName || '水闸设计') + '_毕业设计论文.docx';
+        a.href = url; a.download = res.fname;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        if (thesisQuota > 0) {
-          thesisQuota -= 1;
-          var qel = document.getElementById('thesisQuotaBar');
-          if (qel) qel.textContent = '剩余论文次数：' + thesisQuota + '（每次生成消耗 1 次）';
+
+        if (res.quotaHdr !== null && res.quotaHdr !== undefined && res.quotaHdr !== '') {
+            thesisQuota = parseInt(res.quotaHdr, 10);
+            var qel = thEl('thesisQuotaBar');
+            if (qel) qel.textContent = '剩余论文次数：' + thesisQuota + '（每次生成消耗 1 次）';
         }
-        // 自动保存到"我的生成记录"（防止下载丢失后白做）
-        try {
-          var fd = new FormData();
-          fd.append('file', blob, (data.projectName || '水闸设计') + '_毕业设计论文.docx');
-          fd.append('title', (data.projectName || '水闸设计') + '毕业设计论文');
-          fetch('/api/records/save', {method:'POST', body:fd}).then(function(r){return r.json();}).then(function(d2){
-            if (d2.ok) alert('论文生成成功！已自动保存到「我的生成记录」，可随时回来重新下载。');
-            else alert('论文生成成功！已下载。但保存记录失败：' + (d2.error || ''));
-          }).catch(function(){ alert('论文生成成功！已下载。\n提示：记录自动保存失败（网络问题），可手动保存已下载的文件。'); });
-        } catch (e) {
-          alert('论文生成成功！已下载。\n提示：记录自动保存失败，可手动保存已下载的文件。');
-        }
-        hideLoading();
-    }, function(err) {
-        hideLoading();
-        var m = (err && err.message) ? err.message : String(err);
-        alert('论文生成失败：' + m + '\n\n请确认 index.html、calc.js、jszip.min.js、template_data.js 四个文件在同一个文件夹，且用现代浏览器（Chrome/Edge）打开。');
+        hideLoading(); TH_BUSY = false;
+        thSetStatus('已生成并下载');
+        var warns = [];
+        try { warns = JSON.parse(res.warnHdr || '[]'); } catch (e) {}
+        var msg = '论文生成成功！已开始下载：' + res.fname +
+                  '\n\n论文已自动存入「我的记录」，可随时回来重新下载。';
+        if (warns.length) msg += '\n\n需要注意：\n· ' + warns.join('\n· ');
+        alert(msg);
+    }).catch(function (err) {
+        hideLoading(); TH_BUSY = false; thSetStatus('');
+        alert('生成失败：' + ((err && err.message) || err));
     });
 }
+
+if (PAGE_MODE === 'thesis') { loadDocStatus(); }
 
 function buildThesis(data, gate, energy, seep, top, stab) {
     var Q = parseFloat(data.designFlow)||174, n = parseInt(data.gateCount)||3, b0 = parseFloat(data.singleGateWidth)||6;

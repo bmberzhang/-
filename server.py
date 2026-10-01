@@ -19,6 +19,11 @@ import generate_thesis as gt
 import generate_drawing as gd
 import generate_plan as gp
 import pay_gateway as pgw
+import calc
+# 论文生成（新）：任务书 + 规范 → 整本论文（含计算表格与曲线图）
+import thesis_parse as tp
+import thesis_build as tb
+import charts as ch
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 # 数据目录：本地用项目根目录；云端（Railway）通过 DATA_DIR 指向持久卷
@@ -34,6 +39,15 @@ os.makedirs(DRAW_OUT, exist_ok=True)
 # 论文生成记录存储目录
 THESIS_OUT = os.path.join(DATA_DIR, 'output_thesis')
 os.makedirs(THESIS_OUT, exist_ok=True)
+
+# 客户上传的「毕业设计任务书 / 毕业设计规范」存放目录（每个客户一份，规范各不相同）
+UPLOAD_DIR = os.path.join(DATA_DIR, 'uploads')
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# 任务书 / 规范 上传限制
+DOC_KINDS = {'task': '毕业设计任务书', 'spec': '毕业设计规范'}
+DOC_EXTS = {'.doc', '.docx'}
+DOC_MAX_BYTES = 25 * 1024 * 1024        # 单个文件 25MB
 
 
 # ============================================================
@@ -112,6 +126,17 @@ def init_db():
             file_url TEXT DEFAULT '',
             file2_url TEXT DEFAULT '',
             created_at TEXT DEFAULT (datetime('now','localtime'))
+        );
+        CREATE TABLE IF NOT EXISTS user_docs (
+            user_id INTEGER NOT NULL,
+            kind TEXT NOT NULL,
+            filename TEXT DEFAULT '',
+            stored TEXT DEFAULT '',
+            size INTEGER DEFAULT 0,
+            parsed TEXT DEFAULT '',
+            spec_summary TEXT DEFAULT '',
+            updated_at TEXT DEFAULT (datetime('now','localtime')),
+            PRIMARY KEY (user_id, kind)
         );
     ''')
     conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('invite_code', ?)",
@@ -1135,17 +1160,455 @@ def verify_use():
     return _quota_take('verify')
 
 
-@app.route('/generate', methods=['POST'])
-def generate():
-    params = request.get_json(force=True, silent=True) or {}
+# ============================================================
+# 论文生成：任务书 + 规范 → 整本论文
+# 每个客户上传自己的任务书与规范（各校规范不同，不能用固定模板），
+# 系统从任务书取数据、从规范取格式，正文按实际数据重新撰写。
+# ============================================================
+def _doc_dir(uid):
+    d = os.path.join(UPLOAD_DIR, str(uid))
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _doc_row(uid, kind):
+    conn = get_db()
+    r = conn.execute('SELECT * FROM user_docs WHERE user_id=? AND kind=?', (uid, kind)).fetchone()
+    conn.close()
+    return r
+
+
+def _doc_path(uid, kind):
+    """返回已上传文件的绝对路径；没有则 None。"""
+    r = _doc_row(uid, kind)
+    if not r or not r['stored']:
+        return None
+    p = os.path.join(_doc_dir(uid), r['stored'])
+    return p if os.path.exists(p) else None
+
+
+def _sniff_kind(path):
+    """判断文件真实格式：docx(zip) / doc(OLE) / 其它。
+    很多客户把 .docx 直接改名成 .doc，所以必须嗅探而不是只看扩展名。"""
     try:
-        buf = gt.generate(params)   # 返回 BytesIO（不落盘，避免权限/占用问题）
-        return send_file(buf, as_attachment=True, download_name='毕业设计论文.docx',
-                         mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        with open(path, 'rb') as f:
+            head = f.read(8)
+    except Exception:
+        return 'unknown'
+    if head[:4] == b'PK\x03\x04':
+        return 'docx'
+    if head[:4] == b'\xd0\xcf\x11\xe0':
+        return 'doc'
+    return 'unknown'
+
+
+def _as_readable_docx(path):
+    """把上传的 Word 变成 python-docx 能读的文件，返回可用路径。
+    老版 .doc 在 Windows 本地可借 Word COM 转换；云端无法转换时给出明确提示。"""
+    k = _sniff_kind(path)
+    if k == 'docx':
+        return path, None
+    if k == 'doc':
+        if os.name == 'nt':
+            try:
+                import win32com.client  # noqa
+                out = os.path.splitext(path)[0] + '_conv.docx'
+                w = win32com.client.Dispatch('Word.Application')
+                w.Visible = False
+                try:
+                    d = w.Documents.Open(os.path.abspath(path), ReadOnly=True)
+                    d.SaveAs2(os.path.abspath(out), FileFormat=16)   # 16 = wdFormatDocumentDefault
+                    d.Close(False)
+                finally:
+                    w.Quit()
+                if os.path.exists(out):
+                    return out, None
+            except Exception as e:
+                return None, ('该文件是老版 .doc 格式，服务器无法自动转换（%s）。'
+                              '请在 Word 中「另存为 → Word 文档(*.docx)」后重新上传。' % e)
+        return None, ('该文件是老版 .doc 格式，服务器无法直接读取。'
+                      '请在 Word 中「另存为 → Word 文档(*.docx)」后重新上传。')
+    return None, '文件格式无法识别，请上传 Word 文档（.docx 或 .doc）。'
+
+
+def _parse_docs(uid):
+    """读取该用户的任务书与规范。返回 (pack, warnings)。"""
+    pack = {'params': {}, 'sources': [], 'sections': [],
+            'spec': None, 'task_name': '', 'spec_name': '',
+            'project_name': '', 'has_task': False, 'has_spec': False}
+    warns = []
+
+    task_path = _doc_path(uid, 'task')
+    if task_path:
+        usable, err = _as_readable_docx(task_path)
+        if usable:
+            try:
+                res = tp.parse_task_book(usable)
+                pack['params'] = res.get('params') or {}
+                pack['sources'] = res.get('sources') or []
+                pack['sections'] = res.get('sections') or []
+                pack['project_name'] = res.get('project_name') or ''
+                pack['has_task'] = True
+                pack['task_meta'] = {'n_tables': res.get('n_tables', 0),
+                                     'n_paras': res.get('n_paras', 0)}
+                if not pack['params']:
+                    warns.append('任务书里没有识别到设计参数，请检查文件是否为任务书正文。')
+            except Exception as e:
+                warns.append('任务书解析失败：%s' % e)
+        else:
+            warns.append('任务书：%s' % err)
+
+    spec_path = _doc_path(uid, 'spec')
+    if spec_path:
+        usable, err = _as_readable_docx(spec_path)
+        if usable:
+            try:
+                sp = tp.parse_spec(usable)
+                pack['spec'] = sp
+                pack['has_spec'] = True
+                if not sp.get('chapters'):
+                    warns.append('规范里没有识别到章节标题，论文结构将按通用水闸设计流程组织。')
+            except Exception as e:
+                warns.append('规范解析失败：%s' % e)
+        else:
+            warns.append('规范：%s' % err)
+
+    tr, sr = _doc_row(uid, 'task'), _doc_row(uid, 'spec')
+    pack['task_name'] = tr['filename'] if tr else ''
+    pack['spec_name'] = sr['filename'] if sr else ''
+    return pack, warns
+
+
+def _labeled_rows(pack, limit=18):
+    """把抽取到的参数整理成「基本资料一览表」的行。"""
+    rows = []
+    for s in (pack.get('sources') or [])[:limit]:
+        name = s.get('label') or s.get('key')
+        unit = s.get('unit') or ''
+        rows.append(('%s%s' % (name, ('（%s）' % unit) if unit else ''), s.get('value', '')))
+    return rows
+
+
+def _generate_thesis(uid, params, meta=None):
+    """执行完整生成流程，返回 (BytesIO, warnings, pack)。"""
+    pack, warns = _parse_docs(uid)
+    meta = dict(meta or {})
+
+    P = {}
+    P.update(pack['params'])              # 任务书里抽到的
+    # 封面/抬头信息也要进参数：thesis_build 的封面与摘要都从 params 里取值
+    P.update({k: v for k, v in meta.items()
+              if v not in (None, '') and k not in ('labeled', 'warnings')})
+    P.update({k: v for k, v in (params or {}).items()
+              if v not in (None, '')})    # 客户校对后的值最后覆盖
+    # 学校名：客户填的优先，其次从规范标题里认出来的
+    if not (P.get('university') or '').strip():
+        P['university'] = (pack.get('spec') or {}).get('university', '')
+    # 题目：客户填的 > 任务书里的题目 > 按河流名拼一个
+    if not (P.get('projectName') or '').strip():
+        P['projectName'] = pack.get('project_name') or _proj_name(P)
+
+    meta['labeled'] = _labeled_rows(pack)
+    meta.setdefault('taskName', _proj_name(P))
+
+    # 曲线图：与正文同一套计算，图表只插到对应章节
+    gw = calc.calc_gate_width_mu0(P)
+    top = calc.calc_gate_top_mu0(P)
+    figs, fig_warns = ch.render_all(gw, top, calc.calc_seepage_mu0(P),
+                                    calc.calc_energy_mu0(P, gw),
+                                    calc.calc_stability_mu0(P, gw, top), P)
+    warns += fig_warns
+
+    meta['warnings'] = warns
+    buf, bw = tb.build(P, spec=pack.get('spec'), task_sections=pack.get('sections'),
+                       figures=figs, meta=meta)
+    warn_all = list(dict.fromkeys(warns + list(bw or [])))
+    return buf, warn_all, pack
+
+
+def _proj_name(P):
+    river = (P.get('riverName') or '').strip()
+    return ('%s水闸拆除重建工程' % river) if river else '水闸拆除重建工程'
+
+
+_UNSAFE_FN = '\\/:*?"<>|\r\n\t'
+
+
+def _safe_filename(s):
+    """去掉文件名里不能用的字符（题目常带引号书名号，直接进 Content-Disposition 会出问题）。"""
+    out = ''.join(('' if ch in _UNSAFE_FN else ch) for ch in str(s or ''))
+    out = out.replace('“', '').replace('”', '').replace('《', '').replace('》', '')
+    out = out.strip().strip('.')
+    return out or '水闸设计'
+
+
+@app.route('/thesis/doc/status')
+def thesis_doc_status():
+    """查询当前用户已上传的任务书/规范，以及上次解析出的参数。"""
+    u = current_user()
+    if not u:
+        return jsonify({'ok': False, 'error': '请先登录'}), 401
+    out = {'ok': True, 'docs': {}}
+    for kind, label in DOC_KINDS.items():
+        r = _doc_row(u['id'], kind)
+        if r and r['stored']:
+            out['docs'][kind] = {
+                'kind': kind, 'label': label, 'filename': r['filename'],
+                'size': r['size'], 'updated_at': r['updated_at'],
+                'has_file': _doc_path(u['id'], kind) is not None,
+            }
+        else:
+            out['docs'][kind] = {'kind': kind, 'label': label, 'filename': '', 'has_file': False}
+    # 回填上次解析结果，避免重复解析
+    tr = _doc_row(u['id'], 'task')
+    sr = _doc_row(u['id'], 'spec')
+    out['parsed'] = json.loads(tr['parsed']) if (tr and tr['parsed']) else None
+    out['spec_summary'] = (sr['spec_summary'] if sr else '') or ''
+    out['quota'] = get_quota_one(u['id'], 'thesis')
+    out['pay'] = get_pay_config()
+    return jsonify(out)
+
+
+@app.route('/thesis/doc/upload', methods=['POST'])
+def thesis_doc_upload():
+    """上传任务书或规范。上传与解析均不扣次数，只有生成论文才扣。"""
+    u = current_user()
+    if not u:
+        return jsonify({'ok': False, 'error': '请先登录'}), 401
+    kind = (request.form.get('kind') or '').strip()
+    if kind not in DOC_KINDS:
+        return jsonify({'ok': False, 'error': '上传类型不正确（应为 task 或 spec）'}), 400
+    f = request.files.get('file')
+    if not f or not f.filename:
+        return jsonify({'ok': False, 'error': '请选择要上传的 Word 文件'}), 400
+
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in DOC_EXTS:
+        return jsonify({'ok': False,
+                        'error': '只支持 Word 文档（.docx / .doc），当前是「%s」' % (ext or '无扩展名')}), 400
+
+    data = f.read()
+    if not data:
+        return jsonify({'ok': False, 'error': '文件内容为空'}), 400
+    if len(data) > DOC_MAX_BYTES:
+        return jsonify({'ok': False,
+                        'error': '文件过大（%.1f MB），请控制在 25MB 以内' % (len(data) / 1048576.0)}), 400
+
+    stored = '%s%s' % (kind, ext)
+    d = _doc_dir(u['id'])
+    # 换扩展名重传时先清掉旧文件，避免残留
+    old = _doc_row(u['id'], kind)
+    if old and old['stored'] and old['stored'] != stored:
+        try:
+            os.remove(os.path.join(d, old['stored']))
+        except Exception:
+            pass
+    with open(os.path.join(d, stored), 'wb') as fp:
+        fp.write(data)
+
+    conn = get_db()
+    conn.execute('''INSERT INTO user_docs (user_id, kind, filename, stored, size, parsed, spec_summary, updated_at)
+                    VALUES (?, ?, ?, ?, ?, '', '', datetime('now','localtime'))
+                    ON CONFLICT(user_id, kind) DO UPDATE SET
+                    filename=excluded.filename, stored=excluded.stored, size=excluded.size,
+                    parsed='', spec_summary='', updated_at=datetime('now','localtime')''',
+                 (u['id'], kind, f.filename, stored, len(data)))
+    conn.commit()
+    conn.close()
+
+    # 立刻试解析一次，把问题当场暴露给客户
+    try:
+        path = os.path.join(d, stored)
+        usable, err = _as_readable_docx(path)
+        if not usable:
+            return jsonify({'ok': True, 'kind': kind, 'filename': f.filename,
+                            'warning': err, 'params_n': 0})
+        if kind == 'task':
+            res = tp.parse_task_book(usable)
+            n = len(res.get('params') or {})
+            return jsonify({'ok': True, 'kind': kind, 'filename': f.filename,
+                            'params_n': n, 'n_tables': res.get('n_tables', 0),
+                            'warning': '' if n else '没有从任务书中识别到参数，请确认上传的是设计任务书'})
+        sp = tp.parse_spec(usable)
+        hint = tp.spec_hint(sp)
+        conn = get_db()
+        conn.execute('UPDATE user_docs SET spec_summary=? WHERE user_id=? AND kind=?',
+                     (hint, u['id'], kind))
+        conn.commit()
+        conn.close()
+        return jsonify({'ok': True, 'kind': kind, 'filename': f.filename,
+                        'params_n': len(sp.get('chapters') or []),
+                        'spec_summary': hint, 'warning': ''})
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'ok': True, 'kind': kind, 'filename': f.filename,
+                        'params_n': 0, 'warning': '文件已保存，但解析出错：%s' % e})
+
+
+@app.route('/thesis/doc/parse', methods=['POST'])
+def thesis_doc_parse():
+    """解析已上传的任务书与规范，返回可校对的设计参数与格式摘要。不扣次数。"""
+    u = current_user()
+    if not u:
+        return jsonify({'ok': False, 'error': '请先登录'}), 401
+    pack, warns = _parse_docs(u['id'])
+    if not pack['has_task'] and not pack['has_spec']:
+        return jsonify({'ok': False, 'error': '请先上传毕业设计任务书（建议同时上传毕业设计规范）',
+                        'warnings': warns}), 400
+
+    hint = tp.spec_hint(pack['spec']) if pack.get('spec') else ''
+    conn = get_db()
+    conn.execute('''UPDATE user_docs SET parsed=?, updated_at=datetime('now','localtime')
+                    WHERE user_id=? AND kind='task' ''',
+                 (json.dumps({'params': pack['params'], 'sources': pack['sources']},
+                             ensure_ascii=False), u['id']))
+    if hint:
+        conn.execute('''UPDATE user_docs SET spec_summary=?, updated_at=datetime('now','localtime')
+                        WHERE user_id=? AND kind='spec' ''', (hint, u['id']))
+    conn.commit()
+    conn.close()
+
+    chapters = []
+    if pack.get('spec'):
+        chapters = [c for c in (pack['spec'].get('chapters') or []) if c.get('level') == 1]
+    return jsonify({
+        'ok': True,
+        'params': pack['params'],
+        'sources': pack['sources'],
+        'sections': pack['sections'][:6],
+        'has_task': pack['has_task'],
+        'has_spec': pack['has_spec'],
+        'task_name': pack['task_name'],
+        'spec_name': pack['spec_name'],
+        'spec_summary': hint,
+        'university': (pack.get('spec') or {}).get('university', ''),
+        'project_name': pack.get('project_name', ''),
+        'n_tables': (pack.get('task_meta') or {}).get('n_tables', 0),
+        'chapters': chapters,
+        'warnings': warns,
+        'quota': get_quota_one(u['id'], 'thesis'),
+    })
+
+
+@app.route('/thesis/doc/delete', methods=['POST'])
+def thesis_doc_delete():
+    """删除已上传的任务书或规范"""
+    u = current_user()
+    if not u:
+        return jsonify({'ok': False, 'error': '请先登录'}), 401
+    data = request.get_json(force=True, silent=True) or {}
+    kind = (data.get('kind') or '').strip()
+    if kind not in DOC_KINDS:
+        return jsonify({'ok': False, 'error': '类型不正确'}), 400
+    r = _doc_row(u['id'], kind)
+    if r and r['stored']:
+        try:
+            os.remove(os.path.join(_doc_dir(u['id']), r['stored']))
+        except Exception:
+            pass
+    conn = get_db()
+    conn.execute('DELETE FROM user_docs WHERE user_id=? AND kind=?', (u['id'], kind))
+    conn.commit()
+    conn.close()
+    return jsonify({'ok': True})
+
+
+@app.route('/generate', methods=['POST'])
+def generate():
+    """生成整本毕业设计论文（含计算表格与曲线图）。
+    数据来自客户上传的任务书 + 校对后的参数，格式来自客户上传的规范。
+    旧的前端直接传参方式仍然兼容（未上传任务书时走原模板）。"""
+    u = current_user()
+    body = request.get_json(force=True, silent=True) or {}
+
+    # ---- 兼容旧调用：纯参数对象 {'designFlow': ..., ...} ----
+    if 'params' not in body and not body.get('use_docs'):
+        if u and not _doc_path(u['id'], 'task'):
+            try:
+                buf = gt.generate(body)
+                return send_file(buf, as_attachment=True, download_name='毕业设计论文.docx',
+                                 mimetype='application/vnd.openxmlformats-officedocument.'
+                                          'wordprocessingml.document')
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                return jsonify({'error': str(e)}), 500
+
+    if not u:
+        return jsonify({'ok': False, 'error': '请先登录'}), 401
+
+    params = body.get('params') or {}
+    meta = body.get('meta') or {}
+
+    if not _doc_path(u['id'], 'task'):
+        return jsonify({'ok': False, 'need_upload': True,
+                        'error': '请先上传毕业设计任务书，系统需要据此取用设计数据'}), 400
+
+    # ---- 计次：只有生成论文才扣 ----
+    if not consume_quota(u['id'], 'thesis'):
+        return jsonify({'ok': False, 'need_pay': True, 'thesis_quota': 0,
+                        'error': '论文生成次数已用完，请付费后继续使用。',
+                        'pay': get_pay_config()}), 402
+
+    try:
+        buf, warns, pack = _generate_thesis(u['id'], params, meta)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        add_quota(u['id'], 'thesis', 1)      # 生成失败，把次数退回
+        return jsonify({'ok': False, 'error': '论文生成失败：%s' % e}), 500
+
+    # ---- 落盘存档 + 生成记录 ----
+    merged = dict(pack['params'])
+    merged.update({k: v for k, v in meta.items() if v not in (None, '')})
+    merged.update({k: v for k, v in params.items() if v not in (None, '')})
+    if not (merged.get('projectName') or '').strip():
+        merged['projectName'] = pack.get('project_name') or _proj_name(merged)
+    filename = '%s毕业设计论文.docx' % _safe_filename(merged.get('projectName'))
+    stamp = time.strftime('%Y%m%d%H%M%S')
+    # 存档名：时间戳 + 正式文件名。filename 本身已带 .docx，这里不能再补扩展名
+    save_name = '%s_%s' % (stamp, filename)
+    out_dir = os.path.join(THESIS_OUT, str(u['id']))
+    os.makedirs(out_dir, exist_ok=True)
+    try:
+        with open(os.path.join(out_dir, save_name), 'wb') as fp:
+            fp.write(buf.getvalue())
+    except Exception as e:
+        print('[thesis] 存档失败:', e)
+    buf.seek(0)
+
+    try:
+        conn = get_db()
+        conn.execute('''INSERT INTO generation_records (user_id, username, type, title, file_url)
+                        VALUES (?, ?, 'thesis', ?, ?)''',
+                     (u['id'], u['username'], filename, '/thesis/dl/%d/%s' % (u['id'], save_name)))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print('[thesis] 记录写入失败:', e)
+
+    resp = send_file(buf, as_attachment=True, download_name=filename,
+                     mimetype='application/vnd.openxmlformats-officedocument.'
+                              'wordprocessingml.document')
+    # 把生成过程中的提示带给前端（供页面展示「哪些章节留白/哪些参数缺失」）
+    resp.headers['X-Thesis-Warnings'] = json.dumps(warns[:8], ensure_ascii=False)
+    resp.headers['Access-Control-Expose-Headers'] = 'X-Thesis-Warnings, Content-Disposition'
+    resp.headers['X-Thesis-Quota'] = str(get_quota_one(u['id'], 'thesis'))
+    return resp
+
+
+@app.route('/thesis/dl/<int:uid>/<path:filename>')
+def thesis_download(uid, filename):
+    """下载历史生成的论文"""
+    u = current_user()
+    if not u:
+        return redirect('/login')
+    if u['id'] != uid and not is_admin(u):
+        return '无权限', 403
+    d = os.path.join(THESIS_OUT, str(uid))
+    return send_from_directory(d, filename, as_attachment=True)
+
 
 
 # ============================================================

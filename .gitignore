@@ -7,6 +7,9 @@ Thumbs.db
 # 本地运行产生的数据（云端用 Volume 持久化）
 users.db
 output_drawing/
+# 客户上传的任务书/规范、生成的论文存档（含个人信息，绝不入库）
+uploads/
+output_thesis/
 # 本地缓存
 app_server.log
 *.log
