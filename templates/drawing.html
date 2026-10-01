@@ -6,60 +6,30 @@
 <title>工程图纸生成器 · 水闸纵剖面图</title>
 <!-- PWA -->
 <link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#0066cc">
+<meta name="theme-color" content="#171d24">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="水闸设计">
 <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/static/icons/icon-512.png">
 <link rel="stylesheet" href="/static/theme.css">
 <style>
-:root { --page-w: 1080px; }
-.wrap { max-width: var(--page-w); margin: 0 auto; padding: 20px 20px 72px; }
+:root { --page-w: 1320px; }
+.wrap { max-width: var(--page-w); margin: 0 auto; padding: 24px 20px 72px; }
 
-/* ===== 页头 ===== */
-.page-head {
-    display: flex; align-items: flex-end; justify-content: space-between;
-    gap: 18px; flex-wrap: wrap; margin-bottom: 20px;
+/* ===== 尺寸分区：双列排布 ===== */
+.parts-grid {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px; align-items: start;
 }
-.page-head h1 { font-size: 20px; font-weight: 600; }
-.page-head p { font-size: 13px; color: var(--ink-3); margin-top: 5px; }
-.quota {
-    display: flex; align-items: baseline; gap: 8px;
-    padding: 8px 14px;
-    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md);
-    font-size: 12.5px; color: var(--ink-3);
-}
-.quota b { font-size: 18px; font-weight: 600; color: var(--brand); font-variant-numeric: tabular-nums; }
-
-/* ===== 尺寸分区 ===== */
-.part {
-    background: var(--surface); border: 1px solid var(--line);
-    border-radius: var(--r-lg); box-shadow: var(--sh-1);
-    overflow: hidden; margin-bottom: 12px;
-}
-.part > .head {
-    display: flex; align-items: center; gap: 10px;
-    padding: 12px 20px;
-    background: var(--surface-2); border-bottom: 1px solid var(--line-soft);
-}
-.part > .head .num {
-    flex: none; min-width: 22px; height: 22px; padding: 0 5px;
-    border-radius: var(--r-sm);
-    background: var(--brand-wash); color: var(--brand-ink);
-    font-size: 12px; font-weight: 600;
-    display: flex; align-items: center; justify-content: center;
-}
-.part > .head .name { font-size: 14px; font-weight: 600; color: var(--ink-1); }
-.part > .head .cat { font-size: 12px; color: var(--ink-4); }
-.part > .note { padding: 10px 20px 0; font-size: 12px; color: var(--ink-4); }
+.parts-grid .part + .part { margin-top: 0; }
 .part .fields {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(238px, 1fr));
-    gap: 14px 20px; padding: 16px 20px 20px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+    gap: 14px 16px; padding: 16px 20px 20px;
 }
 .field label { display: block; font-size: 12.5px; color: var(--ink-2); margin-bottom: 6px; }
 .field .input-wrap { position: relative; }
 .field input {
-    width: 100%; height: 36px; padding: 0 52px 0 12px;
+    width: 100%; height: 36px; padding: 0 50px 0 12px;
     border: 1px solid var(--line); border-radius: var(--r-md);
     font-size: 13.5px; color: var(--ink-1); background: var(--surface);
     transition: border-color .15s, box-shadow .15s;
@@ -74,7 +44,12 @@
 }
 
 /* ===== 操作与结果 ===== */
-.actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 24px 0; }
+.actions {
+    display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;
+    margin: 24px 0; padding: 18px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--r-lg); box-shadow: var(--sh-1);
+}
 .loading { display: none; text-align: center; padding: 18px; color: var(--ink-3); font-size: 13.5px; }
 .status { text-align: center; font-size: 13px; color: var(--ink-3); margin: 10px 0; }
 .error { text-align: center; font-size: 13px; color: var(--danger); margin: 10px 0; }
@@ -83,14 +58,18 @@
 .result h2 { font-size: 16px; text-align: center; margin: 24px 0 12px; }
 .preview-box {
     background: var(--surface); border: 1px solid var(--line);
-    border-radius: var(--r-lg); overflow: hidden;
+    border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--sh-1);
 }
 .preview-box img { display: block; width: 100%; }
 .dl-bar { display: flex; justify-content: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
 
+@media (max-width: 980px) {
+    .parts-grid { grid-template-columns: 1fr; }
+    .part .fields { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
 @media (max-width: 640px) {
     .wrap { padding: 16px 12px 56px; }
-    .part .fields { padding: 14px 16px 18px; grid-template-columns: 1fr; }
+    .part .fields { padding: 14px 16px 18px; grid-template-columns: 1fr 1fr; }
     .part > .head, .part > .note { padding-left: 16px; padding-right: 16px; }
     .actions .btn { width: 100%; }
     .dl-bar .btn { width: 100%; text-align: center; }
@@ -103,11 +82,11 @@
   <div class="appbar-in">
     <img class="appbar-logo" src="/static/icons/icon-192.png" alt="">
     <div class="appbar-text">
-      <h1>工程图纸生成</h1>
-      <p>水闸纵剖面图 · 参数化出图，可导出 DXF 在 CAD 中精修</p>
+      <h1>水闸设计系统</h1>
+      <span class="ver">SL 265-2016</span>
     </div>
     <nav class="appbar-user">
-      <span class="me"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="5.5" r="2.6"/><path d="M3 13.7a5.1 5.1 0 0 1 10 0"/></svg><span>{{ username }}</span></span>
+      <span class="me"><span class="av">{{ (username or '?')[0]|upper }}</span><span>{{ username }}</span></span>
       <a href="/records">我的记录</a>
       <a href="/change-password">修改密码</a>
       {% if is_admin %}<a href="/admin">管理</a>{% endif %}
@@ -116,34 +95,38 @@
   </div>
 </header>
 
-<div class="wrap">
-  <nav class="flow-nav">
+<nav class="navbar">
+  <div class="navbar-in">
     <a href="/" data-m="home"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>工作台</a>
+    <a href="/tool" data-m="tool"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="2" width="10" height="12" rx="1.5"/><path d="M5.6 5h4.8"/><path d="M5.8 8.4h.01M8 8.4h.01M10.2 8.4h.01M5.8 11h.01M8 11h.01M10.2 11h.01"/></svg>计算工具</a>
     <a href="/verify" data-m="verify"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.6h5M10.6 4.6H14M2 11.4h3.4M9 11.4H14"/><circle cx="8.7" cy="4.6" r="1.7"/><circle cx="7.1" cy="11.4" r="1.7"/></svg>参数验证</a>
     <a href="/model" data-m="model"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.9l5.2 3v6.2L8 14.1 2.8 11.1V4.9z"/><path d="M2.8 4.9L8 7.9l5.2-3M8 7.9v6.2"/></svg>三维仿真</a>
     <a href="/drawing" data-m="drawing" class="active"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.2" y="2.2" width="11.6" height="11.6" rx="1.4"/><path d="M2.2 6.2h11.6M6.2 6.2v7.6"/></svg>工程图纸</a>
     <a href="/thesis" data-m="thesis"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.9h5l3.4 3.4v8.8H4z"/><path d="M9 1.9v3.4h3.4"/><path d="M6.3 8.4h3.9M6.3 11h3.9"/></svg>生成论文</a>
-  </nav>
+  </div>
+</nav>
 
+<div class="wrap">
   <div class="page-head">
     <div>
       <h1>水闸纵剖面图</h1>
       <p>按顺序填写各部分尺寸（单位：米），填好后点击「生成图纸」</p>
     </div>
-    <div class="quota">剩余图纸次数 <b id="quotaNum">…</b>
-      <span style="color:var(--ink-4)">每次生成消耗 1 次</span>
+    <div class="stat">剩余图纸次数 <b id="quotaNum">…</b>
+      <span>每次生成消耗 1 次</span>
     </div>
   </div>
 
   {% set nums = { '铺盖':'1', '底板':'2', '消力池':'3', '反滤层':'4', '海漫':'5',
                   '防冲槽':'6', '高程':'7', '闸门':'8', '排架':'9', '工作桥':'10',
                   '交通桥':'11', '启闭机房':'12', '绘图选项':'13' } %}
+  <div class="parts-grid">
   {% for group, cat in groups %}
   <div class="part">
     <div class="head">
       <span class="num">{{ nums.get(group, loop.index) }}</span>
       <span class="name">{{ group }}</span>
-      <span class="cat">{{ cat }}</span>
+      <span class="cat"><span class="tag">{{ cat }}</span></span>
     </div>
     {% if group == "排架" %}
     <div class="note">
@@ -174,6 +157,7 @@
     </div>
   </div>
   {% endfor %}
+  </div>
 
   <div class="actions">
     <button class="btn btn-primary btn-lg" id="btnGen" onclick="generate()">生成图纸</button>

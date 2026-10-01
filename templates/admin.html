@@ -128,8 +128,8 @@
   <div class="appbar-in">
     <img class="appbar-logo" src="/static/icons/icon-192.png" alt="">
     <div class="appbar-text">
-      <h1>系统管理</h1>
-      <p>邀请码 · 用户与次数 · 收费设置 · 客户咨询</p>
+      <h1>水闸设计系统</h1>
+      <span class="ver">SL 265-2016</span>
     </div>
     <nav class="appbar-user">
       <a href="/">返回工作台</a>
@@ -140,6 +140,13 @@
 </header>
 
 <div class="wrap">
+
+  <div class="page-head">
+    <div>
+      <h1>系统管理</h1>
+      <p>邀请码 · 用户与次数 · 收费设置 · 客户咨询</p>
+    </div>
+  </div>
 
   {% with msgs = get_flashed_messages() %}
     {% if msgs %}

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- PWA -->
 <link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#0066cc">
+<meta name="theme-color" content="#171d24">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="水闸设计">
@@ -13,53 +13,73 @@
 <link rel="apple-touch-icon" href="/static/icons/icon-512.png">
 <title>水闸设计参数验证与毕业设计论文生成系统</title>
 <link rel="stylesheet" href="/static/theme.css">
-<link rel="stylesheet" href="/static/theme.css">
 <style>
 /* ================= 骨架 ================= */
 .container { max-width: var(--page-w); margin: 0 auto; padding: 22px 20px 64px; }
 
 /* ================= 工作台入口 ================= */
-.home-cards { display: none; flex-direction: column; gap: 10px; max-width: 900px; margin: 0 auto; }
-.home-cards.show { display: flex; }
-.home-cards .card {
-    display: flex; align-items: center; gap: 16px; padding: 16px 20px;
+.home-cards { display: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.home-cards.show { display: grid; }
+.home-card {
+    display: flex; flex-direction: column;
+    padding: 20px 20px 18px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--r-lg); box-shadow: var(--sh-1);
     color: inherit; text-decoration: none;
-    transition: border-color .15s, box-shadow .15s;
+    transition: border-color .15s, box-shadow .15s, transform .15s;
 }
-.home-cards .card:hover { border-color: #c4ccd6; box-shadow: 0 3px 12px rgba(16,24,40,.08); text-decoration: none; }
-.home-cards .card-icon {
-    width: 40px; height: 40px; border-radius: var(--r-md); flex: none;
+.home-card:hover {
+    border-color: #c3ccd8; box-shadow: 0 6px 20px rgba(16,24,40,.10);
+    text-decoration: none; transform: translateY(-1px);
+}
+.hc-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+.hc-icon {
+    width: 38px; height: 38px; border-radius: var(--r-md); flex: none;
     display: flex; align-items: center; justify-content: center;
     background: var(--brand-wash); color: var(--brand);
 }
-.home-cards .card-icon svg { width: 20px; height: 20px; }
-.home-cards .card-body { flex: 1; min-width: 0; }
-.home-cards .card h3 { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
-.home-cards .card p { font-size: 12.5px; color: var(--ink-3); }
-.home-cards .card .go {
-    display: inline-flex; align-items: center; gap: 3px;
-    font-size: 12.5px; font-weight: 600; color: var(--ink-4);
-    transition: color .15s;
+.hc-icon svg { width: 19px; height: 19px; }
+.hc-step {
+    font-size: 22px; font-weight: 700; line-height: 1;
+    color: var(--line); letter-spacing: -.02em; font-variant-numeric: tabular-nums;
 }
-.home-cards .card .go svg { width: 14px; height: 14px; }
-.home-cards .card:hover .go { color: var(--brand); }
+.home-card h3 { font-size: 15.5px; font-weight: 600; margin-bottom: 7px; }
+.home-card p { font-size: 13px; color: var(--ink-3); line-height: 1.65; flex: 1; }
+.hc-go {
+    display: inline-flex; align-items: center; gap: 4px; margin-top: 16px;
+    font-size: 12.5px; font-weight: 600; color: var(--brand);
+}
+.hc-go svg { width: 14px; height: 14px; transition: transform .15s; }
+.home-card:hover .hc-go svg { transform: translateX(3px); }
+
+.home-foot { display: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.home-foot.show { display: grid; }
+.home-foot .item {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--r-lg); box-shadow: var(--sh-1); padding: 16px 18px;
+}
+.home-foot .item h4 { font-size: 13px; font-weight: 600; color: var(--ink-1); margin-bottom: 6px; }
+.home-foot .item p { font-size: 12.5px; color: var(--ink-3); line-height: 1.65; }
 
 /* ================= 参数表单 ================= */
-.form-container {
-    display: none;
+#mainForm { display: none; }
+.form-layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 18px; align-items: start; }
+.form-card {
     background: var(--surface); border: 1px solid var(--line);
     border-radius: var(--r-lg); box-shadow: var(--sh-1); overflow: hidden;
 }
+.form-card > .notice { margin: 16px 22px 0; }
 .plan-seg {
     display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-    padding: 12px 22px; background: var(--surface-2);
+    padding: 13px 22px; background: var(--surface-2);
     border-bottom: 1px solid var(--line-soft);
 }
 .plan-seg .seg-label { font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
 .plan-seg .seg-note { font-size: 12px; color: var(--ink-4); }
 .tand-row.hidden { display: none !important; }
+.sub-title { font-size: 14.5px; color: var(--ink-1); margin-bottom: 14px; }
 
-.section { border-top: 1px solid var(--line-soft); }
+.section + .section { border-top: 1px solid var(--line-soft); }
 .section-header {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     padding: 13px 22px; cursor: pointer; user-select: none;
@@ -68,9 +88,9 @@
 .section-header:hover { background: var(--surface-2); }
 .section-header h2 { font-size: 14.5px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
 .section-header .idx {
-    min-width: 22px; height: 22px; padding: 0 5px; border-radius: var(--r-sm);
-    background: var(--brand-wash); color: var(--brand-ink);
-    font-size: 12px; font-weight: 600; letter-spacing: 0;
+    min-width: 24px; height: 24px; padding: 0 6px; border-radius: 5px;
+    background: var(--brand); color: #fff;
+    font-size: 12px; font-weight: 600; letter-spacing: .02em;
     display: flex; align-items: center; justify-content: center;
 }
 .section-header .arrow { display: flex; color: var(--ink-4); transition: transform .2s; }
@@ -79,8 +99,8 @@
 .section-body { padding: 18px 22px 22px; overflow: hidden; }
 .section-body.collapsed { max-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; }
 
-.form-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 16px 20px; }
-.form-row + .form-row { margin-top: 16px; }
+.form-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(212px, 1fr)); gap: 15px 18px; }
+.form-row + .form-row { margin-top: 15px; }
 .form-group { display: flex; flex-direction: column; }
 .form-group label { font-size: 12.5px; font-weight: 500; color: var(--ink-2); margin-bottom: 6px; }
 .form-group label .unit { font-size: 11.5px; font-weight: 400; color: var(--ink-4); }
@@ -112,6 +132,7 @@
 }
 .result-panel.show { display: block; }
 .result-panel h2 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.result-panel > h2:first-child { padding-bottom: 13px; border-bottom: 1px solid var(--line-soft); }
 
 .validation-item {
     display: flex; align-items: flex-start; gap: 10px;
@@ -173,8 +194,26 @@
     min-width: 42px; text-align: center; font-variant-numeric: tabular-nums;
 }
 .gate-control .gate-flow { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+/* 论文页双栏 */
+.thesis-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
+.thesis-form { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+.side-card {
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: var(--r-lg); padding: 18px;
+}
+.side-label { font-size: 11.5px; font-weight: 600; letter-spacing: .05em; color: var(--ink-4); }
+.side-note { font-size: 13px; color: var(--ink-2); margin-top: 6px; line-height: 1.6; }
+.side-btn { width: 100%; margin-top: 16px; }
+.side-list { margin: 16px 0 0; padding: 16px 0 0; list-style: none; border-top: 1px solid var(--line); }
+.side-list li { position: relative; padding-left: 15px; font-size: 12.5px; color: var(--ink-3); line-height: 1.75; }
+.side-list li::before {
+    content: ''; position: absolute; left: 0; top: 9px;
+    width: 5px; height: 5px; border-radius: 50%; background: var(--ink-4);
+}
+.side-card .status { font-size: 12.5px; color: var(--ink-4); margin-top: 10px; text-align: center; }
+
 .model-body {
-    position: relative; width: 100%; height: 500px;
+    position: relative; width: 100%; height: clamp(440px, 64vh, 720px);
     background: linear-gradient(180deg, #d9e7f3 0%, #eaf1f7 55%, #f6f8fa 100%);
     cursor: grab;
 }
@@ -205,8 +244,15 @@
 .loading-text { color: #fff; margin-top: 14px; font-size: 14px; font-weight: 500; }
 
 /* ================= 移动端 ================= */
+@media (max-width: 1080px) {
+    .form-layout { grid-template-columns: 1fr; }
+    .rail { display: none; }
+    .thesis-layout { grid-template-columns: 1fr; }
+    .home-foot { grid-template-columns: 1fr; }
+}
 @media (max-width: 768px) {
     .container { padding: 16px 12px 48px; }
+    .home-cards { grid-template-columns: 1fr; }
     .form-row { grid-template-columns: 1fr; }
     .plan-seg { padding: 12px 16px; gap: 10px; }
     .section-header { padding: 13px 16px; }
@@ -216,11 +262,10 @@
     .result-panel { padding: 16px; }
     .model-body { height: 340px; }
     .model-toolbar button { padding: 0 8px; font-size: 11.5px; }
-    .home-cards .card { gap: 12px; padding: 14px 16px; }
-    .home-cards .card .go { display: none; }
+    .home-card { padding: 16px; }
+    .hc-go { display: none; }
 }
 </style>
-
 
 </head>
 <body>
@@ -229,10 +274,10 @@
         <img class="appbar-logo" src="/static/icons/icon-192.png" alt="">
         <div class="appbar-text">
             <h1>水闸设计系统</h1>
-            <p>SL 265-2016《水闸设计规范》 · 参数验证 / 三维仿真 / 工程图纸 / 论文生成</p>
+            <span class="ver">SL 265-2016</span>
         </div>
         <nav class="appbar-user">
-            <span class="me"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="5.5" r="2.6"/><path d="M3 13.7a5.1 5.1 0 0 1 10 0"/></svg><span id="userName"></span></span>
+            <span class="me"><span class="av" id="userAvatar"></span><span id="userName"></span></span>
             <a href="/records">我的记录</a>
             <a href="/change-password">修改密码</a>
             <a href="/admin" id="adminLink" style="display:none">管理</a>
@@ -241,61 +286,93 @@
     </div>
 </header>
 
-<div class="container">
-
-    <!-- 流程导航条 -->
-    <nav class="flow-nav" id="flowNav">
+<nav class="navbar">
+  <div class="navbar-in" id="flowNav">
         <a href="/" data-m="home"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>工作台</a>
         <a href="/tool" data-m="tool"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="2" width="10" height="12" rx="1.5"/><path d="M5.6 5h4.8"/><path d="M5.8 8.4h.01M8 8.4h.01M10.2 8.4h.01M5.8 11h.01M8 11h.01M10.2 11h.01"/></svg>计算工具</a>
         <a href="/verify" data-m="verify"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.6h5M10.6 4.6H14M2 11.4h3.4M9 11.4H14"/><circle cx="8.7" cy="4.6" r="1.7"/><circle cx="7.1" cy="11.4" r="1.7"/></svg>参数验证</a>
         <a href="/model" data-m="model"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.9l5.2 3v6.2L8 14.1 2.8 11.1V4.9z"/><path d="M2.8 4.9L8 7.9l5.2-3M8 7.9v6.2"/></svg>三维仿真</a>
         <a href="/drawing" data-m="drawing"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.2" y="2.2" width="11.6" height="11.6" rx="1.4"/><path d="M2.2 6.2h11.6M6.2 6.2v7.6"/></svg>工程图纸</a>
         <a href="/thesis" data-m="thesis"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.9h5l3.4 3.4v8.8H4z"/><path d="M9 1.9v3.4h3.4"/><path d="M6.3 8.4h3.9M6.3 11h3.9"/></svg>生成论文</a>
-    </nav>
+    
+  </div>
+</nav>
+
+<div class="container">
+
+    <!-- 页头（按页面模式由 JS 填充） -->
+    <div class="page-head">
+        <div>
+            <h1 id="phTitle">工作台</h1>
+            <p id="phSub">从参数验证开始，四步完成一套水闸设计</p>
+        </div>
+        <div class="ph-side" id="phSide"></div>
+    </div>
 
     <!-- 工作台首页 -->
     <div id="homeCards" class="home-cards">
-        <a class="card" href="/verify">
-            <div class="card-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.6h5M10.6 4.6H14M2 11.4h3.4M9 11.4H14"/><circle cx="8.7" cy="4.6" r="1.7"/><circle cx="7.1" cy="11.4" r="1.7"/></svg></div>
-            <div class="card-body">
-                <h3>参数验证</h3>
-                <p>填写水闸设计参数，按 SL265-2016 规范验证并完成闸孔、消能、防渗、稳定等计算</p>
+        <a class="home-card" href="/verify">
+            <div class="hc-top">
+                <span class="hc-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.6h5M10.6 4.6H14M2 11.4h3.4M9 11.4H14"/><circle cx="8.7" cy="4.6" r="1.7"/><circle cx="7.1" cy="11.4" r="1.7"/></svg></span>
+                <span class="hc-step">01</span>
             </div>
-            <span class="go">进入<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 3.6L10.8 8l-4.4 4.4"/></svg></span>
+            <h3>参数验证</h3>
+            <p>填写水闸设计参数，按 SL 265-2016 规范验证并完成闸孔、消能、防渗、稳定等计算</p>
+            <span class="hc-go">进入<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 3.6L10.8 8l-4.4 4.4"/></svg></span>
         </a>
-        <a class="card" href="/model">
-            <div class="card-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.9l5.2 3v6.2L8 14.1 2.8 11.1V4.9z"/><path d="M2.8 4.9L8 7.9l5.2-3M8 7.9v6.2"/></svg></div>
-            <div class="card-body">
-                <h3>三维仿真</h3>
-                <p>水闸三维模型交互展示，闸门开度调节、水流仿真，直观查看设计成果</p>
+        <a class="home-card" href="/model">
+            <div class="hc-top">
+                <span class="hc-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.9l5.2 3v6.2L8 14.1 2.8 11.1V4.9z"/><path d="M2.8 4.9L8 7.9l5.2-3M8 7.9v6.2"/></svg></span>
+                <span class="hc-step">02</span>
             </div>
-            <span class="go">进入<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 3.6L10.8 8l-4.4 4.4"/></svg></span>
+            <h3>三维仿真</h3>
+            <p>水闸三维模型交互展示，闸门开度调节、水流仿真，直观查看设计成果</p>
+            <span class="hc-go">进入<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 3.6L10.8 8l-4.4 4.4"/></svg></span>
         </a>
-        <a class="card" href="/drawing">
-            <div class="card-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.2" y="2.2" width="11.6" height="11.6" rx="1.4"/><path d="M2.2 6.2h11.6M6.2 6.2v7.6"/></svg></div>
-            <div class="card-body">
-                <h3>工程图纸</h3>
-                <p>输入结构尺寸生成水闸纵剖面图，下载 DXF 用 CAD 打开精修</p>
+        <a class="home-card" href="/drawing">
+            <div class="hc-top">
+                <span class="hc-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.2" y="2.2" width="11.6" height="11.6" rx="1.4"/><path d="M2.2 6.2h11.6M6.2 6.2v7.6"/></svg></span>
+                <span class="hc-step">03</span>
             </div>
-            <span class="go">进入<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 3.6L10.8 8l-4.4 4.4"/></svg></span>
+            <h3>工程图纸</h3>
+            <p>输入结构尺寸生成水闸纵剖面图，下载 DXF 用 CAD 打开精修</p>
+            <span class="hc-go">进入<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 3.6L10.8 8l-4.4 4.4"/></svg></span>
         </a>
-        <a class="card" href="/thesis">
-            <div class="card-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.9h5l3.4 3.4v8.8H4z"/><path d="M9 1.9v3.4h3.4"/><path d="M6.3 8.4h3.9M6.3 11h3.9"/></svg></div>
-            <div class="card-body">
-                <h3>生成论文</h3>
-                <p>按模板自动生成约 68 页毕业设计论文（Word 格式），封面、计算、图纸联动</p>
+        <a class="home-card" href="/thesis">
+            <div class="hc-top">
+                <span class="hc-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.9h5l3.4 3.4v8.8H4z"/><path d="M9 1.9v3.4h3.4"/><path d="M6.3 8.4h3.9M6.3 11h3.9"/></svg></span>
+                <span class="hc-step">04</span>
             </div>
-            <span class="go">进入<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 3.6L10.8 8l-4.4 4.4"/></svg></span>
+            <h3>生成论文</h3>
+            <p>按模板自动生成约 68 页毕业设计论文（Word 格式），封面、计算、图纸联动</p>
+            <span class="hc-go">进入<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 3.6L10.8 8l-4.4 4.4"/></svg></span>
         </a>
     </div>
 
-    <div class="form-container" id="mainForm">
-        <div class="notice notice-info" style="margin-bottom:14px">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.1"/><path d="M8 7.3v3.9M8 5.2h.01"/></svg>
-            <div><b>重要参数（计算必需）</b> — 请填写以下参数用于计算；如缺少某部分数据，可直接按默认值。</div>
+    <!-- 工作台底部说明 -->
+    <div class="home-foot" id="homeFoot">
+        <div class="item">
+            <h4>规范依据</h4>
+            <p>按 SL 265-2016《水闸设计规范》逐项校核，闸孔、消能防冲、防渗排水、稳定计算同步完成</p>
         </div>
+        <div class="item">
+            <h4>参数联动</h4>
+            <p>「参数验证」填写的数据会自动带入三维模型与工程图纸，改一处三处同步更新</p>
+        </div>
+        <div class="item">
+            <h4>成果输出</h4>
+            <p>纵剖面图导出 DXF 可直接在 CAD 精修；毕业设计论文一键生成 Word 文档</p>
+        </div>
+    </div>
 
-        <!-- 断面方案切换：带滩地（复式断面）/ 不带滩地（单一主槽） -->
+    <div id="mainForm">
+      <div class="form-layout">
+
+        <!-- 左侧参数目录（JS 依据分区生成） -->
+        <aside class="rail" id="formRail"></aside>
+
+        <div class="form-main">
+          <div class="form-card">
         <div class="plan-seg">
             <span class="seg-label">河道断面方案</span>
             <div class="seg">
@@ -304,6 +381,12 @@
             </div>
             <span class="seg-note" id="planTip">按实际河段选择，可随时切换</span>
         </div>
+            <div class="notice notice-info" style="margin:0 0 0">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.1"/><path d="M8 7.3v3.9M8 5.2h.01"/></svg>
+            <div><b>重要参数（计算必需）</b> — 请填写以下参数用于计算；如缺少某部分数据，可直接按默认值。</div>
+        </div>
+
+        <!-- 断面方案切换：带滩地（复式断面）/ 不带滩地（单一主槽） -->
 
 
         <!-- Section 2: 流域及河道参数 -->
@@ -978,6 +1061,10 @@
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="4.2"/><path d="M10.2 10.2L14 14"/></svg>参数验证与设计计算
             </button>
         </div>
+          </div>
+        </div>
+
+      </div>
     </div>
 
     <!-- Result Panel -->
@@ -989,7 +1076,6 @@
 
     <!-- 水闸设计计算工具（免费） -->
     <div class="result-panel" id="toolPanel" style="display:none;">
-        <h2>水闸设计计算工具 <span class="tag tag-brand">SL 265-2016 · 免费</span></h2>
         <iframe src="/static/calc_tool.html" title="水闸设计计算工具" style="display:block;width:100%;height:1180px;border:1px solid var(--line);border-radius:var(--r-md);background:#fff;"></iframe>
     </div>
 
@@ -1027,17 +1113,19 @@
 
     <!-- 论文生成面板（独立页面 /thesis） -->
     <div class="result-panel" id="thesisPanel">
+      <div class="thesis-layout">
+        <div class="thesis-main">
         <h2>毕业设计论文生成</h2>
-        <div class="notice" style="margin-bottom:10px">
+        <div class="notice" style="margin-bottom:16px">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.1"/><path d="M8 7.3v3.9M8 5.2h.01"/></svg>
             <div>设计参数沿用「参数验证」页的数据。若尚未验证，请先到「参数验证」填写参数并计算，再回来生成论文。</div>
         </div>
         <div class="notice notice-info" style="margin-bottom:20px">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.6" cy="8" r="3.5"/><path d="M9.1 8H14M12.1 8v2.3"/></svg>
-            <div id="thesisQuotaBar">剩余论文次数加载中…</div>
+            <div>论文中的设计参数、计算过程与图纸均由系统按当前参数自动生成，无需重复填写。</div>
         </div>
-        <h3 style="font-size:15px;color:#4a4a55;margin-bottom:14px;">论文基本信息</h3>
-        <div class="form-row" id="thesisInfo">
+        <h3 class="sub-title">论文基本信息</h3>
+        <div class="form-row thesis-form" id="thesisInfo">
             <div class="form-group"><label>项目/水闸名称</label><input name="projectName" placeholder="请输入项目名称"></div>
             <div class="form-group"><label>学生姓名</label><input name="studentName" placeholder="请输入姓名"></div>
             <div class="form-group"><label>学号</label><input name="studentId" placeholder="请输入学号"></div>
@@ -1046,10 +1134,22 @@
             <div class="form-group"><label>专业班级</label><input name="majorClass" placeholder="请输入专业班级"></div>
             <div class="form-group"><label>论文日期</label><input name="thesisDate" placeholder="请输入论文日期"></div>
         </div>
-        <div style="text-align:center;margin-top:24px;">
-            <button class="btn btn-success btn-lg" id="thesisGenBtn" onclick="generateThesis()">生成论文（Word 文档）</button>
         </div>
-        <div class="status" id="thesisStatus" style="text-align:center;font-size:13px;color:var(--ink-4);margin-top:14px;"></div>
+
+        <aside class="thesis-side">
+          <div class="side-card">
+            <div class="side-label">剩余生成次数</div>
+            <div class="side-note" id="thesisQuotaBar">剩余论文次数加载中…</div>
+            <button class="btn btn-primary btn-lg side-btn" id="thesisGenBtn" onclick="generateThesis()">生成论文（Word 文档）</button>
+            <div class="status" id="thesisStatus"></div>
+            <ul class="side-list">
+              <li>含封面、摘要、计算书与图纸，约 68 页</li>
+              <li>输出 .docx，可直接在 Word 中编辑</li>
+              <li>生成后自动存入「我的记录」，可重复下载</li>
+            </ul>
+          </div>
+        </aside>
+      </div>
     </div>
 
 </div>
@@ -1081,6 +1181,81 @@ else if (_p.indexOf('/model') === 0) PAGE_MODE = 'model';
 else if (_p.indexOf('/thesis') === 0) PAGE_MODE = 'thesis';
 else if (_p.indexOf('/drawing') === 0) PAGE_MODE = 'drawing';
 
+// 页面模式对应的页头文案与右侧标记
+var PAGE_HEAD = {
+    home:    ['工作台', '从参数验证开始，四步完成一套水闸设计', ''],
+    tool:    ['设计计算工具', '按 SL 265-2016 规范逐项计算，结果随参数实时刷新', '<span class="tag tag-brand">免费使用</span>'],
+    verify:  ['参数验证', '填写水闸设计参数，自动完成规范校验与结构计算', '<span class="tag tag-brand">SL 265-2016</span>'],
+    model:   ['三维仿真', '交互查看水闸结构，调节闸门开度观察过流状态', ''],
+    thesis:  ['生成论文', '按模板生成毕业设计论文，Word 格式可直接编辑', ''],
+};
+
+function renderPageHead() {
+    var cfg = PAGE_HEAD[PAGE_MODE] || PAGE_HEAD.home;
+    var t = document.getElementById('phTitle'), p = document.getElementById('phSub'),
+        side = document.getElementById('phSide');
+    if (t) t.textContent = cfg[0];
+    if (p) p.textContent = cfg[1];
+    if (side) side.innerHTML = cfg[2] || '';
+}
+
+// 左侧参数目录：按分区自动生成 + 滚动高亮
+var _railReady = false;
+function buildFormRail() {
+    var rail = document.getElementById('formRail');
+    var main = document.getElementById('mainForm');
+    if (!rail || !main) return;
+    var secs = main.querySelectorAll('.section');
+    var html = '<div class="rail-title">参数目录</div>';
+    for (var i = 0; i < secs.length; i++) {
+        var h = secs[i].querySelector('.section-header h2');
+        var body = secs[i].querySelector('.section-body');
+        if (!h || !body || !body.id) continue;
+        secs[i].id = 'sec-' + body.id;
+        var clone = h.cloneNode(true);
+        var idx = clone.querySelector('.idx');
+        var num = idx ? idx.textContent : (i + 1);
+        if (idx) idx.parentNode.removeChild(idx);
+        var name = (clone.textContent || '').trim();
+        html += '<a href="#' + body.id + '" data-sec="sec-' + body.id + '"><i>' + num + '</i>' + name + '</a>';
+    }
+    rail.innerHTML = html;
+    if (!_railReady) {
+        _railReady = true;
+        rail.addEventListener('click', function (e) {
+            var a = e.target.closest ? e.target.closest('a[data-sec]') : null;
+            if (!a) return;
+            e.preventDefault();
+            var el = document.getElementById(a.getAttribute('data-sec'));
+            if (!el) return;
+            var top = el.getBoundingClientRect().top + window.pageYOffset - 128;
+            window.scrollTo({ top: top, behavior: 'smooth' });
+        });
+        var ticking = false;
+        window.addEventListener('scroll', function () {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(function () { ticking = false; syncRail(); });
+        }, { passive: true });
+    }
+    syncRail();
+}
+
+function syncRail() {
+    var rail = document.getElementById('formRail');
+    if (!rail || PAGE_MODE !== 'verify') return;
+    var links = rail.querySelectorAll('a[data-sec]');
+    if (!links.length) return;
+    var best = null, bestD = 1e9, line = 150;
+    for (var i = 0; i < links.length; i++) {
+        var el = document.getElementById(links[i].getAttribute('data-sec'));
+        if (!el) continue;
+        var d = Math.abs(el.getBoundingClientRect().top - line);
+        if (d < bestD) { bestD = d; best = links[i]; }
+    }
+    for (var j = 0; j < links.length; j++) links[j].classList.toggle('active', links[j] === best);
+}
+
 function applyPageMode() {
     var show = {};
     show.home = (PAGE_MODE === 'home');
@@ -1094,7 +1269,9 @@ function applyPageMode() {
         if (show.home) el('homeCards').classList.add('show');
         else el('homeCards').classList.remove('show');
     }
+    if (el('homeFoot')) el('homeFoot').classList.toggle('show', show.home);
     if (el('mainForm')) el('mainForm').style.display = show.verify ? 'block' : 'none';
+    if (show.verify) setTimeout(buildFormRail, 0);
     if (el('resultPanel')) el('resultPanel').style.display = show.verify ? 'block' : 'none';
     if (el('modelPanel')) el('modelPanel').style.display = show.model ? 'block' : 'none';
     if (el('thesisPanel')) el('thesisPanel').style.display = show.thesis ? 'block' : 'none';
@@ -1107,6 +1284,8 @@ function applyPageMode() {
             links[i].classList.toggle('active', links[i].getAttribute('data-m') === PAGE_MODE);
         }
     }
+    renderPageHead();
+    buildFormRail();
 }
 
 // 参数表单按用户隔离（localStorage key 含用户名，不同用户互不串数据）
@@ -1943,7 +2122,6 @@ function update3DModel(data, gate, energyRes, seepRes) {
     }
 }
 
-
 function toggleSection(header) {
     header.classList.toggle('collapsed');
     header.nextElementSibling.classList.toggle('collapsed');
@@ -2609,6 +2787,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (d.logged) {
             window.currentUsername = d.username;
             document.getElementById('userName').textContent = d.username;
+            var _av = document.getElementById('userAvatar');
+            if (_av) _av.textContent = (d.username || '?').trim().charAt(0).toUpperCase();
             // 管理链接默认隐藏，仅管理员显示（避免非管理员加载时闪现）
             var adminLink = document.getElementById('adminLink');
             if (adminLink) adminLink.style.display = d.is_admin ? '' : 'none';

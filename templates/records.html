@@ -12,12 +12,7 @@
 :root { --page-w: 1080px; }
 .wrap { max-width: var(--page-w); margin: 0 auto; padding: 22px 20px 64px; }
 
-.page-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: 14px; flex-wrap: wrap; margin-bottom: 18px;
-}
-.page-head h2 { font-size: 17px; }
-.page-head .count { font-size: 12.5px; color: var(--ink-3); }
+.page-head .count { font-size: 12.5px; color: var(--ink-4); }
 
 .rec-list { display: flex; flex-direction: column; gap: 8px; }
 .rec {
@@ -53,8 +48,8 @@
   <div class="appbar-in">
     <img class="appbar-logo" src="/static/icons/icon-192.png" alt="">
     <div class="appbar-text">
-      <h1>我的生成记录</h1>
-      <p>每次生成图纸或论文自动归档，可随时重新下载</p>
+      <h1>水闸设计系统</h1>
+      <span class="ver">SL 265-2016</span>
     </div>
     <nav class="appbar-user">
       <span class="me">
@@ -70,7 +65,10 @@
 
 <div class="wrap">
   <div class="page-head">
-    <h2>生成记录</h2>
+    <div>
+      <h1>我的生成记录</h1>
+      <p>每次生成图纸或论文自动归档，可随时重新下载</p>
+    </div>
     <span class="count" id="hint">加载中…</span>
   </div>
   <div class="rec-list" id="list"></div>
