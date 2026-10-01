@@ -3,232 +3,313 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>管理 · 水闸设计论文生成系统</title>
+<title>系统管理 · 水闸设计系统</title>
 <link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#0066cc">
+<meta name="theme-color" content="#171d24">
 <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+<link rel="stylesheet" href="/static/theme.css">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, "SF Pro SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: #f5f5f7; color: #1d1d1f; line-height: 1.6;
-  }
-  .wrap { max-width: 720px; margin: 0 auto; padding: 28px 16px 60px; }
-  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-  header h1 { font-size: 24px; }
-  header a { color: #0066cc; text-decoration: none; font-size: 14px; font-weight: 600; }
-  .card {
-    background: #fff; border-radius: 16px; padding: 24px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 18px;
-  }
-  .card h2 { font-size: 17px; margin-bottom: 14px; color: #0066cc; }
-  .flash { background: #fff3cd; color: #8a6d1a; border-radius: 10px; padding: 10px 14px;
-           font-size: 13px; margin-bottom: 16px; }
-  .invite-box {
-    display: flex; align-items: center; gap: 12px; background: #e8f1fb;
-    border-radius: 12px; padding: 14px 18px; margin-bottom: 16px;
-  }
-  .invite-box .code { font-size: 24px; font-weight: 800; color: #0066cc; letter-spacing: 2px; flex: 1; }
-  .invite-box .hint { font-size: 12px; color: #86868b; }
-  .form-row { display: flex; gap: 10px; margin-top: 10px; }
-  .form-row input {
-    flex: 1; padding: 10px 14px; border: 1px solid #d2d2d7; border-radius: 10px;
-    font-size: 15px; outline: none;
-  }
-  .form-row input:focus { border-color: #0066cc; box-shadow: 0 0 0 3px rgba(0,102,204,.12); }
-  .btn {
-    padding: 10px 22px; border: none; border-radius: 10px; background: #0066cc;
-    color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
-  }
-  .btn:hover { opacity: .9; }
-  .btn-danger { background: #d70015; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #f0f0f2; }
-  th { color: #86868b; font-weight: 600; font-size: 12px; }
-  .footer { text-align: center; color: #86868b; font-size: 12px; margin-top: 30px; }
-  /* 客户咨询：会话列表 + 对话窗 */
-  .cs-layout { display: flex; border: 1px solid #eef1f6; border-radius: 14px; overflow: hidden; min-height: 420px; }
-  .cs-side { width: 240px; min-width: 200px; border-right: 1px solid #eef1f6; background: #fafafc;
-    overflow-y: auto; max-height: 520px; }
-  .cs-sess { padding: 12px 14px; border-bottom: 1px solid #f0f0f2; cursor: pointer; }
-  .cs-sess:hover { background: #f0f6ff; }
-  .cs-sess-active { background: #e8f1fb; border-left: 3px solid #0066cc; }
-  .cs-sess-top { display: flex; justify-content: space-between; align-items: center; }
-  .cs-sess-name { font-size: 14px; font-weight: 700; color: #1d1d1f; }
-  .cs-sess-time { font-size: 11px; color: #a0a8b8; }
-  .cs-sess-prev { font-size: 12px; color: #86868b; margin-top: 3px; white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis; }
-  .cs-main { flex: 1; display: flex; flex-direction: column; background: #fff; min-width: 0; }
-  .cs-conv { flex: 1; overflow-y: auto; padding: 14px; max-height: 440px; background: #f7f9fd; }
-  .conv-item { margin-bottom: 10px; max-width: 80%; }
-  .conv-mine { margin-left: auto; text-align: right; }
-  .conv-theirs { margin-right: auto; }
-  .conv-bubble { display: inline-block; padding: 9px 13px; border-radius: 14px; font-size: 13px;
-    line-height: 1.6; word-break: break-word; text-align: left; }
-  .conv-mine .conv-bubble { background: #0066cc; color: #fff; border-top-right-radius: 4px; }
-  .conv-theirs .conv-bubble { background: #fff; color: #1d1d1f; border: 1px solid #e5e5ea; border-top-left-radius: 4px; }
-  .conv-meta { font-size: 11px; color: #a0a8b8; margin-top: 3px; }
-  .cs-reply { display: flex; gap: 8px; padding: 10px; border-top: 1px solid #eef1f6; background: #fff; }
-  .cs-reply input { flex: 1; padding: 9px 12px; border: 1px solid #d2d2d7; border-radius: 10px;
-    font-size: 14px; outline: none; }
-  .cs-reply input:focus { border-color: #0066cc; box-shadow: 0 0 0 3px rgba(0,102,204,.12); }
+:root { --page-w: 1080px; }
+.wrap { max-width: var(--page-w); margin: 0 auto; padding: 22px 20px 64px; }
+
+/* ---------- 邀请码 ---------- */
+.invite {
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  padding: 14px 18px;
+  background: var(--brand-wash); border: 1px solid #d5e4f1; border-radius: var(--r-md);
+}
+.invite .code {
+  font-family: var(--mono); font-size: 20px; font-weight: 600; letter-spacing: .06em;
+  color: var(--brand-ink); flex: none;
+}
+.invite .note { flex: 1; min-width: 160px; font-size: 12px; color: var(--ink-3); }
+
+/* ---------- 表单件 ---------- */
+.form-inline { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px 18px; }
+.fld label { display: block; font-size: 12.5px; color: var(--ink-2); margin-bottom: 6px; }
+.fld .input { width: 100%; }
+.fld textarea.input { min-height: 78px; }
+
+/* ---------- 用户列表 ---------- */
+.user {
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  padding: 12px 14px; margin-bottom: 8px;
+}
+.user:last-child { margin-bottom: 0; }
+.user-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.user-name { font-size: 13.5px; font-weight: 600; color: var(--ink-1); }
+.user-id { font-size: 11.5px; color: var(--ink-4); font-family: var(--mono); }
+.user-quota { font-size: 12px; color: var(--ink-3); margin-left: auto; }
+.user-quota b { color: var(--ink-1); font-variant-numeric: tabular-nums; }
+.user-ops { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.num-in { width: 58px; height: 28px; padding: 0 8px; }
+
+/* ---------- 收款码 ---------- */
+.qrs { display: flex; gap: 20px; flex-wrap: wrap; }
+.qr-col { flex: 1; min-width: 200px; }
+.qr-col img {
+  width: 116px; height: 116px; object-fit: contain;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: #fff; padding: 5px; margin: 8px 0;
+}
+.qr-col .nope { font-size: 12px; color: var(--ink-4); padding: 8px 0; }
+
+/* ---------- 充值申请 ---------- */
+.payreq {
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  padding: 12px 14px; margin-bottom: 8px;
+}
+.payreq-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.payreq-user { font-size: 13.5px; font-weight: 600; color: var(--ink-1); }
+.payreq-time { font-size: 11.5px; color: var(--ink-4); }
+.payreq-amt { font-size: 12.5px; color: var(--ink-3); margin-top: 4px; }
+.payreq-ops { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.payreq-ops .lbl { font-size: 12px; color: var(--ink-3); }
+
+/* ---------- 客服会话 ---------- */
+.cs-layout {
+  display: flex; border: 1px solid var(--line);
+  border-radius: var(--r-md); overflow: hidden; min-height: 420px;
+}
+.cs-side {
+  width: 232px; flex: none; overflow-y: auto; max-height: 520px;
+  background: var(--surface-2); border-right: 1px solid var(--line);
+}
+.cs-sess { padding: 11px 14px; border-bottom: 1px solid var(--line-soft); cursor: pointer; }
+.cs-sess:hover { background: var(--surface); }
+.cs-sess-active { background: var(--brand-wash); box-shadow: inset 3px 0 0 var(--brand); }
+.cs-sess-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.cs-sess-name { font-size: 13px; font-weight: 600; color: var(--ink-1); }
+.cs-sess-time { font-size: 11px; color: var(--ink-4); flex: none; }
+.cs-sess-prev {
+  font-size: 12px; color: var(--ink-3); margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cs-main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--surface); }
+.cs-conv { flex: 1; overflow-y: auto; padding: 14px; max-height: 440px; background: var(--surface-2); }
+.conv-item { margin-bottom: 10px; max-width: 78%; }
+.conv-mine { margin-left: auto; text-align: right; }
+.conv-theirs { margin-right: auto; }
+.conv-bubble {
+  display: inline-block; padding: 9px 12px; border-radius: var(--r-lg);
+  font-size: 13px; line-height: 1.6; word-break: break-word; text-align: left;
+}
+.conv-mine .conv-bubble { background: var(--brand); color: #fff; border-bottom-right-radius: 2px; }
+.conv-theirs .conv-bubble {
+  background: var(--surface); color: var(--ink-1);
+  border: 1px solid var(--line); border-bottom-left-radius: 2px;
+}
+.conv-bubble img { max-width: 200px; max-height: 200px; border-radius: var(--r-md); display: block; cursor: pointer; }
+.conv-meta { font-size: 11px; color: var(--ink-4); margin-top: 4px; }
+.cs-reply { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line-soft); align-items: center; }
+.cs-reply .input { flex: 1; }
+.cs-reply .cs-img {
+  flex: none; width: 36px; height: 36px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); color: var(--ink-3);
+  border: 1px solid var(--line); border-radius: var(--r-md); cursor: pointer;
+}
+.cs-reply .cs-img:hover { background: var(--line-soft); color: var(--ink-1); }
+.cs-reply .cs-img svg { width: 16px; height: 16px; }
+.muted { font-size: 12.5px; color: var(--ink-3); }
+.center { text-align: center; padding: 40px 20px; color: var(--ink-4); font-size: 13px; }
+
+@media (max-width: 720px) {
+  .wrap { padding: 16px 12px 52px; }
+  .cs-layout { flex-direction: column; }
+  .cs-side { width: 100%; max-height: 200px; border-right: none; border-bottom: 1px solid var(--line); }
+}
 </style>
 </head>
 <body>
+
+<header class="appbar">
+  <div class="appbar-in">
+    <img class="appbar-logo" src="/static/icons/icon-192.png" alt="">
+    <div class="appbar-text">
+      <h1>系统管理</h1>
+      <p>邀请码 · 用户与次数 · 收费设置 · 客户咨询</p>
+    </div>
+    <nav class="appbar-user">
+      <a href="/">返回工作台</a>
+      <a href="/records">我的记录</a>
+      <a href="/logout" class="out">退出</a>
+    </nav>
+  </div>
+</header>
+
 <div class="wrap">
-  <header>
-    <h1>系统管理</h1>
-    <div><a href="/">返回主系统</a> &nbsp; <a href="/logout">退出登录</a></div>
-  </header>
 
   {% with msgs = get_flashed_messages() %}
     {% if msgs %}
-      {% for m in msgs %}<div class="flash">{{ m }}</div>{% endfor %}
+      {% for m in msgs %}<div class="notice notice-warn" style="margin-bottom:14px"><div>{{ m }}</div></div>{% endfor %}
     {% endif %}
   {% endwith %}
 
   <div class="card">
-    <h2>注册邀请码</h2>
-    <div class="invite-box">
-      <span class="code">{{ invite_code }}</span>
-      <span class="hint">把这个码告诉想注册的人</span>
-    </div>
-    <form method="post" action="/admin">
-      <input type="hidden" name="action" value="update_invite">
-      <div class="form-row">
-        <input type="text" name="invite_code" placeholder="输入新的邀请码" required>
-        <button class="btn" type="submit">更新邀请码</button>
+    <div class="card-head"><h2>注册邀请码</h2></div>
+    <div class="card-body">
+      <div class="invite">
+        <span class="code">{{ invite_code }}</span>
+        <span class="note">把这个码告诉需要注册的人，注册时需要填写。</span>
       </div>
-    </form>
+      <form method="post" action="/admin" style="margin-top:14px">
+        <input type="hidden" name="action" value="update_invite">
+        <div class="form-inline">
+          <input type="text" name="invite_code" class="input" style="flex:1;min-width:180px" placeholder="输入新的邀请码" required>
+          <button class="btn btn-primary" type="submit">更新邀请码</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <div class="card">
-    <h2>已注册用户（{{ users|length }} 人）</h2>
-    <table>
-      <tr><th>ID</th><th>用户名</th><th>图纸次数</th><th>论文次数</th><th>操作</th></tr>
+    <div class="card-head">
+      <h2>已注册用户</h2>
+      <span class="muted">共 {{ users|length }} 人</span>
+    </div>
+    <div class="card-body">
       {% for u in users %}
-      <tr>
-        <td>{{ u['id'] }}</td>
-        <td>{{ u['username'] }}{% if loop.first %}（管理员）{% endif %}</td>
-        <td>{{ u['drawing_quota'] }}</td>
-        <td>{{ u['thesis_quota'] }}</td>
-        <td>
+      <div class="user">
+        <div class="user-top">
+          <span class="user-name">{{ u['username'] }}</span>
+          {% if loop.first %}<span class="tag tag-brand">管理员</span>{% endif %}
+          <span class="user-id">#{{ u['id'] }}</span>
+          <span class="user-quota">图纸 <b>{{ u['drawing_quota'] }}</b> · 论文 <b>{{ u['thesis_quota'] }}</b></span>
+        </div>
+        <div class="user-ops">
+          <form method="post" action="/admin" class="form-inline">
+            <input type="hidden" name="action" value="add_quota">
+            <input type="hidden" name="user_id" value="{{ u['id'] }}">
+            <input type="hidden" name="kind" value="drawing">
+            <input type="number" name="num" class="input num-in" value="1" min="1" max="99">
+            <button class="btn btn-sm btn-secondary" type="submit">加图纸次数</button>
+          </form>
+          <form method="post" action="/admin" class="form-inline">
+            <input type="hidden" name="action" value="add_quota">
+            <input type="hidden" name="user_id" value="{{ u['id'] }}">
+            <input type="hidden" name="kind" value="thesis">
+            <input type="number" name="num" class="input num-in" value="1" min="1" max="99">
+            <button class="btn btn-sm btn-secondary" type="submit">加论文次数</button>
+          </form>
+          <form method="post" action="/admin" class="form-inline">
+            <input type="hidden" name="action" value="reset_password">
+            <input type="hidden" name="user_id" value="{{ u['id'] }}">
+            <input type="password" name="new_password" class="input" style="width:150px" placeholder="新密码（4 位以上）">
+            <button class="btn btn-sm btn-secondary" type="submit">重置密码</button>
+          </form>
           {% if not loop.first %}
-          <form method="post" action="/admin" onsubmit="return confirm('确定删除用户 {{ u['username'] }} 吗？');" style="display:inline;">
+          <form method="post" action="/admin" class="form-inline"
+                onsubmit="return confirm('确定删除用户 {{ u['username'] }} 吗？此操作不可撤销。');">
             <input type="hidden" name="action" value="delete_user">
             <input type="hidden" name="user_id" value="{{ u['id'] }}">
-            <button class="btn btn-danger" type="submit">删除</button>
+            <button class="btn btn-sm btn-danger" type="submit">删除用户</button>
           </form>
-          {% else %}
-          —
           {% endif %}
-        </td>
-      </tr>
-      <tr style="background:#fafafc;">
-        <td></td>
-        <td colspan="4">
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <form method="post" action="/admin" style="display:inline;">
-              <input type="hidden" name="action" value="add_quota">
-              <input type="hidden" name="user_id" value="{{ u['id'] }}">
-              <input type="hidden" name="kind" value="drawing">
-              <input type="number" name="num" value="1" min="1" max="99" style="width:56px;padding:6px 8px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px;">
-              <button class="btn" type="submit">+图纸次数</button>
-            </form>
-            <form method="post" action="/admin" style="display:inline;">
-              <input type="hidden" name="action" value="add_quota">
-              <input type="hidden" name="user_id" value="{{ u['id'] }}">
-              <input type="hidden" name="kind" value="thesis">
-              <input type="number" name="num" value="1" min="1" max="99" style="width:56px;padding:6px 8px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px;">
-              <button class="btn" type="submit">+论文次数</button>
-            </form>
-            <form method="post" action="/admin" style="display:inline;margin-left:8px;">
-              <input type="hidden" name="action" value="reset_password">
-              <input type="hidden" name="user_id" value="{{ u['id'] }}">
-              <input type="password" name="new_password" placeholder="重置密码（4位+）" style="width:150px;padding:6px 8px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px;">
-              <button class="btn" type="submit">重置密码</button>
-            </form>
-          </div>
-        </td>
-      </tr>
+        </div>
+      </div>
       {% endfor %}
-    </table>
-    <p style="font-size:12px;color:#86868b;margin-top:8px;">收到用户付款后，用上面的 + 按钮给对应用户增加次数（确认收款后再加）。</p>
-  </div>
-
-  <div class="card">
-    <h2>收费设置</h2>
-    <form method="post" action="/admin" enctype="multipart/form-data">
-      <input type="hidden" name="action" value="update_pay">
-      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
-        <div>
-          <label style="font-size:13px;color:#86868b;">图纸价格（元/张）</label><br>
-          <input type="number" name="drawing_price" value="{{ pay['drawing_price'] }}" min="0" step="0.5" style="padding:8px 12px;border:1px solid #d2d2d7;border-radius:10px;font-size:15px;width:110px;">
-        </div>
-        <div>
-          <label style="font-size:13px;color:#86868b;">论文价格（元/篇）</label><br>
-          <input type="number" name="thesis_price" value="{{ pay['thesis_price'] }}" min="0" step="0.5" style="padding:8px 12px;border:1px solid #d2d2d7;border-radius:10px;font-size:15px;width:110px;">
-        </div>
-      </div>
-      <label style="font-size:13px;color:#86868b;">付款说明（展示给付费用户）</label><br>
-      <textarea name="pay_note" rows="3" style="width:100%;padding:10px 12px;border:1px solid #d2d2d7;border-radius:10px;font-size:14px;">{{ pay['pay_note'] }}</textarea>
-      <div style="margin-top:10px;"><button class="btn" type="submit">保存收费设置</button></div>
-    </form>
-  </div>
-
-  <div class="card">
-    <h2>收款码</h2>
-    <div style="display:flex;gap:16px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:200px;">
-        <label style="font-size:13px;color:#86868b;">微信收款码</label><br>
-        {% if pay['wechat_qr'] %}<img src="{{ pay['wechat_qr'] }}" style="width:120px;height:120px;object-fit:contain;border:1px solid #e5e5ea;border-radius:10px;margin:6px 0;background:#fff;">{% else %}<div style="font-size:12px;color:#bbb;padding:6px 0;">未上传</div>{% endif %}
-        <form method="post" action="/admin" enctype="multipart/form-data">
-          <input type="hidden" name="action" value="upload_qr">
-          <input type="hidden" name="kind" value="wechat">
-          <input type="file" name="qr" accept="image/*" style="font-size:12px;margin:4px 0;">
-          <button class="btn" type="submit">上传</button>
-        </form>
-      </div>
-      <div style="flex:1;min-width:200px;">
-        <label style="font-size:13px;color:#86868b;">支付宝收款码</label><br>
-        {% if pay['alipay_qr'] %}<img src="{{ pay['alipay_qr'] }}" style="width:120px;height:120px;object-fit:contain;border:1px solid #e5e5ea;border-radius:10px;margin:6px 0;background:#fff;">{% else %}<div style="font-size:12px;color:#bbb;padding:6px 0;">未上传</div>{% endif %}
-        <form method="post" action="/admin" enctype="multipart/form-data">
-          <input type="hidden" name="action" value="upload_qr">
-          <input type="hidden" name="kind" value="alipay">
-          <input type="file" name="qr" accept="image/*" style="font-size:12px;margin:4px 0;">
-          <button class="btn" type="submit">上传</button>
-        </form>
-      </div>
-    </div>
-    <p style="font-size:12px;color:#86868b;margin-top:8px;">上传后，用户付费弹窗会展示对应收款码。</p>
-  </div>
-
-  <div class="card">
-    <h2>待处理充值申请</h2>
-    <p style="font-size:12px;color:#86868b;margin-bottom:12px;">客户付款后会在这里提交申请。核对手机收款记录后，填写要开通的次数并确认。</p>
-    <div id="payReqList">加载中…</div>
-  </div>
-
-  <div class="card">
-    <h2>客户咨询</h2>
-    <p style="font-size:12px;color:#86868b;margin-bottom:12px;">左侧为各客户的会话，点击进入查看对话并回复。客户下次打开页面即可看到回复。</p>
-    <div class="cs-layout">
-      <div class="cs-side" id="csSide"><div style="color:#86868b;font-size:13px;padding:20px;text-align:center;">加载中…</div></div>
-      <div class="cs-main">
-        <div class="cs-conv" id="csConv">
-          <div style="text-align:center;color:#a0a8b8;padding:60px 0;font-size:14px;">← 点击左侧会话查看对话</div>
-        </div>
-        <div class="cs-reply">
-          <button onclick="document.getElementById('adminImgFile').click()" title="发送图片" style="padding:9px 12px;font-size:15px;cursor:pointer;border:none;background:#f0f0f2;border-radius:10px;">📷</button>
-          <input type="text" id="msgInput" placeholder="输入回复内容…" onkeydown="if(event.key==='Enter')sendReply()">
-          <button class="btn" onclick="sendReply()" style="padding:10px 18px;">发送</button>
-          <input type="file" id="adminImgFile" accept="image/*" style="display:none;" onchange="sendReplyImage(this)">
-        </div>
-      </div>
+      <p class="muted" style="margin-top:10px">收到用户付款后，核对手机收款记录，再用上面的按钮给对应用户增加次数。</p>
     </div>
   </div>
 
-  <div class="footer">水闸设计论文生成系统 · 管理页面（仅管理员可见）</div>
+  <div class="card">
+    <div class="card-head"><h2>收费设置</h2></div>
+    <div class="card-body">
+      <form method="post" action="/admin" enctype="multipart/form-data">
+        <input type="hidden" name="action" value="update_pay">
+        <div class="form-grid">
+          <div class="fld">
+            <label>图纸价格（元 / 张）</label>
+            <input type="number" name="drawing_price" class="input" value="{{ pay['drawing_price'] }}" min="0" step="0.5">
+          </div>
+          <div class="fld">
+            <label>论文价格（元 / 篇）</label>
+            <input type="number" name="thesis_price" class="input" value="{{ pay['thesis_price'] }}" min="0" step="0.5">
+          </div>
+        </div>
+        <div class="fld" style="margin-top:14px">
+          <label>付款说明（展示给付费用户）</label>
+          <textarea name="pay_note" class="input" rows="3">{{ pay['pay_note'] }}</textarea>
+        </div>
+        <div style="margin-top:14px"><button class="btn btn-primary" type="submit">保存收费设置</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>收款码</h2></div>
+    <div class="card-body">
+      <div class="qrs">
+        <div class="qr-col">
+          <label class="muted">微信收款码</label>
+          {% if pay['wechat_qr'] %}
+            <img src="{{ pay['wechat_qr'] }}" alt="微信收款码">
+          {% else %}
+            <div class="nope">未上传</div>
+          {% endif %}
+          <form method="post" action="/admin" enctype="multipart/form-data" class="form-inline">
+            <input type="hidden" name="action" value="upload_qr">
+            <input type="hidden" name="kind" value="wechat">
+            <input type="file" name="qr" accept="image/*" style="font-size:12px">
+            <button class="btn btn-sm btn-secondary" type="submit">上传</button>
+          </form>
+        </div>
+        <div class="qr-col">
+          <label class="muted">支付宝收款码</label>
+          {% if pay['alipay_qr'] %}
+            <img src="{{ pay['alipay_qr'] }}" alt="支付宝收款码">
+          {% else %}
+            <div class="nope">未上传</div>
+          {% endif %}
+          <form method="post" action="/admin" enctype="multipart/form-data" class="form-inline">
+            <input type="hidden" name="action" value="upload_qr">
+            <input type="hidden" name="kind" value="alipay">
+            <input type="file" name="qr" accept="image/*" style="font-size:12px">
+            <button class="btn btn-sm btn-secondary" type="submit">上传</button>
+          </form>
+        </div>
+      </div>
+      <p class="muted" style="margin-top:10px">上传后，用户付费弹窗会展示对应收款码。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>待处理充值申请</h2>
+      <span class="muted">核对收款记录后填写开通次数</span>
+    </div>
+    <div class="card-body"><div id="payReqList" class="center">加载中…</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>客户咨询</h2>
+      <span class="muted">点击左侧会话查看并回复</span>
+    </div>
+    <div class="card-body">
+      <div class="cs-layout">
+        <div class="cs-side" id="csSide"><div class="center">加载中…</div></div>
+        <div class="cs-main">
+          <div class="cs-conv" id="csConv">
+            <div class="center" style="padding:60px 20px">点击左侧会话查看对话</div>
+          </div>
+          <div class="cs-reply">
+            <button type="button" class="cs-img" title="发送图片"
+                    onclick="document.getElementById('adminImgFile').click()">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.4h2.3l1-1.7h5.4l1 1.7H14v7.2H2z"/><circle cx="8" cy="9" r="2.2"/></svg>
+            </button>
+            <input type="text" id="msgInput" class="input" placeholder="输入回复内容…" onkeydown="if(event.key==='Enter')sendReply()">
+            <button class="btn btn-primary" onclick="sendReply()">发送</button>
+            <input type="file" id="adminImgFile" accept="image/*" style="display:none" onchange="sendReplyImage(this)">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-foot">水闸设计系统 · 管理页面（仅管理员可见）</div>
 </div>
 
 <script>
@@ -238,28 +319,30 @@ function esc(s){ var d=document.createElement('div'); d.textContent = s==null?''
 function loadPayReqs() {
   var box = document.getElementById('payReqList');
   fetch('/api/pay/list').then(function(r){return r.json();}).then(function(d){
-    if (!d.ok) { box.innerHTML = '<div class="flash">' + esc(d.error||'加载失败') + '</div>'; return; }
+    if (!d.ok) { box.innerHTML = '<div class="notice notice-warn"><div>' + esc(d.error||'加载失败') + '</div></div>'; return; }
     var list = d.list || [];
-    if (!list.length) { box.innerHTML = '<div style="color:#86868b;font-size:13px;">暂无充值申请</div>'; return; }
+    if (!list.length) { box.innerHTML = '<div class="center">暂无充值申请</div>'; return; }
     var h = '';
     list.forEach(function(rq){
       var badge = rq.status === 'pending'
-        ? '<span style="color:#d70015;font-weight:700;">待处理</span>'
-        : '<span style="color:#1d9e50;">已处理</span>';
-      h += '<div style="border:1px solid #eef1f6;border-radius:12px;padding:12px 14px;margin-bottom:10px;">' +
-        '<div style="font-size:14px;"><b>' + esc(rq.username) + '</b> <span style="color:#86868b;font-size:12px;">' + esc(rq.created_at) + '</span> ' + badge + '</div>' +
-        '<div style="font-size:13px;color:#5a6270;margin-top:4px;">金额：¥' + esc(rq.amount) + (rq.note ? '　备注：' + esc(rq.note) : '') + '</div>';
+        ? '<span class="tag tag-danger">待处理</span>'
+        : '<span class="tag tag-ok">已处理</span>';
+      h += '<div class="payreq">' +
+        '<div class="payreq-top"><span class="payreq-user">' + esc(rq.username) + '</span>' +
+        '<span class="payreq-time">' + esc(rq.created_at) + '</span>' + badge + '</div>' +
+        '<div class="payreq-amt">金额 ¥' + esc(rq.amount) + (rq.note ? '　备注：' + esc(rq.note) : '') + '</div>';
       if (rq.status === 'pending') {
-        h += '<div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap;">' +
-          '<span style="font-size:12px;color:#86868b;">开通</span>' +
-          '<input type="number" id="dq_' + rq.id + '" value="1" min="0" style="width:60px;padding:6px 8px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px;">图纸' +
-          '<input type="number" id="tq_' + rq.id + '" value="0" min="0" style="width:60px;padding:6px 8px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px;">论文' +
-          '<button class="btn" style="padding:6px 14px;font-size:13px;" onclick="processPay(' + rq.id + ')">确认收款并开通</button></div>';
+        h += '<div class="payreq-ops"><span class="lbl">开通</span>' +
+          '<input type="number" id="dq_' + rq.id + '" class="input num-in" value="1" min="0">' +
+          '<span class="lbl">图纸</span>' +
+          '<input type="number" id="tq_' + rq.id + '" class="input num-in" value="0" min="0">' +
+          '<span class="lbl">论文</span>' +
+          '<button class="btn btn-sm btn-primary" onclick="processPay(' + rq.id + ')">确认收款并开通</button></div>';
       }
       h += '</div>';
     });
     box.innerHTML = h;
-  }).catch(function(){ box.innerHTML = '<div class="flash">加载失败</div>'; });
+  }).catch(function(){ box.innerHTML = '<div class="center">加载失败</div>'; });
 }
 
 function processPay(id) {
@@ -307,7 +390,7 @@ function buildUsers() {
 function renderSide() {
   var arr = buildUsers();
   var box = document.getElementById('csSide');
-  if (!arr.length) { box.innerHTML = '<div style="color:#86868b;font-size:13px;padding:20px;text-align:center;">暂无对话</div>'; return; }
+  if (!arr.length) { box.innerHTML = '<div class="center">暂无对话</div>'; return; }
   var h = '';
   arr.forEach(function(u){
     var active = curUid === u.id ? ' cs-sess-active' : '';
@@ -330,15 +413,15 @@ function renderConv(uid) {
     return (!m.is_admin && m.user_id === uid) || (m.is_admin && m.to_user_id === uid);
   });
   var box = document.getElementById('csConv');
-  if (!msgs.length) { box.innerHTML = '<div style="text-align:center;color:#a0a8b8;padding:60px 0;">暂无消息</div>'; return; }
+  if (!msgs.length) { box.innerHTML = '<div class="center">暂无消息</div>'; return; }
   var h = '';
   msgs.forEach(function(m){
     var cls = m.is_admin ? 'conv-mine' : 'conv-theirs';
     var who = m.is_admin ? '客服' : esc(m.username || ('用户#' + uid));
     var body = '';
     if (m.type === 'image' && m.file_url) {
-      body = '<img src="' + m.file_url + '" alt="图片" style="max-width:200px;max-height:200px;border-radius:10px;display:block;cursor:pointer;" onclick="window.open(this.src)">' +
-             (m.content && m.content !== '发来一张图片' ? '<div style="margin-top:4px;">' + esc(m.content) + '</div>' : '');
+      body = '<img src="' + m.file_url + '" alt="图片" onclick="window.open(this.src)">' +
+             (m.content && m.content !== '发来一张图片' ? '<div style="margin-top:6px">' + esc(m.content) + '</div>' : '');
     } else {
       body = esc(m.content);
     }
@@ -361,6 +444,7 @@ function sendReply() {
     else alert(d.error || '发送失败');
   }).catch(function(){ alert('发送失败'); });
 }
+
 // 管理员发送图片（需先选中会话）
 function sendReplyImage(fileInput) {
   var f = fileInput.files && fileInput.files[0];
@@ -378,6 +462,7 @@ function sendReplyImage(fileInput) {
   };
   reader.readAsDataURL(f);
 }
+
 loadPayReqs();
 loadMsgs();
 setInterval(loadMsgs, 8000);

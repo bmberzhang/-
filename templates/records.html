@@ -3,89 +3,121 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>我的生成记录 · 水闸设计论文生成系统</title>
+<title>我的生成记录 · 水闸设计系统</title>
 <link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#0066cc">
+<meta name="theme-color" content="#171d24">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+<link rel="stylesheet" href="/static/theme.css">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, "SF Pro SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: #f5f5f7; color: #1d1d1f; line-height: 1.6;
-  }
-  .wrap { max-width: 720px; margin: 0 auto; padding: 28px 16px 60px; }
-  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-  header h1 { font-size: 24px; }
-  header a { color: #0066cc; text-decoration: none; font-size: 14px; font-weight: 600; }
-  .hint { font-size: 13px; color: #86868b; margin-bottom: 18px; }
-  .rec {
-    background: #fff; border-radius: 16px; padding: 18px 20px; margin-bottom: 14px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; align-items: center; gap: 16px;
-  }
-  .rec-icon {
-    width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center; font-size: 22px;
-  }
-  .icon-drawing { background: #e6f1fb; }
-  .icon-thesis { background: #e6f7ee; }
-  .rec-body { flex: 1; min-width: 0; }
-  .rec-title { font-size: 15px; font-weight: 700; }
-  .rec-type { font-size: 11px; color: #0066cc; font-weight: 600; margin-right: 6px; }
-  .rec-time { font-size: 12px; color: #a0a8b8; margin-top: 2px; }
-  .rec-dl { display: flex; gap: 8px; flex-wrap: wrap; }
-  .dl-btn {
-    display: inline-block; padding: 8px 14px; border-radius: 10px; font-size: 13px;
-    font-weight: 600; text-decoration: none; color: #fff; background: #0066cc;
-  }
-  .dl-btn:hover { opacity: .9; }
-  .dl-btn.green { background: #1d9e50; }
-  .empty { text-align: center; color: #a0a8b8; padding: 60px 0; font-size: 14px; }
-  .empty .big { font-size: 44px; margin-bottom: 12px; }
-  .footer { text-align: center; color: #86868b; font-size: 12px; margin-top: 30px; }
+:root { --page-w: 1080px; }
+.wrap { max-width: var(--page-w); margin: 0 auto; padding: 22px 20px 64px; }
+
+.page-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap; margin-bottom: 18px;
+}
+.page-head h2 { font-size: 17px; }
+.page-head .count { font-size: 12.5px; color: var(--ink-3); }
+
+.rec-list { display: flex; flex-direction: column; gap: 8px; }
+.rec {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-lg); box-shadow: var(--sh-1);
+}
+.rec-icon {
+  width: 36px; height: 36px; flex: none; border-radius: var(--r-md);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--brand-wash); color: var(--brand);
+}
+.rec-icon svg { width: 18px; height: 18px; }
+.rec-icon.is-thesis { background: var(--ok-wash); color: var(--ok); }
+.rec-body { flex: 1; min-width: 0; }
+.rec-title { font-size: 13.5px; font-weight: 600; color: var(--ink-1); }
+.rec-title .tag { margin-right: 8px; vertical-align: 1px; }
+.rec-time { font-size: 11.5px; color: var(--ink-4); margin-top: 3px; }
+.rec-dl { display: flex; gap: 8px; flex-wrap: wrap; flex: none; }
+
+@media (max-width: 640px) {
+  .wrap { padding: 16px 12px 52px; }
+  .rec { flex-wrap: wrap; }
+  .rec-dl { width: 100%; }
+  .rec-dl .btn { flex: 1; }
+}
 </style>
 </head>
 <body>
+
+<header class="appbar">
+  <div class="appbar-in">
+    <img class="appbar-logo" src="/static/icons/icon-192.png" alt="">
+    <div class="appbar-text">
+      <h1>我的生成记录</h1>
+      <p>每次生成图纸或论文自动归档，可随时重新下载</p>
+    </div>
+    <nav class="appbar-user">
+      <span class="me">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="5.5" r="2.6"/><path d="M3 13.7a5.1 5.1 0 0 1 10 0"/></svg>
+        <span>{{ username }}</span>
+      </span>
+      <a href="/">返回工作台</a>
+      {% if is_admin %}<a href="/admin">管理</a>{% endif %}
+      <a href="/logout" class="out">退出</a>
+    </nav>
+  </div>
+</header>
+
 <div class="wrap">
-  <header>
-    <h1>我的生成记录</h1>
-    <div><a href="/">返回主系统</a> &nbsp; <a href="/logout">退出登录</a></div>
-  </header>
-  <div class="hint" id="hint">加载中…</div>
-  <div id="list"></div>
-  <div class="footer">水闸设计论文生成系统 · 生成记录（每次生成自动保存，可随时重新下载）</div>
+  <div class="page-head">
+    <h2>生成记录</h2>
+    <span class="count" id="hint">加载中…</span>
+  </div>
+  <div class="rec-list" id="list"></div>
+  <div class="page-foot">水闸设计系统 · 生成记录</div>
 </div>
 
 <script>
+var ICON_DRAW = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.2" y="2.2" width="11.6" height="11.6" rx="1.4"/><path d="M2.2 6.2h11.6M6.2 6.2v7.6"/></svg>';
+var ICON_DOC  = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.9h5l3.4 3.4v8.8H4z"/><path d="M9 1.9v3.4h3.4"/><path d="M6.3 8.4h3.9M6.3 11h3.9"/></svg>';
+var ICON_EMPTY = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.4 9.4l2.2-6h6.8l2.2 6v3.4H2.4z"/><path d="M2.4 9.4h3.4l.8 1.6h2.8l.8-1.6h3.4"/></svg>';
+
 function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
+
 function loadRecords() {
   fetch('/api/records').then(function(r){ return r.json(); }).then(function(d){
-    if (!d.ok) { document.getElementById('list').innerHTML = '<div class="empty">' + esc(d.error||'加载失败') + '</div>'; return; }
+    if (!d.ok) {
+      document.getElementById('list').innerHTML = '<div class="empty">' + esc(d.error || '加载失败') + '</div>';
+      return;
+    }
     var list = d.list || [];
-    document.getElementById('hint').textContent = '共 ' + list.length + ' 条生成记录';
+    document.getElementById('hint').textContent = '共 ' + list.length + ' 条';
     var box = document.getElementById('list');
     if (!list.length) {
-      box.innerHTML = '<div class="empty"><div class="big">📭</div>暂无生成记录<br>生成图纸或论文后会自动保存到这里</div>';
+      box.innerHTML = '<div class="empty">' + ICON_EMPTY + '暂无生成记录<br>生成图纸或论文后会自动保存到这里</div>';
       return;
     }
     var h = '';
     list.forEach(function(r){
       var isD = r.type === 'drawing';
-      var icon = isD ? '📐' : '📄';
       var typeTxt = isD ? '工程图纸' : '论文';
-      var iconCls = isD ? 'icon-drawing' : 'icon-thesis';
       h += '<div class="rec">' +
-        '<div class="rec-icon ' + iconCls + '">' + icon + '</div>' +
+        '<div class="rec-icon' + (isD ? '' : ' is-thesis') + '">' + (isD ? ICON_DRAW : ICON_DOC) + '</div>' +
         '<div class="rec-body">' +
-          '<div class="rec-title"><span class="rec-type">[' + typeTxt + ']</span>' + esc(r.title) + '</div>' +
+          '<div class="rec-title"><span class="tag">' + typeTxt + '</span>' + esc(r.title) + '</div>' +
           '<div class="rec-time">' + esc(r.created_at) + '</div>' +
         '</div>' +
         '<div class="rec-dl">' +
           (isD
-            ? '<a class="dl-btn" href="' + r.file_url + '">下载 DXF</a>' + (r.file2_url ? '<a class="dl-btn green" href="' + r.file2_url + '">下载预览</a>' : '')
-            : '<a class="dl-btn green" href="' + r.file_url + '">下载 DOCX</a>') +
+            ? '<a class="btn btn-sm btn-primary" href="' + r.file_url + '">下载 DXF</a>' +
+              (r.file2_url ? '<a class="btn btn-sm btn-secondary" href="' + r.file2_url + '">下载预览图</a>' : '')
+            : '<a class="btn btn-sm btn-primary" href="' + r.file_url + '">下载 DOCX</a>') +
         '</div></div>';
     });
     box.innerHTML = h;
-  }).catch(function(){ document.getElementById('list').innerHTML = '<div class="empty">加载失败，请刷新重试</div>'; });
+  }).catch(function(){
+    document.getElementById('list').innerHTML = '<div class="empty">加载失败，请刷新重试</div>';
+  });
 }
 loadRecords();
 </script>

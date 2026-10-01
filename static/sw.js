@@ -1,7 +1,8 @@
 // 水闸设计系统 - Service Worker（多用户登录版）
-const CACHE = 'sluice-app-v2';
+const CACHE = 'sluice-app-v3';
 const PRECACHE = [
   '/static/manifest.json',
+  '/static/theme.css',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
   '/static/icons/icon.svg',
