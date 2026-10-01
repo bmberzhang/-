@@ -1184,7 +1184,7 @@ else if (_p.indexOf('/drawing') === 0) PAGE_MODE = 'drawing';
 // 页面模式对应的页头文案与右侧标记
 var PAGE_HEAD = {
     home:    ['工作台', '从参数验证开始，四步完成一套水闸设计', ''],
-    tool:    ['设计计算工具', '按 SL 265-2016 规范逐项计算，结果随参数实时刷新', '<span class="tag tag-brand">免费使用</span>'],
+    tool:    ['设计计算工具', '按 SL 265-2016 规范逐项计算，结果随参数实时刷新', '<span class="tag tag-brand" id="toolQuotaTag">免费 2 次</span>'],
     verify:  ['参数验证', '填写水闸设计参数，自动完成规范校验与结构计算', '<span class="tag tag-brand">SL 265-2016</span>'],
     model:   ['三维仿真', '交互查看水闸结构，调节闸门开度观察过流状态', ''],
     thesis:  ['生成论文', '按模板生成毕业设计论文，Word 格式可直接编辑', ''],
@@ -1197,7 +1197,37 @@ function renderPageHead() {
     if (t) t.textContent = cfg[0];
     if (p) p.textContent = cfg[1];
     if (side) side.innerHTML = cfg[2] || '';
+    if (PAGE_MODE === 'tool') loadToolQuotaTag();
 }
+
+// ===== 设计计算工具：页头显示剩余次数（免费 2 次，用完 5 元/次）=====
+function paintToolQuotaTag(quota, price) {
+    var el = document.getElementById('toolQuotaTag');
+    if (!el) return;
+    if (quota > 0) {
+        el.className = 'tag tag-brand';
+        el.textContent = '免费剩余 ' + quota + ' 次';
+    } else {
+        el.className = 'tag tag-warn';
+        el.textContent = (price || '5') + ' 元/次';
+    }
+}
+function loadToolQuotaTag() {
+    fetch('/api/me', { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+            if (!d) return;
+            paintToolQuotaTag(d.tool_quota, (d.pay || {}).tool_price);
+        })
+        .catch(function () {});
+}
+// 计算工具（iframe）扣次后回传最新剩余次数；次数用完则由本页弹出付费窗
+window.addEventListener('message', function (e) {
+    if (e.origin !== location.origin) return;
+    var d = e.data || {};
+    if (d.type === 'tool-quota') paintToolQuotaTag(d.quota, d.price);
+    if (d.type === 'tool-pay') showPayG(d.pay);
+});
 
 // 左侧参数目录：按分区自动生成 + 滚动高亮
 var _railReady = false;
@@ -2565,6 +2595,37 @@ function submitPayReqT() {
   }).catch(function(){ alert('提交失败，请稍后重试'); });
 }
 
+// ===== 设计计算工具付费弹窗（由 iframe 内扣次失败时触发）=====
+function showPayG(pay) {
+  pay = pay || {};
+  document.getElementById('payPriceG').textContent =
+    '计算工具：' + (pay.tool_price || '5') + ' 元/次';
+  var pairs = [
+    ['payWechatG', 'payWechatNoG', pay.wechat_qr],
+    ['payAlipayG', 'payAlipayNoG', pay.alipay_qr]
+  ];
+  pairs.forEach(function(p) {
+    var img = document.getElementById(p[0]), no = document.getElementById(p[1]);
+    if (p[2]) { img.src = p[2] + '?t=' + Date.now(); img.style.display = ''; no.style.display = 'none'; }
+    else { img.style.display = 'none'; no.style.display = 'flex'; }
+  });
+  document.getElementById('payNoteG').textContent = pay.pay_note || '扫码支付后请联系管理员开通次数。';
+  document.getElementById('payMaskG').style.display = 'flex';
+}
+function closePayG() { document.getElementById('payMaskG').style.display = 'none'; }
+function showPayReqG() { document.getElementById('payReqG').style.display = 'block'; }
+function submitPayReqG() {
+  var amount = document.getElementById('payAmtG').value.trim();
+  var note = document.getElementById('payNoteG3').value.trim();
+  if (!amount) { alert('请填写付款金额'); return; }
+  fetch('/api/pay/request', {method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({amount:amount, note:note})})
+  .then(function(r){return r.json();}).then(function(d){
+    if (d.ok) { alert(d.msg || '充值申请已提交！请耐心等待管理员确认开通。'); closePayG(); }
+    else alert(d.error || '提交失败');
+  }).catch(function(){ alert('提交失败，请稍后重试'); });
+}
+
 // ===== 客服聊天 =====
 var csTimer = null;
 function escHtml(s) { var d=document.createElement('div'); d.textContent = s==null?'':String(s); return d.innerHTML; }
@@ -2876,6 +2937,39 @@ if ('serviceWorker' in navigator) {
     <div class="pay-actions">
       <button class="btn btn-primary" onclick="showPayReqT()">我已支付，提交充值申请</button>
       <button class="btn btn-secondary" onclick="closePayT()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 付费弹窗（设计计算工具） -->
+<div class="pay-mask" id="payMaskG" style="display:none;" onclick="if(event.target===this)closePayG()">
+  <div class="pay-box">
+    <div class="pay-title">免费次数已用完，请付费开通</div>
+    <div class="pay-price" id="payPriceG"></div>
+    <div class="pay-qrs">
+      <div class="pay-qr">
+        <div class="pay-qr-label">微信支付</div>
+        <img id="payWechatG" alt="微信收款码" style="display:none;">
+        <div class="noqr" id="payWechatNoG" style="display:none;">未上传收款码<br>请联系管理员</div>
+      </div>
+      <div class="pay-qr">
+        <div class="pay-qr-label">支付宝</div>
+        <img id="payAlipayG" alt="支付宝收款码" style="display:none;">
+        <div class="noqr" id="payAlipayNoG" style="display:none;">未上传收款码<br>请联系管理员</div>
+      </div>
+    </div>
+    <div class="pay-note" id="payNoteG"></div>
+    <div id="payReqG" style="display:none;margin-top:10px;">
+      <div style="font-size:12.5px;color:var(--ink-3);margin-bottom:8px;text-align:left;">填写付款信息，提交后管理员会核对并开通次数：</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="text" id="payAmtG" class="input" placeholder="付款金额（元）" style="flex:1;min-width:100px;">
+        <input type="text" id="payNoteG3" class="input" placeholder="备注（付款昵称/单号）" style="flex:1.5;min-width:130px;">
+        <button class="btn btn-success" onclick="submitPayReqG()">提交申请</button>
+      </div>
+    </div>
+    <div class="pay-actions">
+      <button class="btn btn-primary" onclick="showPayReqG()">我已支付，提交充值申请</button>
+      <button class="btn btn-secondary" onclick="closePayG()">关闭</button>
     </div>
   </div>
 </div>

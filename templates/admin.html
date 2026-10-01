@@ -183,7 +183,7 @@
           <span class="user-name">{{ u['username'] }}</span>
           {% if loop.first %}<span class="tag tag-brand">管理员</span>{% endif %}
           <span class="user-id">#{{ u['id'] }}</span>
-          <span class="user-quota">图纸 <b>{{ u['drawing_quota'] }}</b> · 论文 <b>{{ u['thesis_quota'] }}</b></span>
+          <span class="user-quota">图纸 <b>{{ u['drawing_quota'] }}</b> · 论文 <b>{{ u['thesis_quota'] }}</b> · 计算工具 <b>{{ u['tool_quota'] }}</b></span>
         </div>
         <div class="user-ops">
           <form method="post" action="/admin" class="form-inline">
@@ -199,6 +199,13 @@
             <input type="hidden" name="kind" value="thesis">
             <input type="number" name="num" class="input num-in" value="1" min="1" max="99">
             <button class="btn btn-sm btn-secondary" type="submit">加论文次数</button>
+          </form>
+          <form method="post" action="/admin" class="form-inline">
+            <input type="hidden" name="action" value="add_quota">
+            <input type="hidden" name="user_id" value="{{ u['id'] }}">
+            <input type="hidden" name="kind" value="tool">
+            <input type="number" name="num" class="input num-in" value="1" min="1" max="99">
+            <button class="btn btn-sm btn-secondary" type="submit">加计算工具次数</button>
           </form>
           <form method="post" action="/admin" class="form-inline">
             <input type="hidden" name="action" value="reset_password">
@@ -234,6 +241,11 @@
           <div class="fld">
             <label>论文价格（元 / 篇）</label>
             <input type="number" name="thesis_price" class="input" value="{{ pay['thesis_price'] }}" min="0" step="0.5">
+          </div>
+          <div class="fld">
+            <label>计算工具价格（元 / 次）</label>
+            <input type="number" name="tool_price" class="input" value="{{ pay['tool_price'] }}" min="0" step="0.5">
+            <span class="muted" style="font-size:12px">新用户注册自动赠送 2 次免费额度</span>
           </div>
         </div>
         <div class="fld" style="margin-top:14px">
@@ -344,6 +356,8 @@ function loadPayReqs() {
           '<span class="lbl">图纸</span>' +
           '<input type="number" id="tq_' + rq.id + '" class="input num-in" value="0" min="0">' +
           '<span class="lbl">论文</span>' +
+          '<input type="number" id="gq_' + rq.id + '" class="input num-in" value="0" min="0">' +
+          '<span class="lbl">计算工具</span>' +
           '<button class="btn btn-sm btn-primary" onclick="processPay(' + rq.id + ')">确认收款并开通</button></div>';
       }
       h += '</div>';
@@ -355,9 +369,10 @@ function loadPayReqs() {
 function processPay(id) {
   var drawing = parseInt(document.getElementById('dq_' + id).value) || 0;
   var thesis = parseInt(document.getElementById('tq_' + id).value) || 0;
-  if (drawing === 0 && thesis === 0) { alert('请至少填写一种要开通的次数'); return; }
+  var tool = parseInt(document.getElementById('gq_' + id).value) || 0;
+  if (drawing === 0 && thesis === 0 && tool === 0) { alert('请至少填写一种要开通的次数'); return; }
   fetch('/api/pay/process', {method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({id:id, drawing:drawing, thesis:thesis})})
+    body:JSON.stringify({id:id, drawing:drawing, thesis:thesis, tool:tool})})
   .then(function(r){return r.json();}).then(function(d){
     alert(d.msg || (d.error || '处理完成'));
     loadPayReqs();

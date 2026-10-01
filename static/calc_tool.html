@@ -134,6 +134,25 @@ body { background: var(--bg); }
     font-size: 11px; color: var(--ink-3); line-height: 1.75;
 }
 
+/* ================= 未计算占位 / 付费门禁 ================= */
+.result-wrap { display: flex; flex-direction: column; gap: 16px; }
+.lock-hint {
+    background: var(--surface); border: 1px dashed var(--line);
+    border-radius: var(--r-md); padding: 40px 24px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    text-align: center;
+}
+.lock-hint-icon {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--brand-wash); color: var(--brand-ink);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 2px;
+}
+.lock-hint h3 { font-size: 16px; font-weight: 600; color: var(--ink-1); }
+.lock-hint p { font-size: 13px; color: var(--ink-3); line-height: 1.8; max-width: 460px; }
+.lock-hint p b { color: var(--brand-ink); font-weight: 600; }
+.lock-hint-btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+
 @media (max-width: 1240px) {
     .grid { grid-template-columns: 1fr; }
     .kpi-row { grid-template-columns: repeat(2, 1fr); }
@@ -162,6 +181,7 @@ body { background: var(--bg); }
     </div>
   </div>
   <div class="topbar-right">
+    <span class="tag tag-brand" id="toolQuotaTag">免费次数加载中…</span>
     <span class="tag">SL 265-2016</span>
     <div class="seg">
       <button class="seg-btn active" data-plan="A">带滩地 · 复式断面</button>
@@ -213,6 +233,18 @@ body { background: var(--bg); }
   </aside>
 
   <main class="main">
+    <!-- 未计算时的占位（免费次数用完后需付费开通） -->
+    <div class="lock-hint" id="lockHint">
+      <div class="lock-hint-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="9.5" rx="1.8"/><path d="M8 10.5V7.6a4 4 0 0 1 8 0v2.9"/><path d="M12 14.3v2.4"/></svg></div>
+      <h3 id="lockTitle">本工具免费使用 2 次</h3>
+      <p id="lockDesc">填好左侧参数后点击「开始计算」，每次计算消耗 1 次。免费次数用完后 <b id="lockPrice">5</b> 元/次。</p>
+      <div class="lock-hint-btns">
+        <button class="btn btn-primary" id="btnLockCalc">开始计算 · 生成全部设计参数</button>
+        <button class="btn btn-secondary" id="btnLockPay" style="display:none;">立即付费开通</button>
+      </div>
+    </div>
+
+    <div class="result-wrap" id="resultBody" style="display:none;">
     <div class="result-head">
       <div class="result-title">
         <h1 id="resultTitle">计算结果（带滩地方案）</h1>
@@ -232,7 +264,41 @@ body { background: var(--bg); }
     </div>
 
     <div class="grid" id="grid"></div>
+    </div>
   </main>
+</div>
+
+<!-- 付费弹窗（计算工具） -->
+<div class="pay-mask" id="payMask" style="display:none;" onclick="if(event.target===this)closePay()">
+  <div class="pay-box">
+    <div class="pay-title">免费次数已用完，请付费开通</div>
+    <div class="pay-price" id="payPrice"></div>
+    <div class="pay-qrs">
+      <div class="pay-qr">
+        <div class="pay-qr-label">微信支付</div>
+        <img id="payWechat" alt="微信收款码" style="display:none;">
+        <div class="noqr" id="payWechatNo" style="display:none;">未上传收款码<br>请联系管理员</div>
+      </div>
+      <div class="pay-qr">
+        <div class="pay-qr-label">支付宝</div>
+        <img id="payAlipay" alt="支付宝收款码" style="display:none;">
+        <div class="noqr" id="payAlipayNo" style="display:none;">未上传收款码<br>请联系管理员</div>
+      </div>
+    </div>
+    <div class="pay-note" id="payNote"></div>
+    <div id="payReq" style="display:none;margin-top:10px;">
+      <div style="font-size:12.5px;color:var(--ink-3);margin-bottom:8px;text-align:left;">填写付款信息，提交后管理员会核对并开通次数：</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="text" id="payAmt" class="input" placeholder="付款金额（元）" style="flex:1;min-width:100px;">
+        <input type="text" id="payNoteTxt" class="input" placeholder="备注（付款昵称/单号）" style="flex:1.5;min-width:130px;">
+        <button class="btn btn-success" onclick="submitPayReq()">提交申请</button>
+      </div>
+    </div>
+    <div class="pay-actions">
+      <button class="btn btn-primary" onclick="showPayReq()">我已支付，提交充值申请</button>
+      <button class="btn btn-secondary" onclick="closePay()">关闭</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -451,18 +517,172 @@ function render(r) {
   }).join('');
 }
 
-function run() {
-  const p = {
+/* ============================================================
+   次数门禁：新用户免费 2 次，用完 5 元/次
+   每次点「开始计算」扣 1 次；切换断面方案是同一份计算的视图切换，不重复扣次
+   ============================================================ */
+var _quota = -1;      // -1 = 尚未加载
+var _pay = {};
+var _busy = false;
+var _hasResult = false;
+
+function _notifyParent() {
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage(
+        { type: 'tool-quota', quota: _quota, price: _pay.tool_price || '5' },
+        location.origin
+      );
+    }
+  } catch (e) {}
+}
+
+function paintQuota() {
+  var price = _pay.tool_price || '5';
+  var tag = document.getElementById('toolQuotaTag');
+  var lt = document.getElementById('lockTitle');
+  var ld = document.getElementById('lockDesc');
+  var bp = document.getElementById('btnLockPay');
+  var lp = document.getElementById('lockPrice');
+
+  if (_quota < 0) {
+    if (tag) { tag.className = 'tag'; tag.textContent = '免费次数加载中…'; }
+  } else if (_quota > 0) {
+    if (tag) { tag.className = 'tag tag-brand'; tag.textContent = '免费剩余 ' + _quota + ' 次'; }
+    if (lt) lt.textContent = '本工具免费使用 ' + _quota + ' 次';
+    if (ld) ld.innerHTML = '填好左侧参数后点击「开始计算」，每次计算消耗 1 次。免费次数用完后 ' +
+      '<b id="lockPrice">' + price + '</b> 元/次。';
+    if (bp) bp.style.display = 'none';
+  } else {
+    if (tag) { tag.className = 'tag tag-warn'; tag.textContent = price + ' 元/次'; }
+    if (lt) lt.textContent = '免费次数已用完';
+    if (ld) ld.innerHTML = '继续使用需付费开通，<b id="lockPrice">' + price +
+      '</b> 元/次。付款后请联系管理员为你开通次数。';
+    if (bp) bp.style.display = '';
+  }
+  if (lp) lp.textContent = price;
+  _notifyParent();
+}
+
+function loadQuota() {
+  return fetch('/api/me', { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (!d) return;
+      _quota = (typeof d.tool_quota === 'number') ? d.tool_quota : 0;
+      _pay = d.pay || {};
+      paintQuota();
+    })
+    .catch(function () {});
+}
+
+function showLock(title) {
+  var rb = document.getElementById('resultBody');
+  if (rb) rb.style.display = 'none';
+  var lh = document.getElementById('lockHint');
+  if (lh) lh.style.display = '';
+  if (title) {
+    var lt = document.getElementById('lockTitle');
+    if (lt) lt.textContent = title;
+  }
+}
+
+function showResult() {
+  document.getElementById('lockHint').style.display = 'none';
+  document.getElementById('resultBody').style.display = 'flex';
+  _hasResult = true;
+}
+
+function readParams() {
+  return {
     Q: num('Q'), Hds: num('Hds'), Hz: num('Hz'), Hb: num('Hb'), Hgr: num('Hgr'),
     Hhe: num('Hhe'), Bb: num('Bb'), Ht: num('Ht'), Bt: num('Bt'),
     aP: num('aP')
   };
+}
+
+function checkParams(p) {
   if (p.Q <= 0 || p.Hb >= p.Hz) {
     alert("请检查参数：设计流量 Q > 0，闸底板高程 < 正常蓄水位。");
-    return;
+    return false;
   }
-  const r = calc(p, CURRENT_PLAN);
-  render(r);
+  return true;
+}
+
+function run() {
+  var p = readParams();
+  if (!checkParams(p)) return;
+  render(calc(p, CURRENT_PLAN));
+  showResult();
+}
+
+/* 点「开始计算」：先校验参数 → 扣 1 次 → 出结果；次数不足弹付费窗 */
+function gatedRun() {
+  if (_busy) return;
+  if (!checkParams(readParams())) return;
+  _busy = true;
+  fetch('/tool/use', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+    .then(function (r) {
+      return r.json().catch(function () { return {}; })
+        .then(function (d) { return { ok: r.ok, d: d || {} }; });
+    })
+    .then(function (res) {
+      var d = res.d;
+      if (!res.ok || !d.ok) {
+        if (d.pay) _pay = d.pay;
+        _quota = 0;
+        paintQuota();
+        showLock('免费次数已用完');
+        showPay();
+        return;
+      }
+      if (typeof d.tool_quota === 'number') _quota = d.tool_quota;
+      if (d.pay) _pay = d.pay;
+      paintQuota();
+      run();
+    })
+    .catch(function () { alert('网络异常，请稍后重试'); })
+    .then(function () { _busy = false; });
+}
+
+/* ===== 付费弹窗 ===== */
+function showPay() {
+  var pay = _pay || {};
+  // 嵌在外层 /tool 页面里时，交给外层整页弹出（避免 iframe 内 fixed 定位跑出可视区）
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'tool-pay', pay: pay }, location.origin);
+      return;
+    }
+  } catch (e) {}
+  document.getElementById('payPrice').textContent =
+    '计算工具：' + (pay.tool_price || '5') + ' 元/次';
+  [['payWechat', 'payWechatNo', pay.wechat_qr], ['payAlipay', 'payAlipayNo', pay.alipay_qr]]
+    .forEach(function (p) {
+      var img = document.getElementById(p[0]), no = document.getElementById(p[1]);
+      if (p[2]) { img.src = p[2] + '?t=' + Date.now(); img.style.display = ''; no.style.display = 'none'; }
+      else { img.style.display = 'none'; no.style.display = 'flex'; }
+    });
+  document.getElementById('payNote').textContent =
+    pay.pay_note || '扫码支付后请联系管理员开通次数。';
+  document.getElementById('payMask').style.display = 'flex';
+}
+function closePay() { document.getElementById('payMask').style.display = 'none'; }
+function showPayReq() { document.getElementById('payReq').style.display = 'block'; }
+function submitPayReq() {
+  var amount = document.getElementById('payAmt').value.trim();
+  var note = document.getElementById('payNoteTxt').value.trim();
+  if (!amount) { alert('请填写付款金额'); return; }
+  fetch('/api/pay/request', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount: amount, note: note })
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.ok) { alert(d.msg || '充值申请已提交！请耐心等待管理员确认开通。'); closePay(); }
+      else alert(d.error || '提交失败');
+    })
+    .catch(function () { alert('提交失败，请稍后重试'); });
 }
 
 function switchPlan(plan) {
@@ -493,16 +713,22 @@ function switchPlan(plan) {
     document.getElementById('planPillText').textContent = "方案B · 不带滩地";
     document.getElementById('hintText').textContent = "单一主槽断面按梯形断面均匀流过流计算，主槽糙率为主要参数。";
   }
-  run();
+  // 已出结果：切换方案即时重算（同一份计算，不重复扣次）
+  if (_hasResult && checkParams(readParams())) {
+    render(calc(readParams(), CURRENT_PLAN));
+  }
 }
 
 document.querySelectorAll('.seg-btn').forEach(b => {
   b.addEventListener('click', () => switchPlan(b.dataset.plan));
 });
-document.getElementById('btnCalc').addEventListener('click', run);
-document.getElementById('btnTopCalc').addEventListener('click', run);
+document.getElementById('btnCalc').addEventListener('click', gatedRun);
+document.getElementById('btnTopCalc').addEventListener('click', gatedRun);
+document.getElementById('btnLockCalc').addEventListener('click', gatedRun);
+document.getElementById('btnLockPay').addEventListener('click', showPay);
 
-run();
+// 进页面先取剩余次数（不自动计算，点「开始计算」才扣次）
+loadQuota();
 </script>
 </body>
 </html>
