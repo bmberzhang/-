@@ -18,6 +18,7 @@ Word 原生公式（OMML）只对「分式」和「根式」做，其余用 Unic
 必须上 OMML。这样既能看又不会一保存就崩。
 """
 import io
+import math
 import os
 
 import docx
@@ -29,6 +30,7 @@ from docx.oxml.ns import nsdecls, qn
 from docx.shared import Cm, Pt, RGBColor
 
 import calc
+import thesis_prose as ps
 
 CN_BODY = '宋体'
 CN_HEAD = '黑体'
@@ -370,52 +372,58 @@ def cover(doc, P, R, fmt, meta):
     doc.add_page_break()
 
 
-def abstract_cn(doc, P, R, fmt, meta):
+def abstract_cn(doc, P, R, fmt, meta, ctx):
+    V, F = ctx['V'], ctx['F']
     gw, top, sp, en, st, rc = (R['gw'], R['top'], R['sp'], R['en'], R['st'], R['rc'])
     add_para(doc, '摘　　要', fmt, size=fmt.h1_size, cn=CN_HEAD,
              align=WD_ALIGN_PARAGRAPH.CENTER, indent=False, space_after=12)
 
-    name = g(P, 'projectName', '本工程')
-    Q = g(P, 'designFlow'); Qc = g(P, 'checkFlow')
-    text = (
-        '本文以%s为对象，依据《水闸设计规范》（SL 265-2016）完成初步设计。'
-        '闸址位于%s，工程等别按%s级建筑物设防，设计洪水标准为%s年一遇，'
-        '对应设计流量 %s m³/s、校核流量 %s m³/s。'
-        '设计内容包括闸孔尺寸确定、消能防冲设计、闸顶高程确定、闸基防渗排水设计、'
-        '闸室稳定与地基应力验算以及闸室底板结构计算，并绘制了相应的工程图纸。'
-    ) % (name, g(P, 'riverName', '河道'), g(P, 'structureGrade'),
-         g(P, 'floodStandard'), Q, Qc)
-    add_para(doc, text, fmt)
+    rows = gw.get('rows') or []
+    b_mid = rows[1]['B0'] if len(rows) > 1 else (rows[0]['B0'] if rows else 0)
 
-    text2 = (
-        '闸孔尺寸采用综合流量系数法确定，按高淹没度条件计算得闸孔总净宽 B₀ ≈ %.2f m，'
-        '结合地形与运行要求布置为 %s 孔、单孔净宽 %s m，中墩厚 %s m、边墩厚 %s m，'
-        '闸室总宽 %.2f m。'
-    ) % (gw['rows'][1]['B0'] if gw.get('rows') else 0,
-         g(P, 'gateCount'), g(P, 'singleGateWidth'),
-         g(P, 'middlePierThickness'), g(P, 'sidePierThickness'),
-         int(g(P, 'gateCount', 3) or 3) * float(g(P, 'singleGateWidth', 6) or 6)
-         + (int(g(P, 'gateCount', 3) or 3) - 1) * float(g(P, 'middlePierThickness', 1) or 1)
-         + 2 * float(g(P, 'sidePierThickness', 1.2) or 1.2))
-    add_para(doc, text2, fmt)
+    head = V.pick('abs_open', ps.P['abs_open'],
+                  project=g(P, 'projectName', '本工程'),
+                  func=g(P, 'sluiceFunction', '节制闸'))
+    body = V.pick('abs_body', ps.P['abs_body'],
+                  std=g(P, 'floodStandard'), qd=g(P, 'designFlow'),
+                  qc=g(P, 'checkFlow'))
+    add_para(doc, head + body, fmt)
 
-    text3 = (
-        '消能防冲按闸门开度逐级扫描计算，最大消力池深度出现在 Q = %.0f m³/s 附近，'
-        '计算池深 %.2f m、池长 %.2f m，设计取池深 %.2f m，并据此确定海漫长度 %.2f m。'
-        '闸顶高程经挡水与泄水两种工况比较后取 %.2f m。'
-        '闸基防渗采用改进阻力系数法验算，地下轮廓线实际长度 %.2f m，'
-        '大于规范要求的 %.2f m，出口坡降 %.3f、水平段坡降 %.3f，均满足要求。'
-        '闸室稳定验算得抗滑安全系数 Kc = %.3f，'
-        '地基最大应力 %.1f kPa，小于地基允许承载力 %s kPa。'
-    ) % (_q_at_max(en), _d_max(en), _lsj_max(en), en.get('d_design', 0),
-         en.get('Lp_design', 0), top.get('top', 0),
-         sp.get('L_actual', 0), sp.get('L_required', 0),
-         sp.get('J_out', 0), sp.get('J_horiz', 0),
-         st.get('Kc', 0), st.get('sigma_max', 0), g(P, 'foundationBearing'))
-    add_para(doc, text3, fmt)
+    res = V.pick('abs_res', ps.P['abs_res'],
+                 b0='%.2f' % b_mid, n=g(P, 'gateCount'),
+                 b1=g(P, 'singleGateWidth'),
+                 d='%.2f' % en.get('d_design', 0),
+                 lsj='%.2f' % en.get('Lsj_design', 0),
+                 lp='%.2f' % en.get('Lp_design', 0),
+                 top='%.2f' % top.get('top', 0),
+                 kc='%.3f' % st.get('Kc', 0),
+                 smax='%.1f' % st.get('sigma_max', 0))
+    add_para(doc, res, fmt)
 
-    add_para(doc, '关键词：水闸；闸孔尺寸；消能防冲；闸基防渗；稳定验算；结构计算', fmt,
-             indent=False, space_before=10)
+    # 摘要末尾按工程特点补一句：有抗震要求的提抗震，有软基的提地基处理
+    tails = []
+    if F.get('seismic'):
+        tails.append('考虑地震基本烈度 %s 度的作用，对闸室进行了抗震验算。'
+                     % g(P, 'seismicIntensity'))
+    if F.get('need_treat'):
+        tails.append('针对闸址地基条件，提出了换填垫层与排水相结合的基础处理措施。')
+    if F.get('rehab'):
+        tails.append('本工程为原闸拆除重建，设计中对原结构暴露的薄弱环节作了专项加强。')
+    if tails:
+        add_para(doc, ''.join(tails), fmt)
+
+    kws = ['水闸']
+    if F.get('soft'):
+        kws.append('软土地基')
+    kws += ['闸孔尺寸', '消能防冲']
+    if not F.get('no_pool'):
+        kws.append('消力池')
+    kws += ['闸基防渗', '稳定验算', '结构计算']
+    if F.get('seismic'):
+        kws.append('抗震验算')
+    if F.get('rehab'):
+        kws.append('拆除重建')
+    add_para(doc, '关键词：' + '；'.join(kws), fmt, indent=False, space_before=10)
     doc.add_page_break()
 
 
@@ -450,34 +458,100 @@ def _en_project(name):
     return 'a hydraulic engineering project'
 
 
-def abstract_en(doc, P, R, fmt, meta):
+EN_ABS_OPEN = [
+    ('This paper presents the preliminary design of {project}, carried out in '
+     'accordance with the Chinese code SL 265-2016 "Design Code for Sluice". '),
+    ('The preliminary design of {project} is carried out in this paper following '
+     'the Chinese design code SL 265-2016 "Design Code for Sluice". '),
+    ('This paper deals with the preliminary design of {project}, in which the '
+     'provisions of SL 265-2016 "Design Code for Sluice" are applied throughout. '),
+]
+
+EN_ABS_BODY = [
+    ('The design flood standard is once in {std} years, with a design discharge of '
+     '{qd} m3/s and a check discharge of {qc} m3/s. The work covers the '
+     'determination of gate opening dimensions, energy dissipation and scour '
+     'protection, crest elevation, seepage control and drainage of the foundation, '
+     'stability analysis of the gate chamber, and structural design of the base slab.'),
+    ('A flood with a return period of {std} years is taken as the design standard, '
+     'corresponding to a design discharge of {qd} m3/s; the check discharge is '
+     '{qc} m3/s. The design work includes the sizing of the gate openings, energy '
+     'dissipation and scour protection, the crest elevation, seepage control and '
+     'drainage of the foundation, stability analysis of the gate chamber, and the '
+     'structural design of the base slab.'),
+    ('The design discharge is {qd} m3/s for a {std}-year flood, and the check '
+     'discharge is {qc} m3/s. Six aspects are covered: gate opening dimensions, '
+     'energy dissipation, crest elevation, foundation seepage control, chamber '
+     'stability, and reinforcement of the base slab.'),
+]
+
+EN_ABS_RES = [
+    ('The total clear width of the gate openings is {b0} m, arranged in {n} bays. '
+     'The stilling basin is {d} m deep and {lsj} m long, with an apron of {lp} m. '
+     'The crest elevation is taken as {top} m. The calculated anti-sliding safety '
+     'factor is {kc}, and the maximum foundation stress is {smax} kPa, both '
+     'satisfying the code requirements.'),
+    ('The gate openings total {b0} m in clear width and are arranged in {n} bays. '
+     'A stilling basin of {d} m depth and {lsj} m length is adopted, together with '
+     'an apron {lp} m long. The crest elevation is {top} m. The anti-sliding safety '
+     'factor reaches {kc} and the maximum foundation stress is {smax} kPa, '
+     'indicating that the design is safe.'),
+]
+
+EN_ABS_EXTRA = {
+    'seismic': (' Since the seismic intensity at the site is degree {inten}, '
+                'a seismic check of the gate chamber is also performed.'),
+    'treat': (' In view of the foundation conditions, replacement of the soft soil '
+              'with a compacted sand-gravel cushion, combined with drainage, is '
+              'recommended.'),
+    'rehab': (' As the project is a reconstruction of an existing sluice, the '
+              'weaknesses revealed by the safety appraisal are strengthened in '
+              'the new design.'),
+}
+
+EN_KW_BASE = ['sluice', 'gate opening', 'energy dissipation']
+
+
+def abstract_en(doc, P, R, fmt, meta, ctx):
+    V, F = ctx['V'], ctx['F']
     add_para(doc, 'ABSTRACT', fmt, size=fmt.h1_size, cn=CN_HEAD,
              align=WD_ALIGN_PARAGRAPH.CENTER, indent=False, space_after=12)
     st = R['st']
-    txt = (
-        'This paper presents the preliminary design of %s, carried out in '
-        'accordance with the Chinese code SL 265-2016 "Design Code for Sluice". '
-        'The design flood standard is once in %s years, with a design discharge of '
-        '%s m3/s and a check discharge of %s m3/s. '
-        'The work covers the determination of gate opening dimensions, energy '
-        'dissipation and scour protection, crest elevation, seepage control and '
-        'drainage of the foundation, stability analysis of the gate chamber, and '
-        'structural design of the base slab.'
-    ) % (_en_project(g(P, 'projectName', '')), g(P, 'floodStandard'),
-         g(P, 'designFlow'), g(P, 'checkFlow'))
+    rows = R['gw'].get('rows') or []
+    b_mid = rows[1]['B0'] if len(rows) > 1 else (rows[0]['B0'] if rows else 0)
+
+    txt = V.pick('en_open', EN_ABS_OPEN,
+                 project=_en_project(g(P, 'projectName', '')))
+    txt += V.pick('en_body', EN_ABS_BODY, std=g(P, 'floodStandard'),
+                  qd=g(P, 'designFlow'), qc=g(P, 'checkFlow'))
     add_para(doc, txt, fmt, cn=EN_FONT)
-    txt2 = (
-        'The total clear width of the gate openings is %.2f m, arranged in %s bays. '
-        'The maximum stilling basin depth is %.2f m and the apron length is %.2f m. '
-        'The crest elevation is taken as %.2f m. '
-        'The calculated anti-sliding safety factor is %.3f, and the maximum '
-        'foundation stress is %.1f kPa, both satisfying the code requirements.'
-    ) % (R['gw']['rows'][1]['B0'] if R['gw'].get('rows') else 0, g(P, 'gateCount'),
-         _d_max(R['en']), R['en'].get('Lp_design', 0), R['top'].get('top', 0),
-         st.get('Kc', 0), st.get('sigma_max', 0))
+
+    txt2 = V.pick('en_res', EN_ABS_RES, b0='%.2f' % b_mid, n=g(P, 'gateCount'),
+                  d='%.2f' % R['en'].get('d_design', 0),
+                  lsj='%.2f' % R['en'].get('Lsj_design', 0),
+                  lp='%.2f' % R['en'].get('Lp_design', 0),
+                  top='%.2f' % R['top'].get('top', 0),
+                  kc='%.3f' % st.get('Kc', 0),
+                  smax='%.1f' % st.get('sigma_max', 0))
     add_para(doc, txt2, fmt, cn=EN_FONT)
-    add_para(doc, 'Key words: sluice; gate opening; energy dissipation; seepage '
-                  'control; stability analysis; structural design',
+
+    tail = ''.join(v for k, v in EN_ABS_EXTRA.items() if F.get(k))
+    if tail:
+        try:
+            tail = tail.format(inten=g(P, 'seismicIntensity'))
+        except (KeyError, IndexError, ValueError):
+            pass
+        add_para(doc, tail.strip(), fmt, cn=EN_FONT)
+
+    kws = list(EN_KW_BASE)
+    if F.get('soft'):
+        kws.append('soft foundation')
+    kws += ['seepage control', 'stability analysis', 'structural design']
+    if F.get('seismic'):
+        kws.append('seismic check')
+    if F.get('rehab'):
+        kws.append('reconstruction')
+    add_para(doc, 'Key words: ' + '; '.join(kws),
              fmt, indent=False, cn=EN_FONT, space_before=10)
     doc.add_page_break()
 
@@ -490,60 +564,121 @@ def _put_figs(doc, figs, key, fmt, c):
         add_figure(doc, f['png'], '%s　%s' % (c.fig_no(), f['title']), fmt)
 
 
-def ch_intro(doc, P, R, fmt, c, figs, ctx):
-    """绪论 / 工程概况"""
-    add_para(doc, '%s位于%s，为%s工程。' % (
-        g(P, 'projectName', '本工程'), g(P, 'riverName', '本流域'),
-        g(P, 'sluiceFunction', '节制闸')), fmt)
-    for s in (ctx.get('task_sections') or [])[:3]:
+def _extra(doc, fmt, ctx, tag, **kw):
+    """按工程特征插入一整段附加叙述（特征不具备时整段不写）。"""
+    vs = ps.EXTRA.get(tag)
+    if not vs:
+        return
+    add_para(doc, ctx['V'].pick('x_' + tag, vs, **kw), fmt)
+
+
+def _docs_for(F):
+    """按工程特征给出设计依据清单，不同工程引用的规范不完全相同。"""
+    out = []
+    for name, cond in ps.DOC_POOL:
+        if cond is None or F.get(cond):
+            if name not in out:
+                out.append(name)
+    return out
+
+
+def _sub(doc, c, k, title, fmt):
+    add_heading(doc, '%s.%d　%s' % (c.chap, k, title), 2, fmt)
+
+
+def _material(doc, fmt, ctx, buckets, k, used_key='used'):
+    """把任务书里对应主题的句子写进正文（轻度改写过的口吻）。"""
+    got = ps.take(buckets, k, ctx.get('used') or ())
+    for s in got:
         add_para(doc, s, fmt)
-    add_para(doc, '本次设计的任务是在已有水文、地质资料的基础上，按《水闸设计规范》'
-                  '（SL 265-2016）完成该闸的初步设计，包括闸孔尺寸确定、消能防冲、'
-                  '闸顶高程、闸基防渗排水、闸室稳定及结构计算等内容，并绘制相应图纸。', fmt)
-    add_heading(doc, '%s.1　设计依据' % c.chap, 2, fmt)
-    add_para(doc, '主要依据的技术文件与规范如下：', fmt)
-    for i, s in enumerate([
-        '《水闸设计规范》（SL 265-2016）',
-        '《水工建筑物抗震设计标准》（GB 51247-2018）',
-        '《水工混凝土结构设计规范》（SL 191-2008）',
-        '本工程地质勘察报告及水文实测资料',
-    ], 1):
+        ctx.setdefault('used', []).append(s)
+    return got
+
+
+def ch_intro(doc, P, R, fmt, c, figs, ctx):
+    """绪论：工程概况 + 任务书素材 + 设计依据"""
+    V, F, B = ctx['V'], ctx['F'], ctx['B']
+
+    river = (P.get('riverName') or '').strip()
+    if river:
+        add_para(doc, V.pick('intro_open', ps.P['intro_open'],
+                             project=g(P, 'projectName', '本工程'),
+                             river=river,
+                             func=g(P, 'sluiceFunction', '节制闸')), fmt)
+    else:
+        add_para(doc, V.pick('intro_open_noriver', ps.P['intro_open_noriver'],
+                             project=g(P, 'projectName', '本工程'),
+                             func=g(P, 'sluiceFunction', '节制闸')), fmt)
+
+    # 客户任务书里的闸址、流域与工程任务叙述，按主题取用而非机械截前几段
+    _material(doc, fmt, ctx, B.get('site', []) + B.get('role', []), 3)
+
+    add_para(doc, V.pick('intro_meaning', ps.P['intro_meaning']), fmt)
+
+    k = 1
+    _sub(doc, c, k, '工程任务与设计内容', fmt)
+    k += 1
+    add_para(doc, V.pick('intro_task', ps.P['intro_task']), fmt)
+    _material(doc, fmt, ctx, B.get('task', []), 3)
+
+    _sub(doc, c, k, '设计依据', fmt)
+    add_para(doc, V.pick('intro_doc_head', ps.P['intro_doc_head']), fmt)
+    for i, s in enumerate(_docs_for(F), 1):
         add_para(doc, '（%d）%s' % (i, s), fmt, indent=True)
+
+    if F.get('rehab'):
+        _extra(doc, fmt, ctx, 'rehab')
+    if F.get('seismic'):
+        _extra(doc, fmt, ctx, 'seismic',
+               inten=g(P, 'seismicIntensity'), acc=g(P, 'seismicAcceleration'))
+    else:
+        _extra(doc, fmt, ctx, 'no_seismic', inten=g(P, 'seismicIntensity'))
 
 
 def ch_basic(doc, P, R, fmt, c, figs, ctx):
-    """基本资料"""
-    add_para(doc, '本章列出本次设计所采用的水文、气象、地质及工程特性指标，'
-                  '数据取自设计任务书与地质勘察成果。', fmt)
+    """基本资料：客户水文/地质素材 + 指标表 + 特征相关结论"""
+    V, F, B = ctx['V'], ctx['F'], ctx['B']
+    add_para(doc, V.pick('basic_open', ps.P['basic_open']), fmt)
+
+    k = 1
+    hy = ps.take(B.get('hydro', []) + B.get('meteo', []), 4, ctx.get('used') or ())
+    if hy:
+        _sub(doc, c, k, V.pick('h_hydro', ps.P['basic_hydro_head']), fmt)
+        k += 1
+        _material(doc, fmt, ctx, hy, len(hy))
+    geo = ps.take(B.get('geo', []), 4, ctx.get('used') or ())
+    if geo:
+        _sub(doc, c, k, V.pick('h_geo', ps.P['basic_geo_head']), fmt)
+        k += 1
+        _material(doc, fmt, ctx, geo, len(geo))
+
+    _sub(doc, c, k, V.pick('h_ind', ps.P['basic_ind_head']), fmt)
     labeled = ctx.get('labeled') or {}
     if hasattr(labeled, 'items'):
         labeled = list(labeled.items())
-    rows = [[str(k), str(v)] for k, v in labeled]
+    rows = [[str(a), str(b)] for a, b in labeled]
     if rows:
-        add_table(doc, ['项目', '数值'], rows, '%s　基本资料一览表' % c.tbl_no(), fmt)
+        add_table(doc, ['项目', '数值'], rows,
+                  '%s　基本资料一览表' % c.tbl_no(), fmt)
 
-    secs = (ctx.get('task_sections') or [])
-    if len(secs) > 3:
-        add_heading(doc, '%s.1　工程地质与水文条件' % c.chap, 2, fmt)
-        for s in secs[3:6]:
-            add_para(doc, s, fmt)
+    add_para(doc, V.pick('basic_sum', ps.P['basic_sum'],
+                         bearing=g(P, 'foundationBearing'),
+                         fric=g(P, 'frictionCoefficient'),
+                         inten=g(P, 'seismicIntensity'),
+                         acc=g(P, 'seismicAcceleration'),
+                         conc=g(P, 'concreteGrade'),
+                         rebar=g(P, 'rebarType')), fmt)
 
-    add_para(doc, '按上述资料，闸址处地基允许承载力为 %s kPa，基底摩擦系数 f = %s，'
-                  '地震基本烈度为 %s 度，地震动峰值加速度为 %s g，'
-                  '结构混凝土采用 %s，受力钢筋采用 %s。' % (
-                      g(P, 'foundationBearing'), g(P, 'frictionCoefficient'),
-                      g(P, 'seismicIntensity'), g(P, 'seismicAcceleration'),
-                      g(P, 'concreteGrade'), g(P, 'rebarType')), fmt)
+    if F.get('need_treat'):
+        _extra(doc, fmt, ctx, 'treat')
 
 
 def ch_gate(doc, P, R, fmt, c, figs, ctx):
     """闸孔尺寸设计"""
+    V = ctx['V']
     gw = R['gw']
-    Q = float(g(P, 'designFlow', 0) or 0)
-    hs = gw.get('hs', 0)
-    add_para(doc, '闸孔总净宽是水闸设计中最基本的尺寸。本设计采用综合流量系数法，'
-                  '按高淹没度堰流公式计算，先由明渠均匀流反算行进流速与堰上水头，'
-                  '再按淹没度查取综合流量系数，最后反解总净宽。', fmt)
+    add_para(doc, V.pick('gate_open', ps.P['gate_open']), fmt)
+    add_para(doc, V.pick('gate_method', ps.P['gate_method']), fmt)
 
     add_para(doc, '闸孔总净宽按下式计算：', fmt)
     add_formula(doc, ['B₀ = ', ('frac', 'Q', 'μ₀·h_s·√(2g(H₀ − h_s))')], fmt)
@@ -567,23 +702,35 @@ def ch_gate(doc, P, R, fmt, c, figs, ctx):
                         'h_s/H₀', 'μ₀', 'B₀ (m)'], trs,
                   '%s　闸孔总净宽计算表' % c.tbl_no(), fmt)
 
-    b_mid = rows[1]['B0'] if len(rows) > 1 else 0
+    b_mid = rows[1]['B0'] if len(rows) > 1 else (rows[0]['B0'] if rows else 0)
     n = int(g(P, 'gateCount', 3) or 3)
     b0 = float(g(P, 'singleGateWidth', 6) or 6)
-    add_para(doc, '由上表可见，随上下游水位差增大，所需总净宽减小。'
-                  '取 ΔH = 0.2 m 作为设计工况，计算得闸孔总净宽 B₀ = %.2f m。'
-                  '结合河道断面尺寸与运行调度要求，将闸孔布置为 %d 孔、'
-                  '单孔净宽 %g m，实际总净宽 %g m，满足过流要求。' % (
-                      b_mid, n, b0, n * b0), fmt)
+    add_para(doc, V.pick('gate_res', ps.P['gate_res'], b0='%.2f' % b_mid), fmt)
+
+    b_actual = n * b0
+    if b_actual + 1e-6 >= b_mid:
+        add_para(doc, V.pick('gate_layout', ps.P['gate_layout'],
+                             n=n, b1='%g' % b0, bt='%g' % b_actual), fmt)
+    else:
+        # 任务书给的孔数×净宽过不了设计流量——如实指出，不能写「满足要求」
+        n_rec = int(b_mid / b0) + 1
+        b1_rec = math.ceil(b_mid / n * 10) / 10.0
+        add_para(doc, V.pick('gate_layout_short', ps.P['gate_layout_short'],
+                             n=n, b1='%g' % b0, bt='%g' % b_actual,
+                             b0='%.2f' % b_mid, nr=n_rec, b1r='%g' % b1_rec,
+                             gap='%.2f' % (b_mid - b_actual)), fmt)
+        ctx['warnings'].append(
+            '任务书给定的闸孔布置 %d 孔×%g m（合计 %g m）小于计算所需的 %.2f m，'
+            '文中已按实际情况说明并给出调整建议，请与指导老师确认。'
+            % (n, b0, b_actual, b_mid))
     _put_figs(doc, figs, '闸孔', fmt, c)
 
 
 def ch_energy(doc, P, R, fmt, c, figs, ctx):
     """消能防冲设计"""
+    V, F = ctx['V'], ctx['F']
     en = R['en']
-    add_para(doc, '水闸下泄时水流具有较大动能，需设置消能设施防止冲刷。'
-                  '本设计按闸门开度逐级扫描，对每一开度计算收缩水深、共轭水深、'
-                  '水跃长度与所需池深，取各开度中的最大值作为设计依据。', fmt)
+    add_para(doc, V.pick('en_open', ps.P['en_open']), fmt)
 
     add_para(doc, '收缩断面水深由能量方程试算：', fmt)
     add_formula(doc, ['T₀ = h_c + ', ('frac', 'q²', '2gφ²h_c²')], fmt)
@@ -610,26 +757,26 @@ def ch_energy(doc, P, R, fmt, c, figs, ctx):
                         'h_c″ (m)', '池深 d (m)', '池长 L_sj (m)', 'L_p (m)'],
                   trs, '%s　消能防冲计算成果表' % c.tbl_no(), fmt)
 
-    d_design = en.get('d_design', 0)
-    add_para(doc, '注：表中「—」表示该开度下水跃已被下游水深淹没，'
-                  '消力池尺寸不受此工况控制。', fmt, size=fmt.body_size - 1)
-    add_para(doc, '计算结果表明，池深随开度先增后减：小开度时下泄流量小、'
-                  '单宽流量低，所需池深较小；开度增大到一定程度后，'
-                  '下游水深相对增大、水跃被淹没，所需池深反而减小。'
-                  '最大池深出现在 Q ≈ %.0f m³/s 附近，计算值 %.2f m。'
-                  '据此设计取消力池深度 %.2f m、池长 %.2f m，'
-                  '海漫长度取 %.2f m。' % (
-                      _q_at_max(en), _d_max(en), d_design,
-                      en.get('Lsj_design', 0), en.get('Lp_design', 0)), fmt)
+    add_para(doc, V.pick('en_ctrl', ps.P['en_ctrl']), fmt,
+             size=fmt.body_size - 1)
+    if F.get('no_pool'):
+        _extra(doc, fmt, ctx, 'no_pool')
+    else:
+        add_para(doc, V.pick('en_res', ps.P['en_res'],
+                             qmax='%.0f' % _q_at_max(en),
+                             dmax='%.2f' % _d_max(en),
+                             d='%.2f' % en.get('d_design', 0),
+                             lsj='%.2f' % en.get('Lsj_design', 0),
+                             lp='%.2f' % en.get('Lp_design', 0)), fmt)
+    add_para(doc, V.pick('en_note', ps.P['en_note']), fmt)
     _put_figs(doc, figs, '消能', fmt, c)
 
 
 def ch_top(doc, P, R, fmt, c, figs, ctx):
     """闸顶高程确定"""
+    V = ctx['V']
     top = R['top']
-    add_para(doc, '闸顶高程需同时满足挡水与泄水两种工况，并保证与两岸地面顺接。'
-                  '挡水工况按正常蓄水位加波浪爬高与安全超高控制；'
-                  '泄水工况按设计洪水位加安全超高控制，最终取两者与现状地面高程的大值。', fmt)
+    add_para(doc, V.pick('top_open', ps.P['top_open']), fmt)
 
     add_formula(doc, ['H₁ = Z_正常蓄水位 + h₂ + A₁'], fmt)
     add_formula(doc, ['H₂ = Z_设计洪水位 + A₂'], fmt)
@@ -658,10 +805,9 @@ def ch_top(doc, P, R, fmt, c, figs, ctx):
 
 def ch_seepage(doc, P, R, fmt, c, figs, ctx):
     """闸基防渗排水设计"""
+    V, F = ctx['V'], ctx['F']
     sp = R['sp']
-    add_para(doc, '闸基渗流直接影响水闸安全。本设计采用改进阻力系数法计算：'
-                  '先按允许渗径系数估算所需渗径长度，再沿地下轮廓线分段计算'
-                  '各段阻力系数与水头损失，最后验算出口坡降与水平段坡降。', fmt)
+    add_para(doc, V.pick('sp_open', ps.P['sp_open']), fmt)
 
     add_para(doc, '所需渗径长度按下式估算：', fmt)
     add_formula(doc, ['L_需 = C·ΔH'], fmt)
@@ -682,21 +828,22 @@ def ch_seepage(doc, P, R, fmt, c, figs, ctx):
         add_table(doc, ['分段号', '阻力系数 ξ', '分段水头损失 (m)', '累计损失 (m)'],
                   trs, '%s　闸基渗流水头损失计算表' % c.tbl_no(), fmt)
 
-    add_para(doc, '地下轮廓线实际长度 L_实 = %.2f m，%s所需长度 %.2f m。'
-                  '出口坡降 J = %.4f，允许值 0.50；水平段坡降 J = %.4f，允许值 0.25，'
-                  '均满足规范要求，闸基抗渗稳定性满足要求。' % (
-                      sp.get('L_actual', 0),
-                      '大于' if sp.get('seepCheck') else '小于',
-                      sp.get('L_required', 0),
-                      sp.get('J_out', 0), sp.get('J_horiz', 0)), fmt)
+    add_para(doc, V.pick('sp_res', ps.P['sp_res'],
+                         lact='%.2f' % sp.get('L_actual', 0),
+                         cmp='大于' if sp.get('seepCheck') else '小于',
+                         lreq='%.2f' % sp.get('L_required', 0),
+                         jout='%.4f' % sp.get('J_out', 0),
+                         jhor='%.4f' % sp.get('J_horiz', 0)), fmt)
+    if F.get('seep_tight'):
+        _extra(doc, fmt, ctx, 'tight_seep')
     _put_figs(doc, figs, '防渗', fmt, c)
 
 
 def ch_stab(doc, P, R, fmt, c, figs, ctx):
     """闸室稳定与地基应力验算"""
+    V, F = ctx['V'], ctx['F']
     st = R['st']
-    add_para(doc, '闸室稳定验算考虑完建、正常运行与校核洪水等荷载组合，'
-                  '分别计算竖向力与水平力，据此求抗滑安全系数与基底应力。', fmt)
+    add_para(doc, V.pick('st_open', ps.P['st_open']), fmt)
 
     add_formula(doc, ['K_c = ', ('frac', 'f·ΣG', 'ΣH')], fmt)
     add_para(doc, '式中 f 为基底摩擦系数，取 %s；ΣG 为竖向力总和 %s kN；'
@@ -722,21 +869,23 @@ def ch_stab(doc, P, R, fmt, c, figs, ctx):
     ]
     add_table(doc, ['项目', '数值'], rows, '%s　闸室稳定验算成果表' % c.tbl_no(), fmt)
 
-    add_para(doc, '验算结果：抗滑安全系数 K_c = %.3f %s允许值 1.20；'
-                  '基底最大应力 %.1f kPa %s地基允许承载力 %s kPa；'
-                  '应力不均匀系数 η = %.3f，满足规范要求。' % (
-                      st.get('Kc', 0), '≥' if st.get('stabCheck') else '<',
-                      st.get('sigma_max', 0),
-                      '≤' if st.get('bearCheck') else '>',
-                      g(P, 'foundationBearing'), st.get('eta', 0)), fmt)
+    add_para(doc, V.pick('st_res', ps.P['st_res'],
+                         kc='%.3f' % st.get('Kc', 0),
+                         cmpk='≥' if st.get('stabCheck') else '<',
+                         smax='%.1f' % st.get('sigma_max', 0),
+                         cmpb='≤' if st.get('bearCheck') else '>',
+                         bearing=g(P, 'foundationBearing'),
+                         eta='%.3f' % st.get('eta', 0)), fmt)
+    if F.get('stab_tight'):
+        _extra(doc, fmt, ctx, 'tight_stab')
     _put_figs(doc, figs, '稳定', fmt, c)
 
 
 def ch_struct(doc, P, R, fmt, c, figs, ctx):
     """闸室底板结构计算"""
+    V = ctx['V']
     rc = R['rc']
-    add_para(doc, '闸室底板按单筋矩形截面受弯构件计算配筋，'
-                  '取单位板宽按最不利弯矩进行正截面承载力计算。', fmt)
+    add_para(doc, V.pick('rc_open', ps.P['rc_open']), fmt)
 
     add_formula(doc, ['α_s = ', ('frac', 'γ_d·M', 'f_c·b·h₀²')], fmt)
     add_formula(doc, ['ξ = 1 − √(1 − 2α_s)'], fmt)
@@ -760,9 +909,8 @@ def ch_struct(doc, P, R, fmt, c, figs, ctx):
     chosen = rc.get('chosen')
     if isinstance(chosen, (tuple, list)) and len(chosen) == 2:
         dia, area = chosen
-        add_para(doc, '按计算配筋面积并考虑构造要求，受拉钢筋选用 Φ%d@100（每米板宽），'
-                      '实配面积 %d mm²，大于计算值 %.1f mm²，满足要求。' % (
-                          int(dia), int(area), rc.get('As', 0)), fmt)
+        add_para(doc, V.pick('rc_res', ps.P['rc_res'], dia=int(dia), spacing=100,
+                             area=int(area), as_='%.1f' % rc.get('As', 0)), fmt)
     else:
         add_para(doc, '按计算配筋面积 A_s = %.1f mm² 选配受拉钢筋，'
                       '并按构造要求配置分布钢筋。' % rc.get('As', 0), fmt)
@@ -770,42 +918,65 @@ def ch_struct(doc, P, R, fmt, c, figs, ctx):
 
 
 def ch_concl(doc, P, R, fmt, c, figs, ctx):
-    """结论"""
-    gw, top, sp, en, st = R['gw'], R['top'], R['sp'], R['en'], R['st']
-    add_para(doc, '本文按《水闸设计规范》（SL 265-2016）完成了%s的初步设计，'
-                  '主要结论如下：' % g(P, 'projectName', '本工程'), fmt)
-    items = [
-        '闸孔总净宽经综合流量系数法计算为 %.2f m，布置为 %s 孔、单孔净宽 %s m，'
-        '闸室总宽满足过流与布置要求。' % (gw['rows'][1]['B0'] if gw.get('rows') else 0,
-                                          g(P, 'gateCount'), g(P, 'singleGateWidth')),
-        '消能防冲按开度扫描计算，最大池深 %.2f m，设计取池深 %.2f m、池长 %.2f m，'
-        '海漫长度 %.2f m，能够满足消能与防冲要求。' % (
-            _d_max(en), en.get('d_design', 0), en.get('Lsj_design', 0),
-            en.get('Lp_design', 0)),
-        '闸顶高程经挡水与泄水工况比较取 %.2f m，与两岸地面高程衔接良好。' % top.get('top', 0),
-        '闸基防渗采用改进阻力系数法验算，实际渗径 %.2f m 大于所需 %.2f m，'
-        '出口坡降与水平段坡降均小于允许值。' % (sp.get('L_actual', 0), sp.get('L_required', 0)),
-        '闸室稳定验算得抗滑安全系数 %.3f，基底最大应力 %.1f kPa，'
-        '均满足规范要求。' % (st.get('Kc', 0), st.get('sigma_max', 0)),
-    ]
+    """结论（分条数量随算出的成果多少变化）"""
+    V, F = ctx['V'], ctx['F']
+    gw, top, sp, en, st, rc = (R['gw'], R['top'], R['sp'], R['en'],
+                               R['st'], R['rc'])
+    add_para(doc, V.pick('concl_open', ps.P['concl_open'],
+                         project=g(P, 'projectName', '本工程')), fmt)
+
+    items = []
+    rows = gw.get('rows') or []
+    b_mid = rows[1]['B0'] if len(rows) > 1 else (rows[0]['B0'] if rows else 0)
+    n_g = int(g(P, 'gateCount', 3) or 3)
+    b1_g = float(g(P, 'singleGateWidth', 6) or 6)
+    if n_g * b1_g + 1e-6 >= b_mid:
+        items.append(V.pick('concl_gate', ps.P['concl_gate'],
+                            b0='%.2f' % b_mid, n=g(P, 'gateCount'),
+                            b1=g(P, 'singleGateWidth')))
+    else:
+        items.append('闸孔总净宽经计算需 %.2f m，而任务书给定的 %d 孔×%g m '
+                     '合计仅 %g m，过流能力不足；本设计建议将孔数调整为 %d 孔，'
+                     '或相应加大单孔净宽。' % (
+                         b_mid, n_g, b1_g, n_g * b1_g, int(b_mid / b1_g) + 1))
+
+    if F.get('no_pool'):
+        items.append('消能防冲按开度扫描计算，各开度下水跃均被下游水深淹没，'
+                     '消力池不受开度控制；设计按构造要求设置消力池与海漫。')
+    else:
+        items.append(V.pick('concl_en', ps.P['concl_en'],
+                            qmax='%.0f' % _q_at_max(en),
+                            dmax='%.2f' % _d_max(en),
+                            d='%.2f' % en.get('d_design', 0),
+                            lsj='%.2f' % en.get('Lsj_design', 0),
+                            lp='%.2f' % en.get('Lp_design', 0)))
+
+    items.append(V.pick('concl_top', ps.P['concl_top'],
+                        top='%.2f' % top.get('top', 0)))
+    items.append(V.pick('concl_sp', ps.P['concl_sp'],
+                        lact='%.2f' % sp.get('L_actual', 0),
+                        lreq='%.2f' % sp.get('L_required', 0)))
+    items.append(V.pick('concl_st', ps.P['concl_st'],
+                        kc='%.3f' % st.get('Kc', 0),
+                        smax='%.1f' % st.get('sigma_max', 0)))
+
+    chosen = rc.get('chosen')
+    if isinstance(chosen, (tuple, list)) and len(chosen) == 2:
+        items.append(V.pick('concl_rc', ps.P['concl_rc'],
+                            dia=int(chosen[0]), area=int(chosen[1]),
+                            as_='%.1f' % rc.get('As', 0)))
+
     for i, s in enumerate(items, 1):
         add_para(doc, '（%d）%s' % (i, s), fmt)
-    add_para(doc, '综上，本设计方案在过流能力、消能防冲、抗渗稳定与结构安全等方面'
-                  '均满足规范要求，方案技术可行。', fmt)
+    add_para(doc, V.pick('concl_end', ps.P['concl_end']), fmt)
 
 
 def references(doc, P, R, fmt, c, figs, ctx):
     add_para(doc, '参考文献', fmt, size=fmt.h1_size, cn=CN_HEAD,
              align=WD_ALIGN_PARAGRAPH.CENTER, indent=False, space_after=12)
-    refs = [
-        '[1] 中华人民共和国水利部. 水闸设计规范: SL 265-2016[S]. 北京: 中国水利水电出版社, 2016.',
-        '[2] 中华人民共和国住房和城乡建设部. 水工建筑物抗震设计标准: GB 51247-2018[S]. 北京: 中国计划出版社, 2018.',
-        '[3] 中华人民共和国水利部. 水工混凝土结构设计规范: SL 191-2008[S]. 北京: 中国水利水电出版社, 2008.',
-        '[4] 中华人民共和国水利部. 水闸安全评价导则: SL 214-2015[S]. 北京: 中国水利水电出版社, 2015.',
-        '[5] 谈松邱. 水工建筑物[M]. 北京: 中国水利水电出版社, 2015.',
-        '[6] 吴持恭. 水力学[M]. 5版. 北京: 高等教育出版社, 2016.',
-        '[7] 顾淦臣, 束一鸣, 沈长松. 土石坝工程经验与创新[M]. 北京: 中国电力出版社, 2004.',
-    ]
+    # 文献列表按工程特征生成：涉及抗震的引抗震标准，软基的引地基处理，
+    # 因此不同任务书得到的参考文献并不相同。
+    refs = ps.refs_for(ctx['V'], ctx['F'])
     for r in refs:
         p = add_para(doc, r, fmt, indent=False, space_after=2)
         p.paragraph_format.left_indent = Pt(fmt.body_size * 2)
@@ -814,15 +985,16 @@ def references(doc, P, R, fmt, c, figs, ctx):
 
 
 def acknowledgment(doc, P, R, fmt, c, figs, ctx):
+    V = ctx['V']
     add_para(doc, '致　　谢', fmt, size=fmt.h1_size, cn=CN_HEAD,
              align=WD_ALIGN_PARAGRAPH.CENTER, indent=False, space_after=12)
-    adv = g(P, 'advisor', '指导老师')
-    add_para(doc, '本次毕业设计是在%s老师的悉心指导下完成的。从选题、'
-                  '方案拟定到计算过程的反复校核，老师都给予了耐心细致的指导，'
-                  '提出了许多宝贵意见，使我对水闸设计的方法与规范要求有了系统认识。'
-                  '在此谨向老师表示衷心的感谢。' % adv, fmt)
-    add_para(doc, '同时感谢学院各位老师在四年学习中的教导，感谢同学在资料收集与'
-                  '绘图过程中给予的帮助。最后，感谢家人一直以来的支持与鼓励。', fmt)
+    adv = (P.get('advisor') or '').strip()
+    if adv:
+        add_para(doc, V.pick('ack_body', ps.P['ack_body'], advisor=adv), fmt)
+    else:
+        # 没填指导老师姓名时用不带姓名的写法，避免出现「指导老师老师」
+        add_para(doc, V.pick('ack_body_anon', ps.P['ack_body_anon']), fmt)
+    add_para(doc, V.pick('ack_tail', ps.P['ack_tail']), fmt)
 
 
 # ============================================================
@@ -887,13 +1059,24 @@ def build(params, spec=None, task_sections=None, figures=None, meta=None):
         'task_sections': task_sections or [],
         'labeled': meta.get('labeled') or {},
         'warnings': list(meta.get('warnings') or []),
+        'used': [],                       # 已用过的客户素材句，避免重复
     }
+    # ---- 正文撰写引擎 ----
+    # 种子取自任务书正文与设计参数：同一份任务书每次生成结果一致，
+    # 不同任务书必然得到不同的选词组合与段落结构。
+    task_text = ''.join(task_sections or [])
+    ctx['V'] = ps.Seed(meta.get('seed_material') or task_text[:3000],
+                       repr(sorted((str(k), str(v)) for k, v in P.items())))
+    ctx['B'] = ps.classify(task_sections)
+    if not P.get('_raw'):
+        P['_raw'] = task_text          # 供工程特征识别（是否除险加固等）
+    ctx['F'] = ps.features(P, R)
 
     c = Counter()
 
     cover(doc, P, R, fmt, meta)
-    abstract_cn(doc, P, R, fmt, meta)
-    abstract_en(doc, P, R, fmt, meta)
+    abstract_cn(doc, P, R, fmt, meta, ctx)
+    abstract_en(doc, P, R, fmt, meta, ctx)
 
     add_para(doc, '目　　录', fmt, size=fmt.h1_size, cn=CN_HEAD,
              align=WD_ALIGN_PARAGRAPH.CENTER, indent=False, space_after=12)

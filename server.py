@@ -1234,7 +1234,7 @@ def _as_readable_docx(path):
 def _parse_docs(uid):
     """读取该用户的任务书与规范。返回 (pack, warnings)。"""
     pack = {'params': {}, 'sources': [], 'sections': [],
-            'spec': None, 'task_name': '', 'spec_name': '',
+            'spec': None, 'task_name': '', 'spec_name': '', 'raw': '',
             'project_name': '', 'has_task': False, 'has_spec': False}
     warns = []
 
@@ -1249,6 +1249,9 @@ def _parse_docs(uid):
                 pack['sections'] = res.get('sections') or []
                 pack['project_name'] = res.get('project_name') or ''
                 pack['has_task'] = True
+                # 原文留着：正文撰写引擎用它做随机种子，
+                # 也用于判断是否属除险加固工程。
+                pack['raw'] = res.get('raw') or ''
                 pack['task_meta'] = {'n_tables': res.get('n_tables', 0),
                                      'n_paras': res.get('n_paras', 0)}
                 if not pack['params']:
@@ -1310,6 +1313,10 @@ def _generate_thesis(uid, params, meta=None):
 
     meta['labeled'] = _labeled_rows(pack)
     meta.setdefault('taskName', _proj_name(P))
+    # 正文撰写引擎的随机种子取自任务书原文：
+    # 同一份任务书结果可复现，不同任务书必然得到不同的行文。
+    meta['seed_material'] = pack.get('raw') or '\n'.join(pack.get('sections') or [])
+    P['_raw'] = meta['seed_material']
 
     # 曲线图：与正文同一套计算，图表只插到对应章节
     gw = calc.calc_gate_width_mu0(P)
@@ -1375,7 +1382,8 @@ def thesis_doc_upload():
     u = current_user()
     if not u:
         return jsonify({'ok': False, 'error': '请先登录'}), 401
-    kind = (request.form.get('kind') or '').strip()
+    # kind 既接受表单字段也接受查询串，前端怎么传都不会 400
+    kind = (request.form.get('kind') or request.args.get('kind') or '').strip()
     if kind not in DOC_KINDS:
         return jsonify({'ok': False, 'error': '上传类型不正确（应为 task 或 spec）'}), 400
     f = request.files.get('file')
@@ -1592,7 +1600,9 @@ def generate():
                      mimetype='application/vnd.openxmlformats-officedocument.'
                               'wordprocessingml.document')
     # 把生成过程中的提示带给前端（供页面展示「哪些章节留白/哪些参数缺失」）
-    resp.headers['X-Thesis-Warnings'] = json.dumps(warns[:8], ensure_ascii=False)
+    # 必须用 ASCII 转义：HTTP 头只能 latin-1，直接塞中文会 UnicodeEncodeError，
+    # 表现是「生成成功但浏览器收不到响应」。前端 JSON.parse 能正常还原 \uXXXX。
+    resp.headers['X-Thesis-Warnings'] = json.dumps(warns[:8])
     resp.headers['Access-Control-Expose-Headers'] = 'X-Thesis-Warnings, Content-Disposition'
     resp.headers['X-Thesis-Quota'] = str(get_quota_one(u['id'], 'thesis'))
     return resp

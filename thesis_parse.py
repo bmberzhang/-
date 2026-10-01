@@ -52,6 +52,20 @@ def read_docx(path):
     return paras, tables, d
 
 
+def _unquote(s):
+    """去掉整体包裹的引号/书名号。
+
+    只剥成对包裹的引号——像「“HG”水闸拆除重建工程」这种书名号只在
+    首部出现的情况，整体是工程名的一部分，不能把开引号削掉。
+    """
+    t = (s or '').strip()
+    for a, b in (('“', '”'), ('‘', '’'), ('"', '"'), ('《', '》'), ('「', '」')):
+        if len(t) > 2 and t.startswith(a) and t.endswith(b):
+            t = t[1:-1]
+            break
+    return t.strip()
+
+
 def _norm(s):
     """全角转半角、去千分位、统一负号"""
     if s is None:
@@ -301,16 +315,36 @@ def parse_task_book(path):
 
     params.setdefault('_doc_ok', True)
 
+    # 河流名：规则表没命中时，从正文里找出现次数最多的「X河」。
+    # 任务书常写成「沙河李庄节制闸位于沙河下游…」，规则表要求「位于X河」，
+    # 河名后面跟了方位词就抓不到，这里补一刀。
+    if not (params.get('riverName') or '').strip():
+        bad = ('河床', '河道', '河口', '河水', '河流', '河段', '河槽', '河岸',
+               '河势', '河宽', '河堤', '河滩', '河底', '河边', '河渠', '河系')
+        cnt = {}
+        for p in paras[:25]:
+            for m in re.finditer(r'([\u4e00-\u9fa5]{1,4}河)', p):
+                w = m.group(1)
+                if w in bad or len(w) < 2:
+                    continue
+                cnt[w] = cnt.get(w, 0) + 1
+        if cnt:
+            # 出现次数最多者优先；并列时取较长的（更可能是全名）
+            best = max(cnt.items(), key=lambda kv: (kv[1], len(kv[0])))[0]
+            params['riverName'] = best
+            sources.append({'key': 'riverName', 'label': '所在河流', 'unit': '',
+                            'value': best, 'from': '正文推断'})
+
     # 题目：任务书里通常写成「题目：XXX」或在开头有一行带“工程/设计”的标题
     project_name = ''
     for p in paras[:15]:
         m = re.search(r'题\s*目\s*[:：]\s*(.+)', p)
         if m:
-            project_name = m.group(1).strip().strip('“”"\'')
+            project_name = _unquote(m.group(1))
             break
     if not project_name:
         for p in paras[:8]:
-            t = p.strip().strip('“”"\'')
+            t = _unquote(p)
             if not (6 <= len(t) <= 40):
                 continue
             if t[-1] in '。；，,':           # 标题不会以句读结尾
