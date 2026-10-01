@@ -423,12 +423,20 @@ def parse_spec(path):
         out['fonts']['line_spacing'] = float(m.group(1))
         out['fonts']['line_spacing_is_multiple'] = ('倍' in m.group(2))
         out['notes'].append('规范行距要求：%s' % m.group(0)[:40])
-    for lv, key in (('一级', 'h1'), ('二级', 'h2'), ('三级', 'h3')):
-        m = re.search(lv + r'标题[^。；\n]{0,24}?' + _SIZE_PAT, body)
+    # 各级标题的常见写法——学校规范很少规规矩矩写"一级标题"，
+    # 更多是"章标题""每章标题""节标题""1级标题"等。
+    for lv, key in (('一级标题', 'h1'), ('1级标题', 'h1'),
+                    ('各章标题', 'h1'), ('每章标题', 'h1'),
+                    ('章标题', 'h1'), ('章名', 'h1'),
+                    ('二级标题', 'h2'), ('2级标题', 'h2'),
+                    ('各节标题', 'h2'), ('每节标题', 'h2'),
+                    ('节标题', 'h2'), ('节名', 'h2'),
+                    ('三级标题', 'h3'), ('3级标题', 'h3'), ('条标题', 'h3')):
+        m = re.search(lv + r'[^。；\n]{0,24}?' + _SIZE_PAT, body)
         if m:
             pt = _size_pt(m.group(1))
             if pt:
-                out['fonts'][key + '_size'] = pt
+                out['fonts'].setdefault(key + '_size', pt)
 
     # ---- 章节框架 ----
     seen = set()

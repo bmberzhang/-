@@ -20,6 +20,7 @@ Word 原生公式（OMML）只对「分式」和「根式」做，其余用 Unic
 import io
 import math
 import os
+import re
 
 import docx
 from docx.enum.section import WD_SECTION
@@ -284,6 +285,25 @@ def add_page_number_footer(section, fmt=None):
     end = OxmlElement('w:fldChar'); end.set(qn('w:fldCharType'), 'end')
     for e in (begin, instr, end):
         r.append(e)
+
+
+def add_page_header(section, text, fmt=None):
+    """页眉：居中小五号 + 下框线；封面页不显示页眉和页码。"""
+    if not text:
+        return
+    section.different_first_page_header_footer = True
+    p = section.header.paragraphs[0]
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run(text)
+    _style_run(run, 9)                                  # 小五
+    pPr = p._p.get_or_add_pPr()                         # 页眉下框线
+    bd = OxmlElement('w:pBdr')
+    bottom = OxmlElement('w:bottom')
+    for k, v in (('w:val', 'single'), ('w:sz', '6'),
+                 ('w:space', '1'), ('w:color', '000000')):
+        bottom.set(qn(k), v)
+    bd.append(bottom)
+    pPr.append(bd)
 
 
 def apply_page_setup(doc, spec):
@@ -2056,6 +2076,55 @@ def match_builder(title):
     return None
 
 
+# 行政性文件里常见的"章"——它们不是论文章节，绝不能拿去当论文框架。
+# 学校发的「毕业设计规定/模板说明/评分标准」这类文档里全是这种标题。
+_JUNK_TITLE_PAT = re.compile(
+    r'[：:；;，,。.]$'                       # 以标点收尾的更像句子
+    r'|模板|见附件|校对|校政|通知|评分|成绩评定|进度安排|时间安排'
+    r'|几点说明|管理办法|实施细则|有关规定|任务书|指导教师')
+
+
+def _usable_spec_chapters(spec, ctx):
+    """规范里识别到的章标题，只有**确实像论文章节**才采用。
+
+    判据（两层，缺一不可）：
+    1. 剔掉明显的行政标题（见 _JUNK_TITLE_PAT）；
+    2. 剩下的章里能匹配到内容生成器的不足 3 章 → 这份规范根本没带论文骨架，
+       整体不用，回退到通用水闸设计九 章 结构。
+
+    之前没有这道闸：上传的规范若是学校的行政文件，"第1章 本次对校政文件
+    再做几点说明"会被当成论文第 1 章，里面只能塞「待补充」占位语，
+    真正的绪论被挤到第 6 章——用户看到的就是这个。
+    """
+    titles, junk = [], []
+    for c0 in (spec.get('chapters') or []):
+        if c0.get('level') != 1:
+            continue
+        t = (c0.get('title') or '').strip()
+        if len(t) < 2 or _JUNK_TITLE_PAT.search(t):   # 「绪论」「结论」只有两字，别剔
+            junk.append(t)
+            continue
+        titles.append(t)
+
+    ok = [t for t in titles if match_builder(t)]
+    if len(ok) < 3:
+        if spec.get('chapters'):
+            ctx['warnings'].append(
+                '规范中识别到的标题不像论文章节（如「%s」），已忽略，'
+                '按通用水闸设计论文结构组织'
+                % (junk[0] if junk else (spec['chapters'][0].get('title') or '')))
+        else:
+            ctx['warnings'].append('规范中未识别到章节框架，已按通用水闸设计论文结构组织')
+        return []
+
+    dropped = [t for t in titles if not match_builder(t)]
+    if dropped:
+        ctx['warnings'].append(
+            '规范框架中的 %s 未匹配到自动内容，已跳过（系统尚不能生成这些章节）'
+            % '、'.join(dropped))
+    return ok
+
+
 def build(params, spec=None, task_sections=None, figures=None, meta=None):
     """生成论文，返回 BytesIO。"""
     spec = spec or {}
@@ -2075,6 +2144,9 @@ def build(params, spec=None, task_sections=None, figures=None, meta=None):
     except Exception:
         pass
     add_page_number_footer(doc.sections[0], fmt)
+    add_page_header(doc.sections[0],
+                    '%s毕业设计（论文）' % (P.get('university') or '').strip(),
+                    fmt)
 
     # ---- 计算 ----
     gw = calc.calc_gate_width_mu0(P)
@@ -2114,13 +2186,10 @@ def build(params, spec=None, task_sections=None, figures=None, meta=None):
     add_toc(doc, fmt)
     doc.add_page_break()
 
-    # ---- 章节框架：优先用规范里识别到的，否则用默认框架 ----
-    spec_chaps = [c0['title'] for c0 in (spec.get('chapters') or [])
-                  if c0.get('level') == 1]
+    # ---- 章节框架：只用规范里「确实像论文章节」的那部分，否则用默认框架 ----
+    spec_chaps = _usable_spec_chapters(spec, ctx)
     framework = list(spec_chaps) or list(DEFAULT_FRAMEWORK)
-    if not spec_chaps:
-        ctx['warnings'].append('规范中未识别到章节框架，已按通用水闸设计论文结构组织')
-    else:
+    if spec_chaps:
         # 规范给的框架如果缺了水闸设计必不可少的内容（例如防渗、稳定），
         # 按通用结构把缺的补上——少一章就等于少一段计算，不能只照着抄。
         have = ''.join(spec_chaps)
@@ -2149,14 +2218,9 @@ def build(params, spec=None, task_sections=None, figures=None, meta=None):
 
         c.new_chapter()
         add_heading(doc, '第%d章　%s' % (c.chap, title), 1, fmt)
-        fn = match_builder(title)
+        fn = match_builder(title)          # 框架已过闸，正常都匹配得上
         if fn:
             fn(doc, P, R, fmt, c, figures, ctx)
-        else:
-            # 规范里要求的章节，但系统没有对应的自动内容——明确留白而不是硬凑
-            add_para(doc, '【本章由规范指定，系统未匹配到对应的自动生成内容，'
-                          '请根据任务书要求补充。】', fmt)
-            ctx['warnings'].append('章节「%s」未匹配到自动内容，已在文中留白' % title)
         doc.add_page_break()
 
     c.new_chapter()
