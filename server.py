@@ -1028,7 +1028,7 @@ def records_save():
     conn = get_db()
     conn.execute(
         'INSERT INTO generation_records (user_id, username, type, title, file_url) VALUES (?,?,?,?,?)',
-        (u['id'], u['username'], 'thesis', title, f"/records/dl/{u['id']}/{fname}"))
+        (u['id'], u['username'], 'thesis', title, f"/thesis/dl/{u['id']}/{fname}"))
     conn.commit()
     conn.close()
     return jsonify({"ok": True, "msg": "论文已保存到你的生成记录"})
@@ -1041,20 +1041,39 @@ def records_list():
         return jsonify({"ok": False, "error": "请先登录"}), 401
     conn = get_db()
     if is_admin(u):
-        rows = conn.execute('SELECT * FROM generation_records ORDER BY id DESC LIMIT 200').fetchall()
+        rows = conn.execute('SELECT * FROM generation_records ORDER BY id DESC LIMIT 500').fetchall()
     else:
         rows = conn.execute('SELECT * FROM generation_records WHERE user_id=? ORDER BY id DESC LIMIT 100',
                             (u['id'],)).fetchall()
     conn.close()
-    return jsonify({"ok": True, "list": [dict(r) for r in rows]})
+    out = []
+    for r in rows:
+        d = dict(r)
+        # 管理员视角：附上通用下载地址（可下载任意客户文件）
+        if is_admin(u):
+            _url = d.get('file_url') or ''
+            _fn = _url.rsplit('/', 1)[-1] if '/' in _url else _url
+            d['admin_dl'] = f"/admin/dl/{d['type']}/{d['user_id']}/{_fn}" if _fn else ''
+        out.append(d)
+    return jsonify({"ok": True, "list": out})
 
 
 @app.route('/records/dl/<int:uid>/<path:filename>')
 def records_download(uid, filename):
     u = current_user()
-    if u is None or u['id'] != uid:
+    if u is None or (u['id'] != uid and not is_admin(u)):
         return jsonify({"ok": False, "error": "无权限"}), 403
     return send_from_directory(os.path.join(THESIS_OUT, str(uid)), filename)
+
+
+@app.route('/admin/dl/<kind>/<int:uid>/<path:filename>')
+def admin_download(kind, uid, filename):
+    """管理员通用下载：kind=thesis|drawing，可下载任意客户的文件"""
+    u = current_user()
+    if not u or not is_admin(u):
+        return jsonify({"ok": False, "error": "无权限"}), 403
+    base = THESIS_OUT if kind == 'thesis' else DRAW_OUT
+    return send_from_directory(os.path.join(base, str(uid)), filename, as_attachment=True)
 
 
 @app.route('/records')

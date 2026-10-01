@@ -124,6 +124,29 @@
 .order-amt { font-size: 13.5px; font-weight: 600; color: var(--brand); margin-left: auto; }
 .order-sub { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-4); margin-top: 4px; }
 
+/* ---------- 客户生成记录 ---------- */
+.grec-user {
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  padding: 12px 14px; margin-bottom: 10px;
+}
+.grec-user:last-child { margin-bottom: 0; }
+.grec-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.grec-name { font-size: 13.5px; font-weight: 600; color: var(--ink-1); }
+.grec-count { font-size: 11.5px; color: var(--ink-4); }
+.grec-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 0; border-top: 1px dashed var(--line-soft);
+}
+.grec-item:first-of-type { border-top: none; margin-top: 6px; }
+.grec-ic { width: 24px; height: 24px; flex: none; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center; font-size: 12px; }
+.grec-ic.is-draw { background: var(--brand-wash); color: var(--brand); }
+.grec-ic.is-thesis { background: var(--ok-wash); color: var(--ok); }
+.grec-title { flex: 1; min-width: 0; font-size: 12.5px; color: var(--ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.grec-time { font-size: 11px; color: var(--ink-4); flex: none; }
+.grec-empty { text-align: center; padding: 30px 20px; color: var(--ink-4); font-size: 13px; }
+
 @media (max-width: 720px) {
   .wrap { padding: 16px 12px 52px; }
   .cs-layout { flex-direction: column; }
@@ -241,6 +264,16 @@
       </div>
       {% endfor %}
       <p class="muted" style="margin-top:10px">收到用户付款后，核对手机收款记录，再用上面的按钮给对应用户增加次数。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>客户生成记录</h2>
+      <span class="muted">每位客户生成过的图纸与论文，可随时下载</span>
+    </div>
+    <div class="card-body">
+      <div id="grecBox"><div class="grec-empty">加载中…</div></div>
     </div>
   </div>
 
@@ -444,6 +477,47 @@
 <script>
 function esc(s){ var d=document.createElement('div'); d.textContent = s==null?'':String(s); return d.innerHTML; }
 
+// ===== 客户生成记录 =====
+function loadGenRecords() {
+  var box = document.getElementById('grecBox');
+  fetch('/api/records').then(function(r){return r.json();}).then(function(d){
+    if (!d.ok) { box.innerHTML = '<div class="grec-empty">' + esc(d.error||'加载失败') + '</div>'; return; }
+    var list = d.list || [];
+    if (!list.length) { box.innerHTML = '<div class="grec-empty">暂无客户生成记录</div>'; return; }
+    // 按用户名分组（保留出现顺序）
+    var groups = [];
+    var index = {};
+    list.forEach(function(r){
+      var name = r.username || ('用户#' + r.user_id);
+      if (!(name in index)) { index[name] = groups.length; groups.push({name: name, items: []}); }
+      groups[index[name]].items.push(r);
+    });
+    var h = '';
+    groups.forEach(function(g){
+      h += '<div class="grec-user">' +
+        '<div class="grec-head"><span class="grec-name">' + esc(g.name) + '</span>' +
+        '<span class="grec-count">共 ' + g.items.length + ' 条</span></div>';
+      g.items.forEach(function(r){
+        var isD = r.type === 'drawing';
+        var tag = isD ? '图' : '论';
+        var cls = isD ? 'is-draw' : 'is-thesis';
+        var dl = r.admin_dl || (isD ? r.file_url : r.file_url);
+        var dlBtn = dl
+          ? '<a class="btn btn-sm btn-secondary" href="' + dl + '">下载</a>'
+          : '<span class="grec-time">无文件</span>';
+        h += '<div class="grec-item">' +
+          '<div class="grec-ic ' + cls + '">' + tag + '</div>' +
+          '<div class="grec-title" title="' + esc(r.title) + '">' + esc(r.title) + '</div>' +
+          '<div class="grec-time">' + esc(r.created_at) + '</div>' +
+          dlBtn +
+          '</div>';
+      });
+      h += '</div>';
+    });
+    box.innerHTML = h;
+  }).catch(function(){ box.innerHTML = '<div class="grec-empty">加载失败，请刷新重试</div>'; });
+}
+
 // ===== 充值申请 =====
 function loadPayReqs() {
   var box = document.getElementById('payReqList');
@@ -599,6 +673,7 @@ function sendReplyImage(fileInput) {
 }
 
 loadPayReqs();
+loadGenRecords();
 loadMsgs();
 setInterval(loadMsgs, 8000);
 </script>
