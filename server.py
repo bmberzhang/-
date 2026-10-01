@@ -1318,6 +1318,25 @@ def _generate_thesis(uid, params, meta=None):
     meta['seed_material'] = pack.get('raw') or '\n'.join(pack.get('sections') or [])
     P['_raw'] = meta['seed_material']
 
+    # 任务书缺关键参数要明说：整本论文会按内置示例值（calc.KEY_DEFAULTS）
+    # 计算，不提醒的话客户会拿到一本“数据凭空而来”的论文（线上实测踩过）。
+    for _k, _label in (
+            ('floodStandard', '洪水重现期'),
+            ('designFlow', '设计流量'),
+            ('checkFlow', '校核流量'),
+            ('gateSillElevation', '闸底板顶高程'),
+            ('downstreamWaterLevel', '下游设计水位（设计洪水位）'),
+            ('normalStorageLevel', '正常蓄水位'),
+            ('checkWaterLevel', '校核洪水位'),
+            ('groundElevation', '闸址地面高程'),
+            ('gateCount', '闸孔数'),
+            ('singleGateWidth', '单孔净宽')):
+        if P.get(_k) in (None, ''):
+            _dv = calc.KEY_DEFAULTS.get(_k)
+            warns.append('任务书中未识别到「%s」%s，请在“参数校对”中补充后重新生成'
+                         % (_label, ('，本次计算暂按示例值 %s 进行' % _dv)
+                            if _dv is not None else ''))
+
     # 曲线图：与正文同一套计算，图表只插到对应章节
     gw = calc.calc_gate_width_mu0(P)
     top = calc.calc_gate_top_mu0(P)

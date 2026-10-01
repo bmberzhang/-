@@ -12,6 +12,7 @@
     python verify_samples.py                  # 生成两份样例，打印字数/表/图统计
     python verify_samples.py --charts DIR     # 只把 11 张图导出到 DIR，便于肉眼核对
     python verify_samples.py --diff           # 对比两份样例正文的重合度（验"千人千面"）
+    python verify_samples.py --bare           # 模拟任务书缺参：全文不应出现“—”占位
 
 注意：依赖 matplotlib，本机需带上 pylibs-extra 的 PYTHONPATH。
 """
@@ -213,6 +214,58 @@ def diff_report(name_a='毕业设计_样例A_滏阳河改建闸',
     print('  同一专业方向的毕业设计本来就会共用这些骨架。）')
 
 
+def _placeholder_hits(text):
+    """找出真正的“—”占位符：单个 em-dash 且两侧都不是数字。
+
+    “——”（破折号）和“SL 265—2016”（编号）是正常写法，不算。"""
+    out = []
+    for m in re.finditer(r'—+', text):
+        if len(m.group()) >= 2:
+            continue
+        a = text[m.start() - 1:m.start()]
+        b = text[m.end():m.end() + 1]
+        if a.isdigit() and b.isdigit():
+            continue
+        if a == '「' and b == '」':
+            continue                      # 「—」是在引用图例，不是占位
+        out.append(text[max(0, m.start() - 12):m.end() + 12])
+    return out
+
+
+def bare_report():
+    """线上踩过的坑：任务书里识别不到关键参数时，汇总表/摘要曾出现
+    “—”和 0.00。把 A 的参数剥掉 KEY_DEFAULTS 覆盖的所有键再生成，
+    全文不允许出现占位符“—”。"""
+    import calc as _calc
+    import docx
+    stripped = {k: v for k, v in A_PARAMS.items()
+                if k not in _calc.KEY_DEFAULTS
+                and k not in ('floodStandard', 'upstreamWaterLevel')}
+    gw, top, figures, _fw = _run_chain(stripped)
+    meta = {'labeled': [], 'warnings': [],
+            'seed_material': ''.join(A_SECTIONS)[:3000]}
+    buf, _w = tb.build(stripped, spec=SPEC, task_sections=A_SECTIONS,
+                       figures=figures, meta=meta)
+    d = docx.Document(io.BytesIO(buf.getvalue()))
+    hits = []
+    for p in d.paragraphs:
+        hits += _placeholder_hits(p.text)
+    for t in d.tables:
+        head_txt = ' '.join(c.text for c in t.rows[0].cells) if t.rows else ''
+        is_scan = '开度' in head_txt        # 开度扫描表里“—”= 该开度无需设池，图例已说明
+        for r in t.rows:
+            for c in r.cells:
+                if c.text.strip() == '—' and not is_scan:
+                    hits.append('表格占位: ' + c.text.strip())
+    print('缺参生成：正文段落=%d 表数=%d' % (len(d.paragraphs), len(d.tables)))
+    if hits:
+        print('!! 发现 %d 处“—”占位：' % len(hits))
+        for s in hits[:10]:
+            print('   ', s)
+        raise SystemExit(1)
+    print('OK：缺参时全文无“—”占位，汇总表/摘要均引用实际采用值')
+
+
 if __name__ == '__main__':
     if '--charts' in sys.argv:
         dump_charts(sys.argv[sys.argv.index('--charts') + 1])
@@ -220,6 +273,10 @@ if __name__ == '__main__':
 
     if '--diff' in sys.argv:
         diff_report()
+        raise SystemExit(0)
+
+    if '--bare' in sys.argv:
+        bare_report()
         raise SystemExit(0)
 
     os.makedirs('output_thesis', exist_ok=True)

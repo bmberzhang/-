@@ -344,9 +344,46 @@ class Counter:
         return '表 %d-%d' % (self.chap, self.tbl)
 
 
-def g(p, k, d='—'):
+def g(p, k, d=None):
+    """取参数；缺项时回退到计算引擎的同一套内联缺省值（calc.KEY_DEFAULTS），
+    保证正文引用与实际计算一致，不再渲染出“—”占位。
+    显式传 d 的调用保持原行为。"""
     v = p.get(k)
-    return d if v in (None, '') else v
+    if v not in (None, ''):
+        return v
+    if d is None:
+        d = calc.KEY_DEFAULTS.get(k, '—')
+    return d
+
+
+# 消能/闸孔计算采用的过闸水位差（第3章方案比较选定的 ΔH），全文档统一
+ADOPT_DH = 0.2
+
+
+def _used_vals(P):
+    """本设计实际采用的特征值。
+
+    任务书缺项时与计算引擎用同一套内联缺省值（server 会对缺项给出
+    明确预警）。正文所有引用（汇总表/摘要/附录B/正文散文）都从这里取，
+    保证“全书各章的计算均以表中数值为准”这句话是真的。"""
+    KD = calc.KEY_DEFAULTS
+    sill = calc._f(g(P, 'gateSillElevation', KD['gateSillElevation']),
+                   KD['gateSillElevation'])
+    dsWL = calc._f(g(P, 'downstreamWaterLevel', KD['downstreamWaterLevel']),
+                   KD['downstreamWaterLevel'])
+    return {
+        'qd': '%g' % calc._f(g(P, 'designFlow', KD['designFlow']), KD['designFlow']),
+        'qc': '%g' % calc._f(g(P, 'checkFlow', KD['checkFlow']), KD['checkFlow']),
+        'std': g(P, 'floodStandard', ''),
+        'sill': sill,
+        'dsWL': dsWL,
+        'upWL': dsWL + ADOPT_DH,
+        'nrmWL': calc._f(g(P, 'normalStorageLevel', KD['normalStorageLevel']),
+                         KD['normalStorageLevel']),
+        'chkWL': calc._f(g(P, 'checkWaterLevel', KD['checkWaterLevel']),
+                         KD['checkWaterLevel']),
+        'dH': ADOPT_DH,
+    }
 
 
 # ============================================================
@@ -400,18 +437,25 @@ def abstract_cn(doc, P, R, fmt, meta, ctx):
 
     rows = gw.get('rows') or []
     b_mid = rows[1]['B0'] if len(rows) > 1 else (rows[0]['B0'] if rows else 0)
+    U = _used_vals(P)
 
     head = V.pick('abs_open', ps.P['abs_open'],
                   project=g(P, 'projectName', '本工程'),
                   func=g(P, 'sluiceFunction', '节制闸'))
-    body = V.pick('abs_body', ps.P['abs_body'],
-                  std=g(P, 'floodStandard'), qd=g(P, 'designFlow'),
-                  qc=g(P, 'checkFlow'))
+    # 摘要里引用的都是**实际采用值**：洪水标准缺失时换不带重现期的句式，
+    # 保证不出现“按—年一遇洪水设计”这种占位写法。
+    if U['std']:
+        body = V.pick('abs_body', ps.P['abs_body'],
+                      std=U['std'], qd=U['qd'], qc=U['qc'])
+    else:
+        body = V.pick('abs_body_q', ps.P['abs_body_q'], qd=U['qd'])
     add_para(doc, head + body, fmt)
 
+    # 孔数/单孔净宽取计算采用的布置值（gw），与正文第3章一致
     res = V.pick('abs_res', ps.P['abs_res'],
-                 b0='%.2f' % b_mid, n=g(P, 'gateCount'),
-                 b1=g(P, 'singleGateWidth'),
+                 b0='%.2f' % b_mid,
+                 n='%d' % (gw.get('n') or calc.KEY_DEFAULTS['gateCount']),
+                 b1='%g' % calc._f(gw.get('b0'), calc.KEY_DEFAULTS['singleGateWidth']),
                  d='%.2f' % en.get('d_design', 0),
                  lsj='%.2f' % en.get('Lsj_design', 0),
                  lp='%.2f' % en.get('Lp_design', 0),
@@ -505,6 +549,20 @@ EN_ABS_BODY = [
      'stability, and reinforcement of the base slab.'),
 ]
 
+# 任务书缺洪水重现期时用（不带 std，避免出现 “once in — years”）
+EN_ABS_BODY_Q = [
+    ('The design discharge of the project is {qd} m3/s and the check discharge '
+     'is {qc} m3/s. The work covers the determination of gate opening dimensions, '
+     'energy dissipation and scour protection, crest elevation, seepage control '
+     'and drainage of the foundation, stability analysis of the gate chamber, '
+     'and structural design of the base slab.'),
+    ('The project takes a design discharge of {qd} m3/s as the size-control '
+     'condition, with a check discharge of {qc} m3/s. The design work includes '
+     'the sizing of the gate openings, energy dissipation and scour protection, '
+     'the crest elevation, seepage control and stability analysis, and the '
+     'structural design of the base slab.'),
+]
+
 EN_ABS_RES = [
     ('The total clear width of the gate openings is {b0} m, arranged in {n} bays. '
      'The stilling basin is {d} m deep and {lsj} m long, with an apron of {lp} m. '
@@ -542,11 +600,16 @@ def abstract_en(doc, P, R, fmt, meta, ctx):
 
     txt = V.pick('en_open', EN_ABS_OPEN,
                  project=_en_project(g(P, 'projectName', '')))
-    txt += V.pick('en_body', EN_ABS_BODY, std=g(P, 'floodStandard'),
-                  qd=g(P, 'designFlow'), qc=g(P, 'checkFlow'))
+    U = _used_vals(P)
+    if U['std']:
+        txt += V.pick('en_body', EN_ABS_BODY, std=U['std'],
+                      qd=U['qd'], qc=U['qc'])
+    else:
+        txt += V.pick('en_body_q', EN_ABS_BODY_Q, qd=U['qd'], qc=U['qc'])
     add_para(doc, txt, fmt, cn=EN_FONT)
 
-    txt2 = V.pick('en_res', EN_ABS_RES, b0='%.2f' % b_mid, n=g(P, 'gateCount'),
+    txt2 = V.pick('en_res', EN_ABS_RES, b0='%.2f' % b_mid,
+                  n='%d' % (R['gw'].get('n') or calc.KEY_DEFAULTS['gateCount']),
                   d='%.2f' % R['en'].get('d_design', 0),
                   lsj='%.2f' % R['en'].get('Lsj_design', 0),
                   lp='%.2f' % R['en'].get('Lp_design', 0),
@@ -702,8 +765,8 @@ def ch_intro(doc, P, R, fmt, c, figs, ctx):
                      grade=g(P, 'buildingGrade', 'Ⅲ'),
                      grade_hint=''), fmt)
     add_para(doc, _p(ctx, 'c1_std',
-                     Q=g(P, 'designFlow', '—'),
-                     Qc=g(P, 'checkFlow', '—')), fmt)
+                     Q=_used_vals(P)['qd'],
+                     Qc=_used_vals(P)['qc']), fmt)
     if F.get('seismic'):
         _extra(doc, fmt, ctx, 'seismic',
                inten=g(P, 'seismicIntensity'), acc=g(P, 'seismicAcceleration'))
@@ -723,19 +786,20 @@ def ch_intro(doc, P, R, fmt, c, figs, ctx):
     k += 1
     add_para(doc, '本设计的特征水位与设计流量汇总于下表，'
                   '全书各章的计算均以表中数值为准。', fmt)
-    sill = float(g(P, 'gateSillElevation', 0) or 0)
+    # 表中给出的是本设计**实际采用**的数值（与计算引擎同源）：
+    # 上游设计水位 = 下游设计水位 + 过闸水位差ΔH（第3章选定方案）
+    U = _used_vals(P)
     wl_rows = [
-        ['设计流量 Q (m³/s)', g(P, 'designFlow')],
-        ['校核流量 (m³/s)', g(P, 'checkFlow')],
-        ['上游设计水位 (m)', g(P, 'upstreamWaterLevel')],
-        ['下游设计水位 (m)', g(P, 'downstreamWaterLevel')],
-        ['过闸水位差 ΔH (m)', '%.2f' % (float(g(P, 'upstreamWaterLevel', 0) or 0)
-                                        - float(g(P, 'downstreamWaterLevel', 0) or 0))],
-        ['正常蓄水位 (m)', g(P, 'normalStorageLevel')],
-        ['校核洪水位 (m)', g(P, 'checkWaterLevel')],
-        ['闸底板顶高程 (m)', '%.2f' % sill],
-        ['设计工况闸上水深 (m)', '%.2f' % (float(g(P, 'upstreamWaterLevel', 0) or 0) - sill)],
-        ['设计工况闸下水深 (m)', '%.2f' % (float(g(P, 'downstreamWaterLevel', 0) or 0) - sill)],
+        ['设计流量 Q (m³/s)', U['qd']],
+        ['校核流量 (m³/s)', U['qc']],
+        ['上游设计水位 (m)', '%.2f' % U['upWL']],
+        ['下游设计水位 (m)', '%.2f' % U['dsWL']],
+        ['过闸水位差 ΔH (m)', '%.2f' % U['dH']],
+        ['正常蓄水位 (m)', '%.2f' % U['nrmWL']],
+        ['校核洪水位 (m)', '%.2f' % U['chkWL']],
+        ['闸底板顶高程 (m)', '%.2f' % U['sill']],
+        ['设计工况闸上水深 (m)', '%.2f' % (U['upWL'] - U['sill'])],
+        ['设计工况闸下水深 (m)', '%.2f' % (U['dsWL'] - U['sill'])],
     ]
     _kv_table(doc, c, '特征水位与设计流量汇总表', wl_rows, fmt)
 
@@ -863,14 +927,16 @@ def ch_gate(doc, P, R, fmt, c, figs, ctx):
     _sub(doc, c, k, '设计参数的确定', fmt)
     k += 1
     _h3(doc, c, 1, '设计流量', fmt)
-    add_para(doc, _p(ctx, 'c3_q', Q=g(P, 'designFlow'), Qc=g(P, 'checkFlow'),
-                     wl=g(P, 'upstreamWaterLevel')), fmt)
+    _u3 = _used_vals(P)
+    add_para(doc, _p(ctx, 'c3_q', Q=_u3['qd'], Qc=_u3['qc'],
+                     wl='%.2f' % _u3['upWL']), fmt)
 
     _h3(doc, c, 2, '设计水位组合', fmt)
+    _u3 = _used_vals(P)
     add_para(doc, _p(ctx, 'c3_wl',
-                     wl=g(P, 'upstreamWaterLevel'),
-                     wld=g(P, 'downstreamWaterLevel'),
-                     dh=g(P, 'designWaterDifference')), fmt)
+                     wl='%.2f' % _u3['upWL'],
+                     wld='%.2f' % _u3['dsWL'],
+                     dh=g(P, 'designWaterDifference', '%.2f' % _u3['dH'])), fmt)
 
     _h3(doc, c, 3, '下游水位流量关系', fmt)
     add_para(doc, _p(ctx, 'c3_hq'), fmt)
@@ -953,7 +1019,7 @@ def ch_gate(doc, P, R, fmt, c, figs, ctx):
                         'h_s/H₀', 'μ₀', 'B₀ (m)'], trs,
                   '%s　闸孔总净宽计算表' % c.tbl_no(), fmt)
 
-    r02 = _row(0.2)
+    r02 = _row(ADOPT_DH)
     b_mid = r02.get('B0') or _row(0.1).get('B0') or 0
     if r02:
         add_para(doc, '取 ΔH = 0.20 m 作为设计工况，各项计算如下：', fmt)
@@ -1325,7 +1391,7 @@ def ch_top(doc, P, R, fmt, c, figs, ctx):
         ['闸门型式', '平面定轮钢闸门'],
         ['孔口尺寸（宽×高）(m)', '%g×%.2f' % (b_g0, gate_h)],
         ['孔数（孔）', str(n_g0)],
-        ['设计水头 (m)', '%.2f' % max(float(g(P, 'upstreamWaterLevel', 0) or 0) - sill0, 0)],
+        ['设计水头 (m)', '%.2f' % max(_used_vals(P)['upWL'] - sill0, 0)],
         ['门叶面积（单孔）(m²)', '%.2f' % (b_g0 * gate_h)],
         ['单位面积门重 (kN/m²)', '0.55'],
         ['单孔门重 (kN)', '%.1f' % (b_g0 * gate_h * 0.55)],
@@ -1951,6 +2017,7 @@ def references(doc, P, R, fmt, c, figs, ctx):
 
 def appendix(doc, P, R, fmt, c, figs, ctx):
     """附录：图纸目录与主要计算参数取值表。"""
+    F = ctx['F']
     add_para(doc, '附　　录', fmt, size=fmt.h1_size, cn=CN_HEAD,
              align=WD_ALIGN_PARAGRAPH.CENTER, indent=False, space_after=12)
     add_para(doc, '附录A　设计图纸目录', fmt, size=fmt.h2_size, cn=CN_HEAD,
@@ -1975,28 +2042,34 @@ def appendix(doc, P, R, fmt, c, figs, ctx):
     sp = R['sp']
     en = R['en']
     keys = [
-        ('设计流量 (m³/s)', g(P, 'designFlow')),
-        ('校核流量 (m³/s)', g(P, 'checkFlow')),
-        ('上游设计水位 (m)', g(P, 'upstreamWaterLevel')),
-        ('下游设计水位 (m)', g(P, 'downstreamWaterLevel')),
-        ('正常蓄水位 (m)', g(P, 'normalStorageLevel')),
-        ('闸底板顶高程 (m)', g(P, 'gateSillElevation')),
-        ('闸孔数（孔）', g(P, 'gateCount')),
-        ('单孔净宽 (m)', g(P, 'singleGateWidth')),
-        ('中墩厚度 (m)', g(P, 'middlePierThickness')),
-        ('边墩厚度 (m)', g(P, 'sidePierThickness')),
-        ('闸底板长度 (m)', g(P, 'floorLength')),
-        ('铺盖长度 (m)', g(P, 'blanketLength')),
+        ('设计流量 (m³/s)', _used_vals(P)['qd']),
+        ('校核流量 (m³/s)', _used_vals(P)['qc']),
+        ('上游设计水位 (m)', '%.2f' % _used_vals(P)['upWL']),
+        ('下游设计水位 (m)', '%.2f' % _used_vals(P)['dsWL']),
+        ('正常蓄水位 (m)', '%.2f' % _used_vals(P)['nrmWL']),
+        ('闸底板顶高程 (m)', '%.2f' % _used_vals(P)['sill']),
+        ('闸孔数（孔）', g(P, 'gateCount', calc.KEY_DEFAULTS['gateCount'])),
+        ('单孔净宽 (m)', g(P, 'singleGateWidth', calc.KEY_DEFAULTS['singleGateWidth'])),
+        ('中墩厚度 (m)', g(P, 'middlePierThickness', calc.KEY_DEFAULTS['middlePierThickness'])),
+        ('边墩厚度 (m)', g(P, 'sidePierThickness', calc.KEY_DEFAULTS['sidePierThickness'])),
+        ('闸底板长度 (m)', g(P, 'floorLength', calc.KEY_DEFAULTS['floorLength'])),
+        ('铺盖长度 (m)', g(P, 'blanketLength', calc.KEY_DEFAULTS['blanketLength'])),
         ('基底摩擦系数', g(P, 'frictionCoefficient')),
         ('地基允许承载力 (kPa)', g(P, 'foundationBearing')),
         ('允许渗径系数 C', g(P, 'seepageCoefficientC')),
-        ('地震基本烈度', g(P, 'seismicIntensity')),
-        ('地震动峰值加速度', g(P, 'seismicAcceleration')),
         ('混凝土强度等级', g(P, 'concreteGrade')),
         ('受力钢筋种类', g(P, 'rebarType')),
         ('水跃淹没系数 σ₀', g(P, 'jumpSubmergence')),
         ('水跃长度校正系数 β', g(P, 'jumpCorrection')),
         ('海漫长度计算系数 K_s', g(P, 'riprapKs')),
+    ]
+    # 地震参数只有任务书给了才列，缺项时不造假数据
+    if F.get('seismic'):
+        keys += [
+            ('地震基本烈度', g(P, 'seismicIntensity')),
+            ('地震动峰值加速度', g(P, 'seismicAcceleration')),
+        ]
+    keys += [
         ('地基有效深度 T_e (m)', '%.2f' % sp.get('Te', 0)),
         ('消力池设计深度 (m)', '%.2f' % en.get('d_design', 0)),
         ('消力池设计长度 (m)', '%.2f' % en.get('Lsj_design', 0)),
@@ -2010,7 +2083,7 @@ def appendix(doc, P, R, fmt, c, figs, ctx):
     st = R['st']
     rc = R['rc']
     qz = R.get('qz') or {}
-    r02 = next((r for r in (gw.get('rows') or []) if abs(r['dH'] - 0.2) < 1e-9), {})
+    r02 = next((r for r in (gw.get('rows') or []) if abs(r['dH'] - ADOPT_DH) < 1e-9), {})
     out = [
         ['闸前水深（设计工况）(m)', '%.2f' % r02.get('H', 0)],
         ['过水断面面积 (m²)', '%.1f' % r02.get('A', 0)],
@@ -2044,6 +2117,8 @@ def acknowledgment(doc, P, R, fmt, c, figs, ctx):
     else:
         # 没填指导老师姓名时用不带姓名的写法，避免出现「指导老师老师」
         add_para(doc, V.pick('ack_body_anon', ps.P['ack_body_anon']), fmt)
+    add_para(doc, V.pick('ack_study', ps.P['ack_study']), fmt)
+    add_para(doc, V.pick('ack_help', ps.P['ack_help']), fmt)
     add_para(doc, V.pick('ack_tail', ps.P['ack_tail']), fmt)
 
 

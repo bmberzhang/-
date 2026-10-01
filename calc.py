@@ -20,17 +20,51 @@ def _i(v, default):
         return default
 
 
+# 任务书关键参数的内联缺省值（XG 水闸示例数据）。客户任务书缺项时
+# 整本论文会按这些值计算——server._generate_thesis 据此给出明确预警，
+# 正文（汇总表/摘要/附录B）也统一引用这里的值，保证“表中数值为准”。
+KEY_DEFAULTS = {
+    'designFlow': 174,             # 设计流量 m³/s
+    'checkFlow': 260,              # 校核流量 m³/s（仅用于展示，不参与计算）
+    'gateSillElevation': 73.10,    # 闸底板顶高程 m
+    'downstreamWaterLevel': 77.52, # 下游设计水位（设计洪水位）m
+    'normalStorageLevel': 76.60,   # 正常蓄水位 m
+    'checkWaterLevel': 78.60,      # 校核洪水位 m
+    'groundElevation': 78.80,      # 闸址地面高程 m
+    'gateCount': 3,                # 闸孔数
+    'singleGateWidth': 6,          # 单孔净宽 m
+    'middlePierThickness': 1.0,    # 中墩厚度 m
+    'sidePierThickness': 1.2,      # 边墩厚度 m
+    'floorLength': 14,             # 闸底板长度 m
+    'blanketLength': 15,           # 铺盖长度 m
+    # —— 计算系数与材料（正文/附录会展示，缺了按规范常用值取）——
+    'jumpSubmergence': 1.05,       # 水跃淹没系数 σ0
+    'jumpCorrection': 0.75,        # 水跃长度校正系数 β
+    'stillingBasinK1': 0.2,        # 底板厚度系数 k1
+    'riprapKs': 9,                 # 海漫长度计算系数 Ks
+    'seepageCoefficientC': 5,      # 允许渗径系数 C
+    'frictionCoefficient': 0.50,   # 基底摩擦系数 f
+    'foundationBearing': 300,      # 地基允许承载力 kPa
+    'safetyFactor': 1.2,           # 结构系数 γd
+    'concreteGrade': 'C30',        # 混凝土强度等级
+    'rebarType': 'HRB400',         # 受力钢筋种类
+    'floorThickness': 1.2,         # 底板厚度 m
+    'pierHeight': 6.5,             # 闸墩高度 m
+    'channelBottomWidth': 20,      # 河道主槽底宽 m
+}
+
+
 # ============ 一、闸孔总净宽 (SL265-2016 附录A) ============
 def calc_gate_width(d):
-    Q = _f(d.get('designFlow'), 174)
+    Q = _f(d.get('designFlow'), KEY_DEFAULTS['designFlow'])
     g = _f(d.get('gravity'), 9.81)
-    sill = _f(d.get('gateSillElevation'), 73.10)
-    dsWL = _f(d.get('downstreamWaterLevel'), 77.52)
-    normalWL = _f(d.get('normalStorageLevel'), 76.60)
-    n = _i(d.get('gateCount'), 3)
-    b0 = _f(d.get('singleGateWidth'), 6)
-    dp = _f(d.get('middlePierThickness'), 1.0)
-    dside = _f(d.get('sidePierThickness'), 1.2)
+    sill = _f(d.get('gateSillElevation'), KEY_DEFAULTS['gateSillElevation'])
+    dsWL = _f(d.get('downstreamWaterLevel'), KEY_DEFAULTS['downstreamWaterLevel'])
+    normalWL = _f(d.get('normalStorageLevel'), KEY_DEFAULTS['normalStorageLevel'])
+    n = _i(d.get('gateCount'), KEY_DEFAULTS['gateCount'])
+    b0 = _f(d.get('singleGateWidth'), KEY_DEFAULTS['singleGateWidth'])
+    dp = _f(d.get('middlePierThickness'), KEY_DEFAULTS['middlePierThickness'])
+    dside = _f(d.get('sidePierThickness'), KEY_DEFAULTS['sidePierThickness'])
     v0 = _f(d.get('approachVelocity'), 0)
 
     upWL = max(normalWL + 0.8, dsWL + 0.2)
@@ -80,10 +114,10 @@ def calc_gate_width(d):
 
 # ============ 二、消能防冲 (SL265-2016 附录B) ============
 def calc_energy_dissipation(d, gate):
-    Q = _f(d.get('designFlow'), 174)
+    Q = _f(d.get('designFlow'), KEY_DEFAULTS['designFlow'])
     g = _f(d.get('gravity'), 9.81)
-    sill = _f(d.get('gateSillElevation'), 73.10)
-    dsWL = _f(d.get('downstreamWaterLevel'), 77.52)
+    sill = _f(d.get('gateSillElevation'), KEY_DEFAULTS['gateSillElevation'])
+    dsWL = _f(d.get('downstreamWaterLevel'), KEY_DEFAULTS['downstreamWaterLevel'])
     sigma0 = _f(d.get('jumpSubmergence'), 1.05)
     beta = _f(d.get('jumpCorrection'), 0.75)
     k1 = _f(d.get('stillingBasinK1'), 0.2)
@@ -131,11 +165,11 @@ def calc_energy_dissipation(d, gate):
 
 # ============ 三、防渗排水 (SL265-2016 第6章) ============
 def calc_seepage(d):
-    dsWL = _f(d.get('downstreamWaterLevel'), 77.52)
-    normalWL = _f(d.get('normalStorageLevel'), 76.60)
+    dsWL = _f(d.get('downstreamWaterLevel'), KEY_DEFAULTS['downstreamWaterLevel'])
+    normalWL = _f(d.get('normalStorageLevel'), KEY_DEFAULTS['normalStorageLevel'])
     C = _f(d.get('seepageCoefficientC'), 4)
-    floorLen = _f(d.get('floorLength'), 14)
-    blanketLen = _f(d.get('blanketLength'), 15)
+    floorLen = _f(d.get('floorLength'), KEY_DEFAULTS['floorLength'])
+    blanketLen = _f(d.get('blanketLength'), KEY_DEFAULTS['blanketLength'])
     cutoffDepth = _f(d.get('cutoffWallDepth'), 1.0)
     sheetPileDepth = _f(d.get('sheetPileDepth'), 3.0)
 
@@ -201,19 +235,19 @@ def calc_gate_top_elevation(d, gate):
 def calc_stability(d, gate):
     gw = _f(d.get('waterDensity'), 9.81)
     gc = _f(d.get('concreteDensity'), 25)
-    sill = _f(d.get('gateSillElevation'), 73.10)
+    sill = _f(d.get('gateSillElevation'), KEY_DEFAULTS['gateSillElevation'])
     B_total = gate['totalWidth'] or 22.4
-    floorLen = _f(d.get('floorLength'), 14)
+    floorLen = _f(d.get('floorLength'), KEY_DEFAULTS['floorLength'])
     floorThk = _f(d.get('floorThickness'), 1.2)
     pierH = _f(d.get('pierHeight'), 6.5)
-    dp = _f(d.get('middlePierThickness'), 1.0)
-    dside = _f(d.get('sidePierThickness'), 1.2)
-    n = _i(d.get('gateCount'), 3)
-    b0 = _f(d.get('singleGateWidth'), 6)
+    dp = _f(d.get('middlePierThickness'), KEY_DEFAULTS['middlePierThickness'])
+    dside = _f(d.get('sidePierThickness'), KEY_DEFAULTS['sidePierThickness'])
+    n = _i(d.get('gateCount'), KEY_DEFAULTS['gateCount'])
+    b0 = _f(d.get('singleGateWidth'), KEY_DEFAULTS['singleGateWidth'])
     f = _f(d.get('frictionCoefficient'), 0.50)
     bearing = _f(d.get('foundationBearing'), 300)
 
-    dsWL = _f(d.get('downstreamWaterLevel'), 77.52)
+    dsWL = _f(d.get('downstreamWaterLevel'), KEY_DEFAULTS['downstreamWaterLevel'])
     upWL = gate['upstreamWL']
     A_base = B_total * floorLen
 
@@ -269,16 +303,16 @@ def calc_gate_width_mu0(d):
     """按模板第3章方法复现闸孔总净宽：
     明渠均匀流求行进流速 → H0 → hs/H0 → μ0=0.877+(hs/H0-0.65)² → B0=Q/(μ0·hs·√(2g(H0-hs)))
     对 ΔH=0.1/0.2/0.3 各算一组，与模板表3-2/3-3/3-7 对应。"""
-    Q = _f(d.get('designFlow'), 174)
+    Q = _f(d.get('designFlow'), KEY_DEFAULTS['designFlow'])
     g = _f(d.get('gravity'), 9.81)
-    sill = _f(d.get('gateSillElevation'), 73.10)
-    dsWL = _f(d.get('downstreamWaterLevel'), 77.52)
+    sill = _f(d.get('gateSillElevation'), KEY_DEFAULTS['gateSillElevation'])
+    dsWL = _f(d.get('downstreamWaterLevel'), KEY_DEFAULTS['downstreamWaterLevel'])
     b_ch = _f(d.get('channelBottomWidth'), 20)
     m = parse_slope(d.get('channelSlope', '1:2'))
-    n = _i(d.get('gateCount'), 3)
-    b0 = _f(d.get('singleGateWidth'), 6)
-    dp = _f(d.get('middlePierThickness'), 1.0)
-    dside = _f(d.get('sidePierThickness'), 1.2)
+    n = _i(d.get('gateCount'), KEY_DEFAULTS['gateCount'])
+    b0 = _f(d.get('singleGateWidth'), KEY_DEFAULTS['singleGateWidth'])
+    dp = _f(d.get('middlePierThickness'), KEY_DEFAULTS['middlePierThickness'])
+    dside = _f(d.get('sidePierThickness'), KEY_DEFAULTS['sidePierThickness'])
 
     hs = dsWL - sill
     rows = []
@@ -306,9 +340,9 @@ def calc_gate_top_mu0(d):
     """按模板第5章复现闸顶高程：
     挡水 H1 = 正常蓄水位 + 波浪计算高度 + 安全超高；泄水 H2 = 设计洪水位 + 安全超高；
     最终闸顶高程取 max(H1,H2,现状地面高程) 保证与地面衔接。"""
-    normalWL = _f(d.get('normalStorageLevel'), 76.60)
-    dsWL = _f(d.get('downstreamWaterLevel'), 77.52)   # 设计洪水位
-    ground = _f(d.get('groundElevation'), 78.80)
+    normalWL = _f(d.get('normalStorageLevel'), KEY_DEFAULTS['normalStorageLevel'])
+    dsWL = _f(d.get('downstreamWaterLevel'), KEY_DEFAULTS['downstreamWaterLevel'])   # 设计洪水位
+    ground = _f(d.get('groundElevation'), KEY_DEFAULTS['groundElevation'])
     grade = _i(d.get('structureGrade'), 4)
     # 波浪计算高度（模板官厅公式：风速13m/s、风区0.15km → 0.70289，取 0.703）
     h2 = 0.703
@@ -327,10 +361,10 @@ def calc_seepage_mu0(d):
     """按模板第6章复现闸基防渗：
     L需=C·ΔH；地下轮廓线分段阻力系数（进/出口段、内部垂直段、水平段）→ 水头损失 → 出口坡降。"""
     C = _f(d.get('seepageCoefficientC'), 5)
-    checkWL = _f(d.get('checkWaterLevel'), 78.60)   # 校核洪水位（上游最高挡水位）
-    sill = _f(d.get('gateSillElevation'), 73.10)
-    blanketLen = _f(d.get('blanketLength'), 15)
-    floorLen = _f(d.get('floorLength'), 14)
+    checkWL = _f(d.get('checkWaterLevel'), KEY_DEFAULTS['checkWaterLevel'])   # 校核洪水位（上游最高挡水位）
+    sill = _f(d.get('gateSillElevation'), KEY_DEFAULTS['gateSillElevation'])
+    blanketLen = _f(d.get('blanketLength'), KEY_DEFAULTS['blanketLength'])
+    floorLen = _f(d.get('floorLength'), KEY_DEFAULTS['floorLength'])
 
     deltaH = checkWL - sill                          # 上下游最大水位差 5.5
     if deltaH <= 0:
@@ -500,15 +534,15 @@ def mu_at(he):
 def calc_energy_mu0(d, gw):
     """第4章消能：闸门不同开度孔口出流→水跃→消力池深度/长度→海漫/防冲槽，取最不利。"""
     g = _f(d.get('gravity'), 9.81)
-    sill = _f(d.get('gateSillElevation'), 73.10)
-    dsWL = _f(d.get('downstreamWaterLevel'), 77.52)
+    sill = _f(d.get('gateSillElevation'), KEY_DEFAULTS['gateSillElevation'])
+    dsWL = _f(d.get('downstreamWaterLevel'), KEY_DEFAULTS['downstreamWaterLevel'])
     sigma0 = _f(d.get('jumpSubmergence'), 1.05)
     beta = _f(d.get('jumpCorrection'), 0.75)
     phi = 0.95
     k1 = _f(d.get('stillingBasinK1'), 0.2)
     Ks = _f(d.get('riprapKs'), 9)
-    n_gate = _i(d.get('gateCount'), 3)
-    b0 = _f(d.get('singleGateWidth'), 6)
+    n_gate = _i(d.get('gateCount'), KEY_DEFAULTS['gateCount'])
+    b0 = _f(d.get('singleGateWidth'), KEY_DEFAULTS['singleGateWidth'])
     b_ch = _f(d.get('channelBottomWidth'), 20)
     m_slope = parse_slope(d.get('channelSlope', '1:2'))
     n_main = _f(d.get('mainChannelRoughness'), 0.03)
@@ -582,14 +616,14 @@ def calc_energy_mu0(d, gw):
 def calc_stability_mu0(d, gate_mu0, top_mu0):
     """闸室稳定（SL265-2016 第7章）：自重/水重/静水压力/扬压力 → 抗滑 Kc、地基应力 σ、不均匀系数 η。"""
     gw = _f(d.get('waterDensity'), 9.81)
-    sill = _f(d.get('gateSillElevation'), 73.10)
-    dsWL = _f(d.get('downstreamWaterLevel'), 77.52)
-    normalWL = _f(d.get('normalStorageLevel'), 76.60)
-    floorLen = _f(d.get('floorLength'), 14)
-    dp = _f(d.get('middlePierThickness'), 1.0)
-    dside = _f(d.get('sidePierThickness'), 1.2)
-    n = _i(d.get('gateCount'), 3)
-    b0 = _f(d.get('singleGateWidth'), 6)
+    sill = _f(d.get('gateSillElevation'), KEY_DEFAULTS['gateSillElevation'])
+    dsWL = _f(d.get('downstreamWaterLevel'), KEY_DEFAULTS['downstreamWaterLevel'])
+    normalWL = _f(d.get('normalStorageLevel'), KEY_DEFAULTS['normalStorageLevel'])
+    floorLen = _f(d.get('floorLength'), KEY_DEFAULTS['floorLength'])
+    dp = _f(d.get('middlePierThickness'), KEY_DEFAULTS['middlePierThickness'])
+    dside = _f(d.get('sidePierThickness'), KEY_DEFAULTS['sidePierThickness'])
+    n = _i(d.get('gateCount'), KEY_DEFAULTS['gateCount'])
+    b0 = _f(d.get('singleGateWidth'), KEY_DEFAULTS['singleGateWidth'])
     f = _f(d.get('frictionCoefficient'), 0.25)
     bearing = _f(d.get('foundationBearing'), 300)
 
@@ -650,13 +684,13 @@ def calc_quantities(d, R):
     全部由参数直接算出，不含任何标定常数；成果用于「工程量估算表」，
     并供结构尺寸汇总表引用。数值为估算量，施工图阶段应以配筋图为准。
     """
-    n = _i(d.get('gateCount'), 3)
-    b0 = _f(d.get('singleGateWidth'), 6)
-    dp = _f(d.get('middlePierThickness'), 1.0)
-    dside = _f(d.get('sidePierThickness'), 1.2)
-    floorLen = _f(d.get('floorLength'), 14)
-    blanketLen = _f(d.get('blanketLength'), 15)
-    sill = _f(d.get('gateSillElevation'), 73.10)
+    n = _i(d.get('gateCount'), KEY_DEFAULTS['gateCount'])
+    b0 = _f(d.get('singleGateWidth'), KEY_DEFAULTS['singleGateWidth'])
+    dp = _f(d.get('middlePierThickness'), KEY_DEFAULTS['middlePierThickness'])
+    dside = _f(d.get('sidePierThickness'), KEY_DEFAULTS['sidePierThickness'])
+    floorLen = _f(d.get('floorLength'), KEY_DEFAULTS['floorLength'])
+    blanketLen = _f(d.get('blanketLength'), KEY_DEFAULTS['blanketLength'])
+    sill = _f(d.get('gateSillElevation'), KEY_DEFAULTS['gateSillElevation'])
     top = R['top'].get('top') or 0
     en = R['en']
     sp = R['sp']
