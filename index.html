@@ -1185,7 +1185,7 @@ else if (_p.indexOf('/drawing') === 0) PAGE_MODE = 'drawing';
 var PAGE_HEAD = {
     home:    ['工作台', '从参数验证开始，四步完成一套水闸设计', ''],
     tool:    ['设计计算工具', '按 SL 265-2016 规范逐项计算，结果随参数实时刷新', '<span class="tag tag-brand" id="toolQuotaTag">免费 2 次</span>'],
-    verify:  ['参数验证', '填写水闸设计参数，自动完成规范校验与结构计算', '<span class="tag tag-brand">SL 265-2016</span>'],
+    verify:  ['参数验证', '填写水闸设计参数，自动完成规范校验与结构计算', '<span class="tag tag-brand" id="verifyQuotaTag">免费 2 次</span><span class="tag">SL 265-2016</span>'],
     model:   ['三维仿真', '交互查看水闸结构，调节闸门开度观察过流状态', ''],
     thesis:  ['生成论文', '按模板生成毕业设计论文，Word 格式可直接编辑', ''],
 };
@@ -1197,12 +1197,18 @@ function renderPageHead() {
     if (t) t.textContent = cfg[0];
     if (p) p.textContent = cfg[1];
     if (side) side.innerHTML = cfg[2] || '';
-    if (PAGE_MODE === 'tool') loadToolQuotaTag();
+    if (PAGE_MODE === 'tool' || PAGE_MODE === 'verify') loadQuotaTag(PAGE_MODE);
 }
 
-// ===== 设计计算工具：页头显示剩余次数（免费 2 次，用完 5 元/次）=====
-function paintToolQuotaTag(quota, price) {
-    var el = document.getElementById('toolQuotaTag');
+// ===== 按次收费功能的页头次数标签（参数验证 / 设计计算工具，均免费 2 次，用完 5 元/次）=====
+var QUOTA_META = {
+    verify: { tag: 'verifyQuotaTag', quotaKey: 'verify_quota', priceKey: 'verify_price', label: '参数验证' },
+    tool:   { tag: 'toolQuotaTag',   quotaKey: 'tool_quota',   priceKey: 'tool_price',   label: '计算工具' }
+};
+function paintQuotaTag(kind, quota, price) {
+    var meta = QUOTA_META[kind];
+    if (!meta) return;
+    var el = document.getElementById(meta.tag);
     if (!el) return;
     if (quota > 0) {
         el.className = 'tag tag-brand';
@@ -1212,21 +1218,47 @@ function paintToolQuotaTag(quota, price) {
         el.textContent = (price || '5') + ' 元/次';
     }
 }
-function loadToolQuotaTag() {
+function loadQuotaTag(kind) {
+    var meta = QUOTA_META[kind];
+    if (!meta) return;
     fetch('/api/me', { cache: 'no-store' })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
             if (!d) return;
-            paintToolQuotaTag(d.tool_quota, (d.pay || {}).tool_price);
+            paintQuotaTag(kind, d[meta.quotaKey], (d.pay || {})[meta.priceKey]);
         })
         .catch(function () {});
 }
+
+// ===== 扣次统一入口：成功返回 true，次数不足弹付费窗并返回 false =====
+function consumeUse(kind) {
+    var meta = QUOTA_META[kind];
+    return fetch('/' + kind + '/use', { method: 'POST' })
+        .then(function (r) {
+            return r.json().catch(function () { return {}; })
+                .then(function (d) { return { ok: r.ok, d: d || {} }; });
+        })
+        .then(function (res) {
+            var d = res.d;
+            if (!res.ok || !d.ok) {
+                paintQuotaTag(kind, 0, ((d.pay || {})[meta.priceKey]));
+                showPayG(d.pay, meta.label);
+                return false;
+            }
+            if (typeof d[meta.quotaKey] === 'number') {
+                paintQuotaTag(kind, d[meta.quotaKey], ((d.pay || {})[meta.priceKey]));
+            }
+            return true;
+        })
+        .catch(function () { alert('网络异常，请稍后重试'); return false; });
+}
+
 // 计算工具（iframe）扣次后回传最新剩余次数；次数用完则由本页弹出付费窗
 window.addEventListener('message', function (e) {
     if (e.origin !== location.origin) return;
     var d = e.data || {};
-    if (d.type === 'tool-quota') paintToolQuotaTag(d.quota, d.price);
-    if (d.type === 'tool-pay') showPayG(d.pay);
+    if (d.type === 'tool-quota') paintQuotaTag('tool', d.quota, d.price);
+    if (d.type === 'tool-pay') showPayG(d.pay, '计算工具');
 });
 
 // 左侧参数目录：按分区自动生成 + 滚动高亮
@@ -2465,6 +2497,14 @@ function validateAndCalculate() {
     if (!data.projectName) errors.push('请输入项目名称');
     if (errors.length > 0) { alert('请填写以下必填信息：\n' + errors.join('\n')); return; }
 
+    // 次数门禁：先校验再扣次，避免填错白扣；免费 2 次，用完 5 元/次
+    consumeUse('verify').then(function (okc) {
+        if (!okc) return;
+        doCalculate(data);
+    });
+}
+
+function doCalculate(data) {
     showLoading('正在进行参数验证与设计计算...');
     setTimeout(function() {
         try {
@@ -2595,11 +2635,14 @@ function submitPayReqT() {
   }).catch(function(){ alert('提交失败，请稍后重试'); });
 }
 
-// ===== 设计计算工具付费弹窗（由 iframe 内扣次失败时触发）=====
-function showPayG(pay) {
+// ===== 按次收费功能付费弹窗（参数验证 / 设计计算工具）=====
+function showPayG(pay, label) {
   pay = pay || {};
-  document.getElementById('payPriceG').textContent =
-    '计算工具：' + (pay.tool_price || '5') + ' 元/次';
+  label = label || '计算工具';
+  var meta = null;
+  for (var k in QUOTA_META) { if (QUOTA_META[k].label === label) meta = QUOTA_META[k]; }
+  var price = (meta && pay[meta.priceKey]) || pay.tool_price || '5';
+  document.getElementById('payPriceG').textContent = label + '：' + price + ' 元/次';
   var pairs = [
     ['payWechatG', 'payWechatNoG', pay.wechat_qr],
     ['payAlipayG', 'payAlipayNoG', pay.alipay_qr]

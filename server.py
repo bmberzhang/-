@@ -107,6 +107,9 @@ def init_db():
         # 设计计算工具：新老用户一律送 2 次免费额度
         if 'tool_quota' not in ucols:
             conn.execute('ALTER TABLE users ADD COLUMN tool_quota INTEGER DEFAULT 2')
+        # 参数验证：同样送 2 次免费额度
+        if 'verify_quota' not in ucols:
+            conn.execute('ALTER TABLE users ADD COLUMN verify_quota INTEGER DEFAULT 2')
         # messages 表迁移（旧库可能没有 to_user_id）
         mcols = [r[1] for r in conn.execute('PRAGMA table_info(messages)').fetchall()]
         if 'to_user_id' not in mcols:
@@ -117,11 +120,11 @@ def init_db():
             conn.execute("ALTER TABLE messages ADD COLUMN file_url TEXT DEFAULT ''")
         # 收费配置（settings 表）
         defaults = [
-            ('drawing_price', '5'), ('thesis_price', '10'), ('tool_price', '5'),
+            ('drawing_price', '5'), ('thesis_price', '10'), ('tool_price', '5'), ('verify_price', '5'),
             ('pay_note', '扫码支付后，请联系管理员（微信/QQ 私聊）确认到账，由管理员为您开通对应次数。'),
             ('wechat_qr', ''), ('alipay_qr', ''),
             ('register_drawing_bonus', '0'), ('register_thesis_bonus', '0'),
-            ('register_tool_bonus', '2'),
+            ('register_tool_bonus', '2'), ('register_verify_bonus', '2'),
         ]
         for k, v in defaults:
             conn.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', (k, v))
@@ -167,6 +170,7 @@ def get_pay_config():
         'drawing_price': get_setting('drawing_price', '5'),
         'thesis_price': get_setting('thesis_price', '10'),
         'tool_price': get_setting('tool_price', '5'),
+        'verify_price': get_setting('verify_price', '5'),
         'pay_note': get_setting('pay_note', ''),
         'wechat_qr': get_setting('wechat_qr', ''),
         'alipay_qr': get_setting('alipay_qr', ''),
@@ -174,16 +178,23 @@ def get_pay_config():
 
 
 # 次数类型 → users 表字段
-QUOTA_COL = {'drawing': 'drawing_quota', 'thesis': 'thesis_quota', 'tool': 'tool_quota'}
+QUOTA_COL = {
+    'drawing': 'drawing_quota',
+    'thesis': 'thesis_quota',
+    'tool': 'tool_quota',
+    'verify': 'verify_quota',
+}
+# 次数类型 → 中文名（管理后台提示用）
+QUOTA_LABEL = {'drawing': '图纸', 'thesis': '论文', 'tool': '计算工具', 'verify': '参数验证'}
 
 
 def get_quota(uid):
     conn = get_db()
-    u = conn.execute('SELECT drawing_quota, thesis_quota, tool_quota FROM users WHERE id=?', (uid,)).fetchone()
+    u = conn.execute('SELECT drawing_quota, thesis_quota, tool_quota, verify_quota FROM users WHERE id=?', (uid,)).fetchone()
     conn.close()
     if not u:
-        return 0, 0, 0
-    return u['drawing_quota'], u['thesis_quota'], u['tool_quota']
+        return 0, 0, 0, 0
+    return u['drawing_quota'], u['thesis_quota'], u['tool_quota'], u['verify_quota']
 
 
 def consume_quota(uid, kind):
@@ -243,9 +254,10 @@ PUBLIC_PATHS = {'/login', '/register', '/static', '/favicon.ico'}
 @app.before_request
 def require_login():
     path = request.path
-    if path in ('/', '/tool', '/verify', '/model', '/thesis', '/drawing', '/generate', '/tool/use', '/drawing/generate', '/drawing/dl'):
+    if path in ('/', '/tool', '/verify', '/model', '/thesis', '/drawing', '/generate',
+                '/tool/use', '/verify/use', '/drawing/generate', '/drawing/dl'):
         if not current_user():
-            if path in ('/drawing/generate', '/drawing/dl', '/tool/use'):
+            if path in ('/drawing/generate', '/drawing/dl', '/tool/use', '/verify/use'):
                 return jsonify({"ok": False, "error": "请先登录"}), 401
             return redirect(url_for('login'))
     elif path.startswith('/drawing/dl/'):
@@ -291,11 +303,12 @@ def register():
         conn.close()
         flash('该用户名已被注册')
         return redirect(url_for('register'))
-    conn.execute('INSERT INTO users (username, password_hash, drawing_quota, thesis_quota, tool_quota) VALUES (?, ?, ?, ?, ?)',
+    conn.execute('INSERT INTO users (username, password_hash, drawing_quota, thesis_quota, tool_quota, verify_quota) VALUES (?, ?, ?, ?, ?, ?)',
                  (username, generate_password_hash(password),
                   int(get_setting('register_drawing_bonus', '0') or 0),
                   int(get_setting('register_thesis_bonus', '0') or 0),
-                  int(get_setting('register_tool_bonus', '2') or 0)))
+                  int(get_setting('register_tool_bonus', '2') or 0),
+                  int(get_setting('register_verify_bonus', '2') or 0)))
     conn.commit()
     conn.close()
     flash('注册成功，请登录')
@@ -354,18 +367,18 @@ def admin():
                 num = 1
             if num > 0 and kind in QUOTA_COL:
                 add_quota(uid, kind, num)
-                label = {'drawing': '图纸', 'thesis': '论文', 'tool': '计算工具'}.get(kind, kind)
-                flash(f'已为用户增加 {label}次数 × {num}')
+                flash(f'已为用户增加 {QUOTA_LABEL.get(kind, kind)}次数 × {num}')
         elif action == 'update_pay':
             # 保存价格与付款说明
             conn = get_db()
-            for k in ('drawing_price', 'thesis_price', 'tool_price', 'pay_note'):
+            for k in ('drawing_price', 'thesis_price', 'tool_price', 'verify_price', 'pay_note'):
                 v = request.form.get(k, '')
-                if k in ('drawing_price', 'thesis_price', 'tool_price'):
+                if k.endswith('_price'):
                     try:
                         v = str(max(0, int(float(v))))
                     except (ValueError, TypeError):
-                        v = {'drawing_price': '5', 'thesis_price': '10', 'tool_price': '5'}[k]
+                        v = {'drawing_price': '5', 'thesis_price': '10',
+                             'tool_price': '5', 'verify_price': '5'}[k]
                 conn.execute("UPDATE settings SET value=? WHERE key=?", (v, k))
             conn.commit()
             conn.close()
@@ -389,7 +402,7 @@ def admin():
                 flash('收款码已上传')
         return redirect(url_for('admin'))
     conn = get_db()
-    users = conn.execute('SELECT id, username, created_at, drawing_quota, thesis_quota, tool_quota FROM users ORDER BY id').fetchall()
+    users = conn.execute('SELECT id, username, created_at, drawing_quota, thesis_quota, tool_quota, verify_quota FROM users ORDER BY id').fetchall()
     conn.close()
     return render_template('admin.html', invite_code=get_invite_code(), users=users, pay=get_pay_config())
 
@@ -456,7 +469,7 @@ def api_me():
     u = current_user()
     if not u:
         return jsonify({"logged": False}), 401
-    dq, tq, toolq = get_quota(u['id'])
+    dq, tq, toolq, vq = get_quota(u['id'])
     return jsonify({
         "logged": True,
         "username": u['username'],
@@ -464,6 +477,7 @@ def api_me():
         "drawing_quota": dq,
         "thesis_quota": tq,
         "tool_quota": toolq,
+        "verify_quota": vq,
         "pay": get_pay_config(),
     })
 
@@ -509,34 +523,23 @@ def pay_process():
     data = request.get_json(force=True, silent=True) or {}
     rid = data.get('id')
     try:
-        drawing = max(0, int(data.get('drawing', 0) or 0))
-        thesis = max(0, int(data.get('thesis', 0) or 0))
-        tool = max(0, int(data.get('tool', 0) or 0))
+        counts = {k: max(0, int(data.get(k, 0) or 0)) for k in QUOTA_COL}
     except (ValueError, TypeError):
         return jsonify({"ok": False, "error": "次数无效"}), 400
-    if drawing == 0 and thesis == 0 and tool == 0:
+    if not any(counts.values()):
         return jsonify({"ok": False, "error": "请填写要开通的次数"}), 400
     conn = get_db()
     row = conn.execute('SELECT * FROM payment_requests WHERE id=? AND status=?', (rid, 'pending')).fetchone()
     if not row:
         conn.close()
         return jsonify({"ok": False, "error": "申请不存在或已处理"}), 400
-    if drawing:
-        add_quota(row['user_id'], 'drawing', drawing)
-    if thesis:
-        add_quota(row['user_id'], 'thesis', thesis)
-    if tool:
-        add_quota(row['user_id'], 'tool', tool)
+    for kind, num in counts.items():
+        if num:
+            add_quota(row['user_id'], kind, num)
     conn.execute("UPDATE payment_requests SET status='done', processed_at=datetime('now','localtime') WHERE id=?", (rid,))
     conn.commit()
     conn.close()
-    parts = []
-    if drawing:
-        parts.append(f'图纸×{drawing}')
-    if thesis:
-        parts.append(f'论文×{thesis}')
-    if tool:
-        parts.append(f'计算工具×{tool}')
+    parts = [f'{QUOTA_LABEL[k]}×{v}' for k, v in counts.items() if v]
     return jsonify({"ok": True, "msg": f"已为用户 {row['username']} 开通 " + "、".join(parts)})
 
 
@@ -733,7 +736,6 @@ def index():
 def page_verify():
     return send_from_directory(BASE, 'index.html')
 
-
 @app.route('/model')
 def page_model():
     return send_from_directory(BASE, 'index.html')
@@ -749,22 +751,45 @@ def page_tool():
     return send_from_directory(BASE, 'index.html')
 
 
-@app.route('/tool/use', methods=['POST'])
-def tool_use():
-    """设计计算工具：每点一次「开始计算」扣 1 次。免费 2 次用完后需付费开通。"""
+def get_quota_one(uid, kind):
+    """读取某一类次数余额"""
+    col = QUOTA_COL.get(kind)
+    if not col:
+        return 0
+    conn = get_db()
+    row = conn.execute(f'SELECT {col} FROM users WHERE id=?', (uid,)).fetchone()
+    conn.close()
+    return row[col] if row else 0
+
+
+def _quota_take(kind):
+    """按次收费的前端功能通用扣次逻辑（设计计算工具 / 参数验证）。
+    成功返回 {ok:True, 剩余次数, pay}；次数不足返回 402 + need_pay。"""
     u = current_user()
     if not u:
         return jsonify({"ok": False, "error": "请先登录"}), 401
-    if not consume_quota(u['id'], 'tool'):
+    key = kind + '_quota'
+    if not consume_quota(u['id'], kind):
         return jsonify({
             "ok": False,
             "need_pay": True,
             "error": "免费次数已用完，请付费后继续使用。",
-            "tool_quota": 0,
+            key: 0,
             "pay": get_pay_config(),
         }), 402
-    _, _, left = get_quota(u['id'])
-    return jsonify({"ok": True, "tool_quota": left, "pay": get_pay_config()})
+    return jsonify({"ok": True, key: get_quota_one(u['id'], kind), "pay": get_pay_config()})
+
+
+@app.route('/tool/use', methods=['POST'])
+def tool_use():
+    """设计计算工具：每点一次「开始计算」扣 1 次。免费 2 次用完后需付费开通。"""
+    return _quota_take('tool')
+
+
+@app.route('/verify/use', methods=['POST'])
+def verify_use():
+    """参数验证：每次点「参数验证与设计计算」扣 1 次。免费 2 次用完后需付费开通。"""
+    return _quota_take('verify')
 
 
 @app.route('/generate', methods=['POST'])
