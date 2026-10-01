@@ -54,6 +54,7 @@ P = {
     # ⑩ 高程与细部标注
     "slope": 2.0, "hmN": 20.0,
     "el": 1, "sm": 1, "hs": 1, "gs": 1,
+    "dim": 1,       # 长度尺寸标注（底部顺流链/左侧宽链/右侧带宽）
 }
 
 
@@ -123,6 +124,7 @@ FIELDS = [
     ("sm", "滩地/地面 1:n 示坡线", "高程与细部标注", 1, "勾选"),
     ("hs", "海漫斜段 1:n 示坡", "高程与细部标注", 1, "勾选"),
     ("gs", "闸墩检修/工作门槽", "高程与细部标注", 1, "勾选"),
+    ("dim", "长度尺寸标注（底部顺流链/左侧宽链/右侧带宽）", "高程与细部标注", 1, "勾选"),
 ]
 
 GROUPS = [
@@ -133,15 +135,16 @@ GROUPS = [
 ]
 
 TEXT_KEYS = {"proj", "title", "fn"}
-CHECK_KEYS = {"cn", "cen", "frm", "mh", "wgon", "tdon", "el", "sm", "hs", "gs"}
+CHECK_KEYS = {"cn", "cen", "frm", "mh", "wgon", "tdon", "el", "sm", "hs", "gs", "dim"}
 OPT_KEYS = {"hmS", "fcE"}          # 可留空 = 按公式自动
 LAYERS = {
     "轮廓":   ("轮廓", 7),
     "中心线": ("中心线", 1),
     "高程标注": ("高程标注", 3),
     "示坡线": ("示坡线", 6),
+    "尺寸标注": ("尺寸标注", 7),
 }
-LAYER_OF = {"out": "轮廓", "cen": "中心线", "elev": "高程标注", "show": "示坡线"}
+LAYER_OF = {"out": "轮廓", "cen": "中心线", "elev": "高程标注", "show": "示坡线", "dim": "尺寸标注"}
 
 
 def _num(v, default=""):
@@ -184,8 +187,8 @@ def compute_geo(p):
         G.append({"t": 2, "cx": cx, "cy": cy, "r": r,
                   "a0": a0, "a1": a1, "l": lay, "d": 1 if d else 0})
 
-    def T(s, x, y, h, lay):
-        G.append({"t": 3, "s": str(s), "x": x, "y": y, "h": h, "l": lay})
+    def T(s, x, y, h, lay, rot=0):
+        G.append({"t": 3, "s": str(s), "x": x, "y": y, "h": h, "l": lay, "ro": rot})
 
     def EB(s, x, y, h=None):
         """高程绿框标：矩形框 + 居中文字"""
@@ -421,6 +424,43 @@ def compute_geo(p):
                 T("1:" + num2str(p["slope"]), cx + U * 0.75, -Yd1 + U, TH * 0.45, "show")
             cx += gap
 
+    # ---- 长度尺寸标注：底部顺流尺寸链 + 总长 / 左侧闸室宽度链 + 总宽 / 右侧滩地地面带宽 ----
+    if p["dim"]:
+        def tk(x, y):
+            L(x - U * 0.18, y - U * 0.18, x + U * 0.18, y + U * 0.18, "dim")
+
+        def dV(y1, y2, x):
+            L(x, y1, x, y2, "dim")
+            tk(x, y1); tk(x, y2)
+            T(str(int(round(y2 - y1))), x - U * 0.45, (y1 + y2) / 2, TH * 0.5, "dim", 90)
+
+        yB = -(max(YS, YR2, Yd2) + U * 1.6)
+        bx = [0, Xap, Xch, Xba, Xh1, Xhd, Xs3]
+        L(0, yB, Xs3, yB, "dim")
+        for v in bx:
+            tk(v, yB)
+        for bi in range(len(bx) - 1):
+            T(str(int(round(bx[bi + 1] - bx[bi]))), (bx[bi] + bx[bi + 1]) / 2, yB + U * 0.55, TH * 0.5, "dim")
+        L(0, yB - U * 1.6, Xs3, yB - U * 1.6, "dim"); tk(0, yB - U * 1.6); tk(Xs3, yB - U * 1.6)
+        T(str(int(round(Xs3))), Xs3 / 2, yB - U * 1.05, TH * 0.5, "dim")
+        xL = min(0, upEnd) - U * 1.6
+        L(xL, -YS, xL, YS, "dim")
+        vb = [-YS]
+        for vp in range(len(piers)):
+            vb.append(piers[vp][1])
+            if vp < len(piers) - 1:
+                vb.append(piers[vp][1] + m(p["bayW"]))
+        for v in vb:
+            tk(xL, v)
+        for vi in range(len(vb) - 1):
+            T(str(int(round(vb[vi + 1] - vb[vi]))), xL - U * 0.45, (vb[vi] + vb[vi + 1]) / 2, TH * 0.5, "dim", 90)
+        L(xL - U * 1.6, -YS, xL - U * 1.6, YS, "dim"); tk(xL - U * 1.6, -YS); tk(xL - U * 1.6, YS)
+        T(str(int(round(2 * YS))), xL - U * 2.05, 0, TH * 0.5, "dim", 90)
+        if p["tdon"]:
+            xR = Xs3 + U * 1.6
+            dV(Yb1, Yb2, xR); dV(-Yb2, -Yb1, xR)
+            dV(Yd1, Yd2, xR + U * 1.4); dV(-Yd2, -Yd1, xR + U * 1.4)
+
     # ---- 中文构件注记 ----
     if p["cn"]:
         yt = (Yd2 if p["tdon"] else YS) + TH * 2.7
@@ -478,6 +518,7 @@ def setup_doc():
     doc = ezdxf.new("R2013", units=units.MM)
     msp = doc.modelspace()
     doc.styles.add("CN", font="simhei.ttf")
+    doc.styles.add("数字字体", font="gbenor.shx")
     doc.header["$DWGCODEPAGE"] = "ANSI_936"
     from ezdxf.tools import standards
     standards.setup_linetypes(doc)
@@ -512,10 +553,13 @@ def generate_dxf(p, out_path):
                 attribs["linetype"] = "DASHED"
             msp.add_arc((e["cx"], e["cy"]), e["r"], e["a0"], e["a1"], dxfattribs=attribs)
         elif e["t"] == 3:
+            style = "数字字体" if e["l"] == "dim" else "CN"
             t = msp.add_text(e["s"], dxfattribs={
-                "layer": lay, "height": e["h"], "style": "CN",
+                "layer": lay, "height": e["h"], "style": style,
             })
             t.set_placement((e["x"], e["y"]), align=TextEntityAlignment.MIDDLE_CENTER)
+            if e.get("ro"):
+                t.dxf.rotation = e["ro"]
     doc.saveas(out_path)
 
 
@@ -523,7 +567,7 @@ def generate_dxf(p, out_path):
 # 5. SVG 预览输出
 # ============================================================
 SVG_PX_PER_MM = 0.022
-PREVIEW_COLOR = {"cen": "#cc0000", "elev": "#1e8a3a", "show": "#c71585"}
+PREVIEW_COLOR = {"cen": "#cc0000", "elev": "#1e8a3a", "show": "#c71585", "dim": "#555555"}
 PREVIEW_SW = {"cen": 1.1, "show": 1.6}
 
 
@@ -577,9 +621,11 @@ def generate_svg(p, out_path):
                        % (" ".join(pts), col))
         elif e["t"] == 3:
             col = PREVIEW_COLOR.get(e["l"], "#2b2b2b")
-            out.append('<text x="%.1f" y="%.1f" font-size="%.1f" fill="%s" text-anchor="middle" '
-                       'dominant-baseline="middle">%s</text>'
-                       % (MX(e["x"]), MY(e["y"]), max(7.0, e["h"] * scale), col,
+            font = "Arial, sans-serif" if e["l"] == "dim" else "SimHei, Microsoft YaHei, sans-serif"
+            rot = ' transform="rotate(-%.1f %.1f %.1f)"' % (e["ro"], MX(e["x"]), MY(e["y"])) if e.get("ro") else ""
+            out.append('<text x="%.1f" y="%.1f" font-size="%.1f" font-family="%s" fill="%s" text-anchor="middle" '
+                       'dominant-baseline="middle"%s>%s</text>'
+                       % (MX(e["x"]), MY(e["y"]), max(7.0, e["h"] * scale), font, col, rot,
                           e["s"].replace("&", "&amp;").replace("<", "&lt;")))
 
     out.append('</svg>')
