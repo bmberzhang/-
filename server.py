@@ -459,6 +459,48 @@ def get_invite_code():
     return row['value'] if row else 'sluice2026'
 
 
+# ---- 登录/注册暴力破解防护：内存限流 ----
+# ponytail: 内存 dict，单 worker 单进程够用；重启即清空（可接受）。多实例/高并发再换 Redis。
+_RATE = {}          # ip -> (失败次数, 锁定截止时间戳)
+_RATE_MAX = 5       # 连续失败 5 次
+_RATE_WINDOW = 60   # 60 秒窗口
+_RATE_LOCK = 300    # 触发后锁定 300 秒
+
+
+def rate_blocked(ip):
+    """该 IP 是否已被临时锁定。返回剩余秒数（0=未锁）。"""
+    if ip not in _RATE:
+        return 0
+    fails, until = _RATE[ip]
+    if until > time.time():
+        return int(until - time.time())
+    # 锁定已过期，清理
+    if fails >= _RATE_MAX:
+        _RATE.pop(ip, None)
+    return 0
+
+
+def rate_fail(ip):
+    """记录一次失败；达到阈值则锁定。"""
+    fails, _ = _RATE.get(ip, (0, 0))
+    fails += 1
+    until = time.time() + (_RATE_LOCK if fails >= _RATE_MAX else _RATE_WINDOW)
+    _RATE[ip] = (fails, until)
+
+
+def rate_ok(ip):
+    """成功后清零该 IP 的失败计数。"""
+    _RATE.pop(ip, None)
+
+
+def client_ip():
+    """取客户端 IP（Railway 等反向代理会把真实 IP 放 X-Forwarded-For 首元素）。"""
+    fwd = request.headers.get('X-Forwarded-For', '')
+    if fwd:
+        return fwd.split(',')[0].strip()
+    return request.remote_addr or '0.0.0.0'
+
+
 def _new_invite_code():
     """生成一个随机邀请码（8 位，大小写字母+数字，去掉易混淆字符）。"""
     import secrets, string
@@ -667,6 +709,11 @@ def add_cors(resp):
 def register():
     if request.method == 'GET':
         return render_template('register.html')
+    ip = client_ip()
+    wait = rate_blocked(ip)
+    if wait:
+        flash('尝试次数过多，请 %d 秒后再试' % wait)
+        return redirect(url_for('register'))
     username = (request.form.get('username') or '').strip()
     password = request.form.get('password') or ''
     confirm = request.form.get('confirm') or ''
@@ -681,6 +728,7 @@ def register():
         flash('两次输入的密码不一致')
         return redirect(url_for('register'))
     if not invite or invite != get_invite_code():
+        rate_fail(ip)   # 邀请码爆破也要限流
         flash('邀请码错误，无法注册')
         return redirect(url_for('register'))
     conn = get_db()
@@ -855,15 +903,22 @@ def admin():
 def login():
     if request.method == 'GET':
         return render_template('login.html')
+    ip = client_ip()
+    wait = rate_blocked(ip)
+    if wait:
+        flash('尝试次数过多，请 %d 秒后再试' % wait)
+        return redirect(url_for('login'))
     username = (request.form.get('username') or '').strip()
     password = request.form.get('password') or ''
     conn = get_db()
     row = conn.execute('SELECT * FROM users WHERE username=?', (username,)).fetchone()
     conn.close()
     if row and check_password_hash(row['password_hash'], password):
+        rate_ok(ip)
         session['user_id'] = row['id']
         session['username'] = row['username']
         return redirect(url_for('index'))
+    rate_fail(ip)
     flash('用户名或密码错误')
     return redirect(url_for('login'))
 
@@ -1913,23 +1968,9 @@ def thesis_doc_delete():
 @app.route('/generate', methods=['POST'])
 def generate():
     """生成整本毕业设计论文（含计算表格与曲线图）。
-    数据来自客户上传的任务书 + 校对后的参数，格式来自客户上传的规范。
-    旧的前端直接传参方式仍然兼容（未上传任务书时走原模板）。"""
+    数据来自客户上传的任务书 + 校对后的参数，格式来自客户上传的规范。"""
     u = current_user()
     body = request.get_json(force=True, silent=True) or {}
-
-    # ---- 兼容旧调用：纯参数对象 {'designFlow': ..., ...} ----
-    if 'params' not in body and not body.get('use_docs'):
-        if u and not _doc_path(u['id'], 'task'):
-            try:
-                buf = gt.generate(body)
-                return send_file(buf, as_attachment=True, download_name='毕业设计论文.docx',
-                                 mimetype='application/vnd.openxmlformats-officedocument.'
-                                          'wordprocessingml.document')
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                return jsonify({'error': str(e)}), 500
 
     if not u:
         return jsonify({'ok': False, 'error': '请先登录'}), 401
