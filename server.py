@@ -648,22 +648,27 @@ def admin():
             conn.close()
             flash('商户密钥已清空，自动出票已关闭')
         elif action == 'upload_qr':
-            # 上传微信 / 支付宝收款码
+            # 上传微信 / 支付宝收款码：转 base64 data URL 存库（跨部署不丢，不依赖磁盘文件）
             kind = request.form.get('kind')  # wechat / alipay
             f = request.files.get('qr')
             if f and f.filename:
-                os.makedirs(os.path.join(BASE, 'static', 'pay'), exist_ok=True)
                 ext = os.path.splitext(f.filename)[1].lower() or '.png'
                 if ext not in ('.png', '.jpg', '.jpeg', '.webp', '.gif'):
                     ext = '.png'
-                name = ('wechat' if kind == 'wechat' else 'alipay') + ext
-                f.save(os.path.join(BASE, 'static', 'pay', name))
-                conn = get_db()
-                conn.execute("UPDATE settings SET value=? WHERE key=?",
-                             (f'/static/pay/{name}', 'wechat_qr' if kind == 'wechat' else 'alipay_qr'))
-                conn.commit()
-                conn.close()
-                flash('收款码已上传')
+                mime = {'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
+                        'webp': 'image/webp', 'gif': 'image/gif'}.get(ext.lstrip('.'), 'image/png')
+                data = f.read()
+                if len(data) > 2 * 1024 * 1024:  # 超 2MB 拒收，防止数据库膨胀
+                    flash('图片过大，请压缩到 2MB 以内')
+                else:
+                    b64 = base64.b64encode(data).decode('ascii')
+                    url = f'data:{mime};base64,{b64}'
+                    conn = get_db()
+                    conn.execute("UPDATE settings SET value=? WHERE key=?",
+                                 (url, 'wechat_qr' if kind == 'wechat' else 'alipay_qr'))
+                    conn.commit()
+                    conn.close()
+                    flash('收款码已上传')
         return redirect(url_for('admin'))
     conn = get_db()
     users = conn.execute('SELECT id, username, created_at, drawing_quota, thesis_quota, tool_quota, verify_quota FROM users ORDER BY id').fetchall()
