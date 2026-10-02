@@ -32,7 +32,13 @@ DATA_DIR = os.environ.get('DATA_DIR', BASE)
 os.makedirs(DATA_DIR, exist_ok=True)
 DB_PATH = os.path.join(DATA_DIR, 'users.db')
 app = Flask(__name__, static_folder=BASE, static_url_path='', template_folder=os.path.join(BASE, 'templates'))
-app.secret_key = os.environ.get('SECRET_KEY', 'sluice-design-secret-key-2026')  # 生产环境请设置随机密钥
+# 会话密钥：优先读环境变量 SECRET_KEY；没配则每次启动随机生成（安全，但重启后登录态失效）。
+# 生产环境务必在 Railway 设一个固定随机 SECRET_KEY，否则用户每次部署都要重新登录。
+import secrets as _secrets
+app.secret_key = os.environ.get('SECRET_KEY', '') or _secrets.token_hex(32)
+# session cookie 加固：httponly 防 XSS 窃取，SameSite=Lax 防跨站 CSRF 携带
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 DRAW_OUT = os.path.join(DATA_DIR, 'output_drawing')
 os.makedirs(DRAW_OUT, exist_ok=True)
@@ -618,6 +624,30 @@ def require_login():
             return jsonify({"ok": False, "error": "请先登录"}), 401
     # 注意：/api/pay/notify 是支付平台的回调入口，**刻意不要求登录**——
     # 平台服务器不会带用户的 session cookie。它的安全由签名验签保证（见 pay_notify）。
+
+
+@app.before_request
+def csrf_guard():
+    """CSRF 防护：POST/PUT/DELETE 请求必须同源（Origin 或 Referer 与本机 host 一致）。
+    支付平台回调 /api/pay/notify 是服务器到服务器，无浏览器头，靠签名验签，跳过。
+    Origin 缺失且无 Referer 的 POST（非浏览器客户端）放行——攻击者带不了他人 cookie。"""
+    if request.method not in ('POST', 'PUT', 'DELETE'):
+        return
+    if request.path == '/api/pay/notify':
+        return
+    origin = request.headers.get('Origin', '')
+    referer = request.headers.get('Referer', '')
+    host = request.host  # 含端口，如 shuizha.up.railway.app
+    for src in (origin, referer):
+        if src:
+            try:
+                from urllib.parse import urlparse
+                if urlparse(src).netloc != host:
+                    return jsonify({"ok": False, "error": "请求来源不合法"}), 403
+            except Exception:
+                return jsonify({"ok": False, "error": "请求来源不合法"}), 403
+            return  # 有任一来源头且校验通过，放行
+    # 两者都缺失：非浏览器客户端，放行
 
 
 @app.after_request
