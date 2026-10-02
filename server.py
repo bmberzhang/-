@@ -9,7 +9,8 @@
     python server.py
 访问 http://127.0.0.1:5001 （或部署到公网服务器）
 """
-import os, sys, time, json, sqlite3
+import os, sys, time, json, sqlite3, base64, threading
+import urllib.request, urllib.error
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 from flask import (Flask, request, send_file, jsonify, send_from_directory,
@@ -203,8 +204,93 @@ def seed_db_if_needed():
         print('[init] 检查用户库失败:', e)
 
 
+# ---- 用户库 GitHub 云端同步：跨部署 / 换平台保留账号数据，不依赖平台卷 ----
+# 原理：启动时从 GitHub 私有仓库 data 分支拉取 users.db；
+#       后台线程每 20 秒检测库文件变化，有写入（注册/生成/改设置）自动推回。
+# 需要 Railway 环境变量 GITHUB_TOKEN（classic token，repo 权限）；未配置时自动跳过。
+GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
+DATA_REPO = os.environ.get('DATA_REPO', 'bmberzhang/-')
+DATA_BRANCH = os.environ.get('DATA_BRANCH', 'data')
+_GH_API = 'https://api.github.com'
+
+
+def _gh_req(url, method='GET', payload=None):
+    req = urllib.request.Request(url, method=method)
+    req.add_header('Authorization', 'Bearer ' + GITHUB_TOKEN)
+    req.add_header('Accept', 'application/vnd.github+json')
+    req.add_header('User-Agent', 'sluice-data-sync')
+    data = None
+    if payload is not None:
+        data = json.dumps(payload).encode()
+        req.add_header('Content-Type', 'application/json')
+    with urllib.request.urlopen(req, data=data, timeout=15) as r:
+        return json.loads(r.read().decode())
+
+
+def gh_pull_db():
+    """启动时：从 GitHub data 分支拉取最近一次的用户库。失败不阻塞启动。"""
+    if not GITHUB_TOKEN:
+        return
+    try:
+        j = _gh_req(f'{_GH_API}/repos/{DATA_REPO}/contents/users.db?ref={DATA_BRANCH}')
+        raw = base64.b64decode(j.get('content') or '')
+        if raw[:16] != b'SQLite format 3\x00':
+            print('[sync] GitHub 上的 users.db 不是有效 SQLite 库，跳过')
+            return
+        with open(DB_PATH, 'wb') as f:
+            f.write(raw)
+        print(f'[sync] 已从 GitHub 恢复用户库（{len(raw)} 字节，分支 {DATA_BRANCH}）')
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            print('[sync] GitHub 上还没有 users.db（首次运行），走种子库')
+        else:
+            print('[sync] GitHub 拉取失败:', e.code, e.reason)
+    except Exception as e:
+        print('[sync] GitHub 拉取跳过:', e)
+
+
+def gh_push_db():
+    """把本地 users.db 推到 GitHub data 分支（有则覆盖，无则新建）。"""
+    if not GITHUB_TOKEN or not os.path.exists(DB_PATH):
+        return False
+    try:
+        sha = None
+        try:
+            sha = _gh_req(f'{_GH_API}/repos/{DATA_REPO}/contents/users.db?ref={DATA_BRANCH}').get('sha')
+        except Exception:
+            pass  # 远端还没有该文件
+        with open(DB_PATH, 'rb') as f:
+            content = base64.b64encode(f.read()).decode()
+        body = {'message': 'sync users.db', 'content': content, 'branch': DATA_BRANCH}
+        if sha:
+            body['sha'] = sha
+        _gh_req(f'{_GH_API}/repos/{DATA_REPO}/contents/users.db', method='PUT', payload=body)
+        print('[sync] 用户库已推送到 GitHub')
+        return True
+    except Exception as e:
+        print('[sync] GitHub 推送失败:', e)
+        return False
+
+
+def _sync_loop():
+    try:
+        last_mtime = os.path.getmtime(DB_PATH)
+    except OSError:
+        last_mtime = 0
+    while True:
+        time.sleep(20)
+        try:
+            m = os.path.getmtime(DB_PATH)
+            if m != last_mtime and gh_push_db():
+                last_mtime = os.path.getmtime(DB_PATH)
+        except Exception:
+            pass
+
+
+gh_pull_db()
 seed_db_if_needed()
 init_db()
+threading.Thread(target=_sync_loop, daemon=True).start()
 
 
 def get_invite_code():
