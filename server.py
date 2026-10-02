@@ -310,14 +310,28 @@ def _sync_loop():
         last_mtime = os.path.getmtime(DB_PATH)
     except OSError:
         last_mtime = 0
+    # 文件锁：防止多进程（如 gunicorn 未 preload 时的多 worker）同时推库
+    lock_path = DB_PATH + '.sync.lock'
     while True:
         time.sleep(20)
         try:
             if not _db_is_ready():
                 continue
             m = os.path.getmtime(DB_PATH)
-            if m != last_mtime and gh_push_db():
-                last_mtime = os.path.getmtime(DB_PATH)
+            if m != last_mtime:
+                # 尝试独占锁，拿不到就跳过本轮（另一个进程在推）
+                fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                try:
+                    if gh_push_db():
+                        last_mtime = os.path.getmtime(DB_PATH)
+                finally:
+                    os.close(fd)
+                    try:
+                        os.remove(lock_path)
+                    except OSError:
+                        pass
+        except FileExistsError:
+            pass  # 已有进程在推，跳过
         except Exception:
             pass
 

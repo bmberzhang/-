@@ -21,4 +21,4 @@ ENV MPLBACKEND=Agg
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "gunicorn server:app --bind 0.0.0.0:8080 --workers 1 --timeout 180"]
+CMD ["sh", "-c", "gunicorn server:app --preload --bind 0.0.0.0:8080 --workers 1 --timeout 180"]

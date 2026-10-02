@@ -4,7 +4,7 @@
     "builder": "DOCKERFILE"
   },
   "deploy": {
-    "startCommand": "gunicorn server:app --bind 0.0.0.0:8080 --workers 1 --timeout 180",
+    "startCommand": "gunicorn server:app --preload --bind 0.0.0.0:8080 --workers 1 --timeout 180",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
