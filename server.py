@@ -237,6 +237,23 @@ def gh_pull_db():
         if raw[:16] != b'SQLite format 3\x00':
             print('[sync] GitHub 上的 users.db 不是有效 SQLite 库，跳过')
             return
+        # 校验库里有 users 表，避免把早期误推的空壳库拉回来覆盖正常库
+        import tempfile
+        tmp = os.path.join(tempfile.gettempdir(), '_ghpull_check.db')
+        with open(tmp, 'wb') as f:
+            f.write(raw)
+        try:
+            c = sqlite3.connect(tmp)
+            has_users = c.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='users'").fetchone()[0] == 1
+            c.close()
+        finally:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+        if not has_users:
+            print('[sync] GitHub 上的 users.db 无 users 表（空壳），跳过，走本地/种子库')
+            return
         with open(DB_PATH, 'wb') as f:
             f.write(raw)
         print(f'[sync] 已从 GitHub 恢复用户库（{len(raw)} 字节，分支 {DATA_BRANCH}）')
@@ -249,9 +266,23 @@ def gh_pull_db():
         print('[sync] GitHub 拉取跳过:', e)
 
 
+def _db_is_ready():
+    """本地库是否已建好 users 表（避免把启动早期的空壳库推上去覆盖远端）。"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        ok = conn.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='users'").fetchone()[0] == 1
+        conn.close()
+        return ok
+    except Exception:
+        return False
+
+
 def gh_push_db():
     """把本地 users.db 推到 GitHub data 分支（有则覆盖，无则新建）。"""
     if not GITHUB_TOKEN or not os.path.exists(DB_PATH):
+        return False
+    if not _db_is_ready():
+        print('[sync] 本地库尚未就绪（无 users 表），跳过推送')
         return False
     try:
         sha = None
@@ -273,6 +304,8 @@ def gh_push_db():
 
 
 def _sync_loop():
+    # 启动后先等库建好表（init_db 已完成），并跳过启动瞬间的 mtime 噪声
+    time.sleep(5)
     try:
         last_mtime = os.path.getmtime(DB_PATH)
     except OSError:
@@ -280,6 +313,8 @@ def _sync_loop():
     while True:
         time.sleep(20)
         try:
+            if not _db_is_ready():
+                continue
             m = os.path.getmtime(DB_PATH)
             if m != last_mtime and gh_push_db():
                 last_mtime = os.path.getmtime(DB_PATH)
