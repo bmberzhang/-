@@ -184,7 +184,8 @@ def init_db():
 
 # 云端首次启动：若数据目录无用户库，或库里没有任何用户，则从镜像内种子库恢复
 def seed_db_if_needed():
-    seed = os.environ.get('SEED_DB', '')
+    # 种子库路径：优先环境变量，否则默认代码目录下的 users.db.seed
+    seed = os.environ.get('SEED_DB', '') or os.path.join(BASE, 'users.db.seed')
     if not seed or not os.path.exists(seed):
         return
     import shutil
