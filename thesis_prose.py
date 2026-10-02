@@ -26,26 +26,46 @@ import re
 # ============================================================
 # 一、带种子的选词器
 # ============================================================
-class Seed:
-    """按种子选词。同一文档内同一槽位不重复用同一个变体。"""
+# 跨文档「上次没用过优先」的全局记忆：进程内常驻，记录每个槽位最近
+# 用过的变体。同一槽位的变体被轮流用一遍之前，不会重复选同一条；轮空才
+# 重置重新开始。Railway 重启后清零，靠随机盐兜底（每次生成结果仍不同）。
+# ponytail: 进程内 dict，不落库、不加锁；GIL 已保护 dict 单步操作，
+# 多进程/重启后记忆丢失属可接受的降级（有随机盐保证不逐字重复）。
+_GLOBAL_USED = {}
 
-    def __init__(self, *material):
+
+class Seed:
+    """按种子选词。同一文档内同一槽位不重复，跨文档也尽量不重复。"""
+
+    def __init__(self, *material, salt=None):
         raw = '|'.join(str(m) for m in material if m)
+        if salt:
+            raw += '|salt=' + str(salt)
         h = hashlib.md5(raw.encode('utf-8')).hexdigest()
         self.code = h[:10]
         self._r = random.Random(int(h[:12], 16))
         self._used = {}
 
     def pick(self, key, variants, **fmt):
-        """从 variants 里挑一条；同一 key 不重复挑同一条。"""
+        """从 variants 里挑一条；优先选本文件与全局都「最近没用过」的。"""
         if not variants:
             return ''
-        pool = [i for i in range(len(variants)) if i not in self._used.get(key, ())]
-        if not pool:                      # 用完了就允许重复，但换一轮
+        n = len(variants)
+        local_used = self._used.get(key, ())
+        global_used = _GLOBAL_USED.get(key, set())
+        pool = [i for i in range(n) if i not in local_used and i not in global_used]
+        if not pool:
+            # 全局已把每个变体都用过一遍，重置全局、开启新一轮
+            if global_used:
+                _GLOBAL_USED[key] = set()
+                pool = [i for i in range(n) if i not in local_used]
+        if not pool:
+            # 本文件内也用尽了，重置本文件记录
             self._used[key] = []
-            pool = list(range(len(variants)))
+            pool = list(range(n))
         i = self._r.choice(pool)
         self._used.setdefault(key, []).append(i)
+        _GLOBAL_USED.setdefault(key, set()).add(i)
         s = variants[i]
         try:
             return s.format(**fmt) if fmt else s
@@ -2799,3 +2819,16 @@ P['c9_limit'] = [
     '未作专门计算。'
     '这些内容可在后续设计阶段补充完善。',
 ]
+
+# ============================================================
+# 追加变体：把 _extra_variants.EXTRA 里补写的写法并入 P，
+# 使原 3 变体的槽位扩充到 5 变体，进一步压低跨篇撞车率。
+# ============================================================
+try:
+    from _extra_variants import EXTRA as _EXTRA
+    for _k, _vs in _EXTRA.items():
+        if _k in P:
+            P[_k].extend(v for v in _vs if v not in P[_k])
+except Exception:
+    pass
+

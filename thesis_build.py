@@ -2245,7 +2245,8 @@ def build(params, spec=None, task_sections=None, figures=None, meta=None):
     # 不同任务书必然得到不同的选词组合与段落结构。
     task_text = ''.join(task_sections or [])
     ctx['V'] = ps.Seed(meta.get('seed_material') or task_text[:3000],
-                       repr(sorted((str(k), str(v)) for k, v in P.items())))
+                       repr(sorted((str(k), str(v)) for k, v in P.items())),
+                       salt=meta.get('salt'))
     ctx['B'] = ps.classify(task_sections)
     if not P.get('_raw'):
         P['_raw'] = task_text          # 供工程特征识别（是否除险加固等）

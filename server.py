@@ -1336,6 +1336,8 @@ def _generate_thesis(uid, params, meta=None):
     # 同一份任务书结果可复现，不同任务书必然得到不同的行文。
     meta['seed_material'] = pack.get('raw') or '\n'.join(pack.get('sections') or [])
     P['_raw'] = meta['seed_material']
+    # 随机盐：同一客户重复生成也得到不同的行文（否则种子可复现、两次一模一样）。
+    meta['salt'] = str(time.time())
 
     # 任务书缺关键参数要明说：整本论文会按内置示例值（calc.KEY_DEFAULTS）
     # 计算，不提醒的话客户会拿到一本“数据凭空而来”的论文（线上实测踩过）。
