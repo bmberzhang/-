@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: sluice
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn server:app --bind 0.0.0.0:$PORT --workers 1 --timeout 180
+    envVars:
+      - key: DATA_DIR
+        value: /opt/render/project/src/data
+      - key: SEED_DB
+        value: /opt/render/project/src/users.db.seed
+      - key: MPLBACKEND
+        value: Agg
+      - key: PYTHON_VERSION
+        value: 3.12.9
