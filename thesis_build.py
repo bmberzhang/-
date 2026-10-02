@@ -448,7 +448,7 @@ def abstract_cn(doc, P, R, fmt, meta, ctx):
         body = V.pick('abs_body', ps.P['abs_body'],
                       std=U['std'], qd=U['qd'], qc=U['qc'])
     else:
-        body = V.pick('abs_body_q', ps.P['abs_body_q'], qd=U['qd'])
+        body = V.pick('abs_body_q', ps.P['abs_body_q'], qd=U['qd'], qc=U['qc'])
     add_para(doc, head + body, fmt)
 
     # 孔数/单孔净宽取计算采用的布置值（gw），与正文第3章一致
@@ -1367,7 +1367,8 @@ def ch_top(doc, P, R, fmt, c, figs, ctx):
         add_para(doc, V.pick('top_res', ps.P['top_res'],
                              top='%.2f' % top.get('top', 0),
                              h1='%.2f' % top.get('H1', 0),
-                             h2='%.2f' % top.get('H2', 0)), fmt)
+                             h2='%.2f' % top.get('H2', 0),
+                             ground='%.2f' % top.get('ground', 0)), fmt)
 
     _sub(doc, c, k, '闸底板布置', fmt)
     k += 1
