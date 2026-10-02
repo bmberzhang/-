@@ -181,13 +181,26 @@ def init_db():
     conn.close()
 
 
-# 云端首次启动：若数据目录无用户库，则从镜像内种子库恢复
+# 云端首次启动：若数据目录无用户库，或库里没有任何用户，则从镜像内种子库恢复
 def seed_db_if_needed():
     seed = os.environ.get('SEED_DB', '')
-    if not os.path.exists(DB_PATH) and seed and os.path.exists(seed):
-        import shutil
+    if not seed or not os.path.exists(seed):
+        return
+    import shutil
+    if not os.path.exists(DB_PATH):
         shutil.copy(seed, DB_PATH)
         print(f'[init] 已从种子库恢复用户数据: {seed}')
+        return
+    # 库存在但无任何用户（残留空库）时，同样恢复种子库里的账号
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        n = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+        conn.close()
+        if n == 0:
+            shutil.copy(seed, DB_PATH)
+            print(f'[init] 空库，已从种子库恢复用户数据: {seed}')
+    except Exception as e:
+        print('[init] 检查用户库失败:', e)
 
 
 seed_db_if_needed()
