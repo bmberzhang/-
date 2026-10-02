@@ -1,4 +1,4 @@
-// 水闸设计系统 - Service Worker（多用户登录版）
+// 水闸毕业设计系统 - Service Worker（多用户登录版）
 const CACHE = 'sluice-app-v3';
 const PRECACHE = [
   '/static/manifest.json',
