@@ -170,6 +170,8 @@ def init_db():
             ('wechat_qr', ''), ('alipay_qr', ''),
             ('register_drawing_bonus', '0'), ('register_thesis_bonus', '0'),
             ('register_tool_bonus', '2'), ('register_verify_bonus', '2'),
+            # 一次性邀请码：注册成功一人后自动换新码（1=开启，0=关闭）
+            ('invite_code_rotate', '1'),
             # 在线支付网关（易支付协议）。pay_gateway 留空或 manual = 走人工收款码流程
             ('pay_gateway', ''), ('epay_api', ''), ('epay_pid', ''), ('epay_key', ''),
             ('pay_site_url', ''),
@@ -451,6 +453,28 @@ def get_invite_code():
     return row['value'] if row else 'sluice2026'
 
 
+def _new_invite_code():
+    """生成一个随机邀请码（8 位，大小写字母+数字，去掉易混淆字符）。"""
+    import secrets, string
+    alphabet = string.ascii_letters + string.digits
+    # 去掉 0/O、1/l/I 等易混淆字符
+    alphabet = ''.join(c for c in alphabet if c not in '0O1lI')
+    return ''.join(secrets.choice(alphabet) for _ in range(8))
+
+
+def rotate_invite_code():
+    """注册成功一人后自动更换邀请码（一次性邀请码）。
+    是否启用由 settings 里的 invite_code_rotate 控制（默认开启）。"""
+    if get_setting('invite_code_rotate', '1').strip() != '1':
+        return None
+    new_code = _new_invite_code()
+    conn = get_db()
+    conn.execute("UPDATE settings SET value=? WHERE key='invite_code'", (new_code,))
+    conn.commit()
+    conn.close()
+    return new_code
+
+
 # ============================================================
 # 付费 / 次数扣费
 # ============================================================
@@ -642,6 +666,8 @@ def register():
                   int(get_setting('register_verify_bonus', '2') or 0)))
     conn.commit()
     conn.close()
+    # 一次性邀请码：注册成功一人后自动换新码（旧码立即作废）
+    rotate_invite_code()
     flash('注册成功，请登录')
     return redirect(url_for('login'))
 
@@ -667,6 +693,14 @@ def admin():
                 flash(f'邀请码已更新为：{new_code}')
             else:
                 flash('邀请码不能为空')
+        elif action == 'toggle_rotate':
+            # 一次性邀请码开关：1=注册后自动换码，0=固定不变
+            newv = request.form.get('value') or '1'
+            conn = get_db()
+            conn.execute("UPDATE settings SET value=? WHERE key='invite_code_rotate'", (newv,))
+            conn.commit()
+            conn.close()
+            flash('邀请码自动更换已' + ('开启' if newv == '1' else '关闭'))
         elif action == 'delete_user':
             uid = request.form.get('user_id')
             conn = get_db()
@@ -775,6 +809,7 @@ def admin():
         'admin.html', invite_code=get_invite_code(), users=users, pay=get_pay_config(),
         orders=orders,
         qlabel=QUOTA_LABEL,
+        rotate=get_setting('invite_code_rotate', '1').strip(),
         gw={
             'mode': get_setting('pay_gateway', '').strip(),
             'api': get_setting('epay_api', '').strip(),

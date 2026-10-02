@@ -193,6 +193,12 @@
         <span class="code">{{ invite_code }}</span>
         <span class="note">把这个码告诉需要注册的人，注册时需要填写。</span>
       </div>
+      <div class="form-inline" style="margin-top:10px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2);cursor:pointer;margin:0">
+          <input type="checkbox" id="rotateToggle" {% if rotate == '1' %}checked{% endif %}>
+          一次性邀请码（注册成功一人后自动换新码）
+        </label>
+      </div>
       <form method="post" action="/admin" style="margin-top:14px">
         <input type="hidden" name="action" value="update_invite">
         <div class="form-inline">
@@ -676,6 +682,21 @@ loadPayReqs();
 loadGenRecords();
 loadMsgs();
 setInterval(loadMsgs, 8000);
+
+// ===== 一次性邀请码开关 =====
+(function(){
+  var cb = document.getElementById('rotateToggle');
+  if (!cb) return;
+  cb.addEventListener('change', function(){
+    var val = cb.checked ? '1' : '0';
+    var fd = new FormData();
+    fd.append('action', 'toggle_rotate');
+    fd.append('value', val);
+    fetch('/admin', { method:'POST', body:fd })
+      .then(function(){ location.reload(); })
+      .catch(function(){ alert('设置失败'); });
+  });
+})();
 </script>
 </body>
 </html>
