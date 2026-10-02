@@ -309,6 +309,102 @@ def gh_push_db():
         return False
 
 
+# ============================================================
+# 论文 / 图纸文件本体同步到 GitHub（解决"重部署后文件本体丢失、下载链接失效"）
+# ============================================================
+# 原理：生成/上传的 docx、dxf、svg 除了落本地磁盘作缓存，还推一份到 GitHub data 分支
+#       files/<type>/<uid>/<filename> 路径下；下载时本地缓存没了就从 GitHub 拉回来。
+# 文件本体（可达数 MB）与 users.db 一样走 Contents API（单文件上限 100MB），无需额外配置。
+
+# 各文件类型的远端目录前缀
+_FILE_DIRS = {
+    'thesis':  'files/thesis',
+    'drawing': 'files/drawing',
+    'doc':      'files/doc',      # 客户上传的任务书/规范
+    'msg':      'files/msg',      # 聊天图片
+}
+
+
+def _gh_file_path(kind, uid, filename):
+    """把 (类型, uid, 文件名) 拼成 GitHub data 分支里的相对路径。
+    文件名可能含中文/空格，URL 编码交给 _gh_req 的 Request 自动处理（路径用 quote 更稳）。
+    uid 为 0/None 时不拼 uid 子目录（适用于文件名已全局唯一的场景，如聊天图片）。"""
+    import urllib.parse
+    fn = urllib.parse.quote(filename, safe='')
+    if uid:
+        return f'{_FILE_DIRS.get(kind, "files")}/{uid}/{fn}'
+    return f'{_FILE_DIRS.get(kind, "files")}/{fn}'
+
+
+def gh_upload_file(kind, uid, filename, local_path):
+    """把本地文件推到 GitHub data 分支。失败不抛异常，静默返回 False（本地缓存仍在，下次重试）。"""
+    if not GITHUB_TOKEN or not os.path.exists(local_path):
+        return False
+    try:
+        remote = _gh_file_path(kind, uid, filename)
+        sha = None
+        try:
+            sha = _gh_req(f'{_GH_API}/repos/{DATA_REPO}/contents/{remote}?ref={DATA_BRANCH}').get('sha')
+        except Exception:
+            pass
+        with open(local_path, 'rb') as f:
+            content = base64.b64encode(f.read()).decode()
+        body = {'message': f'upload {kind} {filename}', 'content': content, 'branch': DATA_BRANCH}
+        if sha:
+            body['sha'] = sha
+        _gh_req(f'{_GH_API}/repos/{DATA_REPO}/contents/{remote}', method='PUT', payload=body)
+        print(f'[sync] 文件已上传 GitHub: {remote}')
+        return True
+    except Exception as e:
+        print(f'[sync] 文件上传失败 {filename}:', e)
+        return False
+
+
+def gh_download_file(kind, uid, filename):
+    """从 GitHub 拉取文件字节。找不到或失败返回 None。"""
+    if not GITHUB_TOKEN:
+        return None
+    try:
+        remote = _gh_file_path(kind, uid, filename)
+        j = _gh_req(f'{_GH_API}/repos/{DATA_REPO}/contents/{remote}?ref={DATA_BRANCH}')
+        return base64.b64decode(j.get('content') or '')
+    except urllib.error.HTTPError as e:
+        if e.code != 404:
+            print(f'[sync] 文件下载失败 {filename}:', e.code)
+        return None
+    except Exception as e:
+        print(f'[sync] 文件下载跳过 {filename}:', e)
+        return None
+
+
+def resolve_file(kind, uid, filename, base_dir):
+    """下载时的统一入口：优先本地缓存，本地没有就从 GitHub 拉回并落到本地缓存。
+    返回字节数据；都没有则返回 None。"""
+    local = os.path.join(base_dir, str(uid), filename)
+    if os.path.exists(local):
+        with open(local, 'rb') as f:
+            return f.read()
+    # 本地缓存缺失（重部署后容器磁盘被清空）→ 从 GitHub 兜底
+    raw = gh_download_file(kind, uid, filename)
+    if raw:
+        try:
+            os.makedirs(os.path.dirname(local), exist_ok=True)
+            with open(local, 'wb') as f:
+                f.write(raw)
+        except Exception as e:
+            print('[sync] 写回本地缓存失败:', e)
+    return raw
+
+
+def send_resolved_file(kind, uid, filename, base_dir, as_attachment=True):
+    """下载统一入口：本地缓存 → GitHub 兜底 → 404。返回 Flask Response。"""
+    raw = resolve_file(kind, uid, filename, base_dir)
+    if raw is None:
+        return jsonify({"ok": False, "error": "文件不存在或已被清理"}), 404
+    import io
+    return send_file(io.BytesIO(raw), as_attachment=as_attachment, download_name=filename)
+
+
 def _sync_loop():
     # 启动后先等库建好表（init_db 已完成），并跳过启动瞬间的 mtime 噪声
     time.sleep(5)
@@ -1106,6 +1202,8 @@ def msg_send():
             fname = f"msg_{int(time.time()*1000)}_{u['id']}{ext}"
             with open(os.path.join(img_dir, fname), 'wb') as f:
                 f.write(raw)
+            # 聊天图片本体也推 GitHub，重部署后不失效（fname 已全局唯一，用 uid=0 不拼子目录）
+            gh_upload_file('msg', 0, fname, os.path.join(img_dir, fname))
             file_url = f"/api/msg/image/{fname}"
             content = '发来一张图片'
         except Exception as e:
@@ -1142,7 +1240,17 @@ def msg_image(filename):
     safe = os.path.basename(filename)
     path = os.path.join(img_dir, safe)
     if not os.path.exists(path):
-        return jsonify({"ok": False, "error": "图片不存在"}), 404
+        # 本地缓存缺失（重部署后）→ 从 GitHub 兜底恢复
+        raw = gh_download_file('msg', 0, safe)
+        if raw:
+            try:
+                os.makedirs(img_dir, exist_ok=True)
+                with open(path, 'wb') as f:
+                    f.write(raw)
+            except Exception:
+                pass
+        else:
+            return jsonify({"ok": False, "error": "图片不存在"}), 404
     return send_from_directory(img_dir, safe)
 
 
@@ -1184,6 +1292,8 @@ def records_save():
     fname = f"{safe_title}_{stamp}.docx"
     fpath = os.path.join(user_dir, fname)
     f.save(fpath)
+    # 论文文件本体推 GitHub，重部署后下载链接不失效
+    gh_upload_file('thesis', u['id'], fname, fpath)
     conn = get_db()
     conn.execute(
         'INSERT INTO generation_records (user_id, username, type, title, file_url) VALUES (?,?,?,?,?)',
@@ -1222,7 +1332,7 @@ def records_download(uid, filename):
     u = current_user()
     if u is None or (u['id'] != uid and not is_admin(u)):
         return jsonify({"ok": False, "error": "无权限"}), 403
-    return send_from_directory(os.path.join(THESIS_OUT, str(uid)), filename)
+    return send_resolved_file('thesis', uid, filename, THESIS_OUT)
 
 
 @app.route('/admin/dl/<kind>/<int:uid>/<path:filename>')
@@ -1232,7 +1342,7 @@ def admin_download(kind, uid, filename):
     if not u or not is_admin(u):
         return jsonify({"ok": False, "error": "无权限"}), 403
     base = THESIS_OUT if kind == 'thesis' else DRAW_OUT
-    return send_from_directory(os.path.join(base, str(uid)), filename, as_attachment=True)
+    return send_resolved_file(kind, uid, filename, base)
 
 
 @app.route('/records')
@@ -1357,12 +1467,24 @@ def _doc_row(uid, kind):
 
 
 def _doc_path(uid, kind):
-    """返回已上传文件的绝对路径；没有则 None。"""
+    """返回已上传文件的绝对路径；没有则 None。
+    重部署后本地磁盘被清空时，自动从 GitHub 拉回并落回本地缓存。"""
     r = _doc_row(uid, kind)
     if not r or not r['stored']:
         return None
     p = os.path.join(_doc_dir(uid), r['stored'])
-    return p if os.path.exists(p) else None
+    if os.path.exists(p):
+        return p
+    # 本地缓存缺失 → 从 GitHub 兜底恢复
+    raw = gh_download_file('doc', uid, r['stored'])
+    if raw:
+        try:
+            with open(p, 'wb') as fp:
+                fp.write(raw)
+            return p
+        except Exception as e:
+            print('[sync] 任务书/规范写回本地失败:', e)
+    return None
 
 
 def _sniff_kind(path):
@@ -1612,6 +1734,8 @@ def thesis_doc_upload():
             pass
     with open(os.path.join(d, stored), 'wb') as fp:
         fp.write(data)
+    # 任务书/规范文件本体也推 GitHub，重部署后不用客户重新上传
+    gh_upload_file('doc', u['id'], stored, os.path.join(d, stored))
 
     conn = get_db()
     conn.execute('''INSERT INTO user_docs (user_id, kind, filename, stored, size, parsed, spec_summary, updated_at)
@@ -1783,6 +1907,8 @@ def generate():
             fp.write(buf.getvalue())
     except Exception as e:
         print('[thesis] 存档失败:', e)
+    # 论文文件本体也推 GitHub，重部署后下载链接不失效（本地磁盘仅作缓存）
+    gh_upload_file('thesis', u['id'], save_name, os.path.join(out_dir, save_name))
     buf.seek(0)
 
     try:
@@ -1815,8 +1941,7 @@ def thesis_download(uid, filename):
         return redirect('/login')
     if u['id'] != uid and not is_admin(u):
         return '无权限', 403
-    d = os.path.join(THESIS_OUT, str(uid))
-    return send_from_directory(d, filename, as_attachment=True)
+    return send_resolved_file('thesis', uid, filename, THESIS_OUT)
 
 
 
@@ -1983,6 +2108,10 @@ def drawing_generate():
     except Exception as e:
         return jsonify({"ok": False, "error": f"生成失败: {e}"}), 500
 
+    # 图纸文件本体也推 GitHub，重部署后下载链接不失效（本地磁盘仅作缓存）
+    gh_upload_file('drawing', u['id'], os.path.basename(dxf_path), dxf_path)
+    gh_upload_file('drawing', u['id'], os.path.basename(svg_path), svg_path)
+
     # 保存该用户的参数（下次自动回填）；两张图共用一份存档，各改各的键
     try:
         allp = load_user_params(u['id'])
@@ -2028,7 +2157,7 @@ def drawing_download(uid, filename):
     # 只能下载自己的图纸
     if u is None or u['id'] != uid:
         return jsonify({"ok": False, "error": "无权限"}), 403
-    return send_from_directory(os.path.join(DRAW_OUT, str(uid)), filename)
+    return send_resolved_file('drawing', uid, filename, DRAW_OUT)
 
 
 @app.route('/<path:path>')
