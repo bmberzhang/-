@@ -1,7 +1,6 @@
 .git
 .workbuddy
 users.db
-users.db.seed
 output_drawing
 output_thesis
 uploads
