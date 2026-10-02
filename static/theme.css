@@ -279,6 +279,22 @@ select.input { cursor: pointer; }
 }
 @keyframes theme-spin { to { transform: rotate(360deg); } }
 
+/* ---------- 论文生成进度条（仪式感加载） ---------- */
+.gen-stage { color: #fff; font-size: 14px; font-weight: 500; }
+.gen-sub { color: rgba(255,255,255,.62); font-size: 12.5px; margin-top: 4px; }
+.gen-bar {
+  width: min(420px, 78vw); height: 6px;
+  background: rgba(255,255,255,.18); border-radius: 99px;
+  margin-top: 22px; overflow: hidden;
+}
+.gen-bar .fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #0066cc, #4da6ff);
+  border-radius: 99px; transition: width .3s ease;
+}
+.gen-pct { color: #fff; font-size: 22px; font-weight: 700; margin-top: 10px; font-variant-numeric: tabular-nums; }
+.gen-eta { color: rgba(255,255,255,.55); font-size: 12px; margin-top: 3px; }
+
 /* ---------- 分段控件 ---------- */
 .seg { display: inline-flex; gap: 2px; padding: 3px; background: var(--surface-2); border-radius: var(--r-md); }
 .seg button {

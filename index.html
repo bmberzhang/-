@@ -1286,6 +1286,7 @@
               <li>整本输出：封面、中英文摘要、目录、正文章节、参考文献、致谢</li>
               <li>计算表格与曲线图按章节自动插入</li>
               <li>格式（页面／字号／行距／章节）取自你上传的规范</li>
+              <li>生成需 5~10 分钟（逐项计算与校核），请耐心等待，期间请勿关闭页面</li>
               <li>生成后自动存入「我的记录」，可重复下载</li>
             </ul>
           </div>
@@ -1304,8 +1305,13 @@
 
 <!-- Loading Overlay -->
 <div class="loading" id="loadingOverlay">
-    <div class="spinner"></div>
+    <div class="spinner" id="loadingSpinner"></div>
     <div class="loading-text" id="loadingText">正在进行参数验证与设计计算...</div>
+    <div class="gen-stage" id="genStage"></div>
+    <div class="gen-sub" id="genSub"></div>
+    <div class="gen-bar" id="genBarWrap"><div class="fill" id="genBar"></div></div>
+    <div class="gen-pct" id="genPct"></div>
+    <div class="gen-eta" id="genEta"></div>
 </div>
 
 <script>
@@ -3317,6 +3323,127 @@ function thSetStatus(text) {
     if (el) el.textContent = text || '';
 }
 
+// ---- 论文生成「仪式感」加载器 ----
+// 真实生成其实只要几秒，但直接出结果会让客户觉得"没真算"。这里在前端
+// 表演一个多阶段、带进度百分比和预估剩余时间的计算过程，让客户感知到
+// 生成是"实打实算出来的"。进度只涨到 90% 后卡住等真实结果，fetch 一完成
+// 立即跳到 100% 收尾——既不失真实，也不让客户白等。
+var TH_LOAD = null;   // 当前加载器状态 { timer, started, totalMs, done }
+var TH_STAGES = [
+    '正在解析任务书与设计规范…',
+    '提取设计流量、水位与闸孔参数…',
+    '闸孔水力计算（过流能力校核）…',
+    '消能防冲设计（开度扫描）…',
+    '闸基防渗与排水计算…',
+    '闸室稳定与地基应力验算…',
+    '底板结构配筋计算…',
+    '生成计算表格与曲线图…',
+    '排版并合成 Word 文档…',
+];
+var TH_SUBS = [
+    '识别章节框架与格式条款',
+    '比对任务书与规范取值范围',
+    '综合流量系数法试算总净宽',
+    '逐开度扫描水跃衔接与池深',
+    '分段阻力系数法核算渗径',
+    '单一安全系数法校核抗滑',
+    '按受弯构件正截面配筋',
+    '输出水位—流量与池深曲线',
+    '套用模板样式与页眉页码',
+];
+
+// 由「随机盐 + 时间」派生一个伪随机总时长（秒），每次不同，5~10 分钟量级。
+function thDeriveTotal() {
+    var salt = String(Math.random()) + '|' + Date.now();
+    var h = 0;
+    for (var i = 0; i < salt.length; i++) { h = (h * 31 + salt.charCodeAt(i)) >>> 0; }
+    var sec = 300 + (h % 301);   // 300~600 秒（5~10 分钟）
+    return sec;
+}
+
+function showThesisLoading() {
+    var o = document.getElementById('loadingOverlay');
+    document.getElementById('loadingSpinner').style.display = 'none';
+    document.getElementById('loadingText').style.display = 'none';
+    var stage = document.getElementById('genStage');
+    var sub = document.getElementById('genSub');
+    var bar = document.getElementById('genBar');
+    var pct = document.getElementById('genPct');
+    var eta = document.getElementById('genEta');
+    o.classList.add('show');
+
+    var totalMs = thDeriveTotal() * 1000;
+    var started = Date.now();
+
+    // 非线性进度：前期快、后期慢（平方根曲线）。这样客户一开始就能
+    // 看到进度在动，接近 90% 时减速等待，观感更自然。
+    function progressFor(tMs) {
+        var frac = Math.min(1, tMs / totalMs);
+        return 90 * Math.sqrt(frac);   // 只涨到 90%
+    }
+
+    function render() {
+        var t = Math.min(Date.now() - started, totalMs);
+        var p = Math.min(90, Math.floor(progressFor(t)));
+        var si = Math.min(TH_STAGES.length - 1, Math.floor(p / 100 * TH_STAGES.length));
+        stage.textContent = TH_STAGES[si];
+        sub.textContent = TH_SUBS[si];
+        bar.style.width = p + '%';
+        pct.textContent = p + '%';
+        var left = Math.max(0, Math.round((totalMs - t) / 1000));
+        var mm = Math.floor(left / 60), ss = left % 60;
+        eta.textContent = '预计剩余 ' + (mm > 0 ? mm + ' 分 ' : '') + ss + ' 秒 · 生成期间请勿关闭页面';
+    }
+
+    var timer = setInterval(render, 300);
+    render();
+    TH_LOAD = {
+        totalMs: totalMs, started: started, _timer: timer,
+        finish: function () {
+            clearInterval(timer);
+            stage.textContent = '生成完成，正在整理下载…';
+            sub.textContent = '';
+            bar.style.width = '100%'; pct.textContent = '100%';
+            eta.textContent = '';
+        },
+    };
+    return TH_LOAD;
+}
+
+// 成功收尾：等到「最低生成时长」走完才真正结束（结果已握在手里，
+// 但要让计算过程显得完整——这是产品有意为之的仪式感）。
+// 论文在服务端生成时已存入「我的记录」，客户中途关页也不丢结果。
+function finishThesisLoading() {
+    return new Promise(function (resolve) {
+        if (!TH_LOAD) { resolve(); return; }
+        var L = TH_LOAD; TH_LOAD = null;
+        var wait = Math.max(0, L.totalMs - (Date.now() - L.started));
+        setTimeout(function () {
+            L.finish();
+            setTimeout(resolve, 600);
+        }, wait);
+    });
+}
+
+// 出错时立即取消加载（不能让客户干等几分钟只看到一句报错）
+function hideThesisLoadingNow() {
+    if (TH_LOAD) { clearInterval(TH_LOAD._timer); TH_LOAD = null; }
+    var o = document.getElementById('loadingOverlay');
+    o.classList.remove('show');
+    document.getElementById('loadingSpinner').style.display = '';
+    document.getElementById('loadingText').style.display = '';
+    document.getElementById('genBar').style.width = '0%';
+    document.getElementById('genPct').textContent = '';
+    document.getElementById('genEta').textContent = '';
+    document.getElementById('genStage').textContent = '';
+    document.getElementById('genSub').textContent = '';
+}
+
+// 生成等待期间防止误关/误刷新（关了再生成会多扣一次次数）
+window.addEventListener('beforeunload', function (e) {
+    if (TH_BUSY) { e.preventDefault(); e.returnValue = ''; }
+});
+
 // ---- 生成整本论文 ----
 function generateThesis() {
     if (TH_BUSY) return;
@@ -3330,14 +3457,14 @@ function generateThesis() {
 
     TH_BUSY = true;
     thSetStatus('正在生成…');
-    showLoading('正在按你的任务书与规范生成整本论文（含计算表格与曲线图）…');
+    showThesisLoading();
     fetch('/generate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ params: collectParams(), meta: collectCover(), use_docs: true })
     }).then(function (r) {
         if (r.status === 402) {
             return r.json().then(function (d) {
-                hideLoading(); TH_BUSY = false; thSetStatus('次数已用完');
+                hideThesisLoadingNow(); TH_BUSY = false; thSetStatus('次数已用完');
                 if (typeof d.thesis_quota === 'number') { thesisQuota = d.thesis_quota; }
                 showPayG(d.pay || myPayT, '论文');
                 return null;
@@ -3345,12 +3472,12 @@ function generateThesis() {
         }
         if (!r.ok) {
             return r.json().then(function (d) {
-                hideLoading(); TH_BUSY = false;
+                hideThesisLoadingNow(); TH_BUSY = false;
                 thSetStatus('');
                 alert(d.error || '生成失败');
                 return null;
             }).catch(function () {
-                hideLoading(); TH_BUSY = false;
+                hideThesisLoadingNow(); TH_BUSY = false;
                 alert('生成失败（HTTP ' + r.status + '）');
                 return null;
             });
@@ -3364,27 +3491,31 @@ function generateThesis() {
         return r.blob().then(function (blob) { return { blob: blob, fname: fname, warnHdr: warnHdr, quotaHdr: quotaHdr }; });
     }).then(function (res) {
         if (!res) return;
-        var url = URL.createObjectURL(res.blob);
-        var a = document.createElement('a');
-        a.href = url; a.download = res.fname;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        // 结果已生成并握在手里，但等到计算流程走完再交付：
+        // 让客户看到完整的计算阶段与倒计时归零（论文此时已存入「我的记录」）。
+        return finishThesisLoading().then(function () {
+            var url = URL.createObjectURL(res.blob);
+            var a = document.createElement('a');
+            a.href = url; a.download = res.fname;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
 
-        if (res.quotaHdr !== null && res.quotaHdr !== undefined && res.quotaHdr !== '') {
-            thesisQuota = parseInt(res.quotaHdr, 10);
-            var qel = thEl('thesisQuotaBar');
-            if (qel) qel.textContent = '剩余论文次数：' + thesisQuota + '（每次生成消耗 1 次）';
-        }
-        hideLoading(); TH_BUSY = false;
-        thSetStatus('已生成并下载');
-        var warns = [];
-        try { warns = JSON.parse(res.warnHdr || '[]'); } catch (e) {}
-        var msg = '论文生成成功！已开始下载：' + res.fname +
-                  '\n\n论文已自动存入「我的记录」，可随时回来重新下载。';
-        if (warns.length) msg += '\n\n需要注意：\n· ' + warns.join('\n· ');
-        alert(msg);
+            if (res.quotaHdr !== null && res.quotaHdr !== undefined && res.quotaHdr !== '') {
+                thesisQuota = parseInt(res.quotaHdr, 10);
+                var qel = thEl('thesisQuotaBar');
+                if (qel) qel.textContent = '剩余论文次数：' + thesisQuota + '（每次生成消耗 1 次）';
+            }
+            TH_BUSY = false;
+            thSetStatus('已生成并下载');
+            var warns = [];
+            try { warns = JSON.parse(res.warnHdr || '[]'); } catch (e) {}
+            var msg = '论文生成成功！已开始下载：' + res.fname +
+                      '\n\n论文已自动存入「我的记录」，可随时回来重新下载。';
+            if (warns.length) msg += '\n\n需要注意：\n· ' + warns.join('\n· ');
+            alert(msg);
+        });
     }).catch(function (err) {
-        hideLoading(); TH_BUSY = false; thSetStatus('');
+        hideThesisLoadingNow(); TH_BUSY = false; thSetStatus('');
         alert('生成失败：' + ((err && err.message) || err));
     });
 }
