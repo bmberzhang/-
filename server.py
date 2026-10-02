@@ -188,6 +188,11 @@ def seed_db_if_needed():
     if not seed or not os.path.exists(seed):
         return
     import shutil
+    # RESET_DB=1 时强制用种子库重建（无视残留库），用于云端数据损坏/账号异常时一键恢复
+    if os.environ.get('RESET_DB', '') == '1':
+        shutil.copy(seed, DB_PATH)
+        print(f'[init] RESET_DB=1，已强制用种子库重建: {seed}')
+        return
     if not os.path.exists(DB_PATH):
         shutil.copy(seed, DB_PATH)
         print(f'[init] 已从种子库恢复用户数据: {seed}')
