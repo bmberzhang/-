@@ -70,8 +70,8 @@ P = {
     "dim": 1,       # 长度尺寸标注（底部顺流链/左侧宽链/右侧带宽）
     # ⑪ 标准图框
     "frmOn": 1,     # 是否绘制标准图框
-    "sheet": "A2",  # 图纸幅面（A4/A3/A2/A1，加长用 A3x3 形式）
-    "sc": 250,      # 出图比例分母（250 = 1:250）
+    "sheet": "A1",  # 图纸幅面（A1 = 841×594，内容 101987mm 宽，1:150 出图 680mm）
+    "sc": 150,      # 出图比例分母（150 = 1:150）
     "dwgno": "XG-SG-01",       # 图号
     "drafter": "张旭",          # 制图
     "checker": "樊晶晶",        # 审核
@@ -552,10 +552,10 @@ def bbox(G):
 
 def _add_frame(G, p):
     """把标准图框追加进图元列表 G（与图形同处一个模型坐标系，单位 mm）"""
-    sc = _num(p.get("sc"), 250)
+    sc = _num(p.get("sc"), 150)
     items, fb = _FRAME.build_frame(
         bbox(G),
-        sheet=p.get("sheet", "A2"),
+        sheet=p.get("sheet", "A1"),
         scale=sc,
         info={          # 标题栏内容一律留空，只保留表格线与栏目名（人工填写）
             "proj": "", "title": "", "ratio": "", "no": "", "drafter": "", "checker": "",

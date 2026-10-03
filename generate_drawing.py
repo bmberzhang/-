@@ -103,13 +103,13 @@ P = {
     "el_bridge": 85500,    # 工作桥 85.500m
     # 绘图选项
     "title": "水闸纵剖面图",
-    "scale_text": "1:100",
+    "scale_text": "1:150",
     "unit_text": "mm",
     # 标准图框
     "proj": "滏阳河XG水闸重建工程",
     "frmOn": 1,             # 是否绘制标准图框
-    "sheet": "A3x4",        # 图纸幅面（A3 加长 4 倍 = 1189×420）
-    "sc": 100,              # 出图比例分母（100 = 1:100）
+    "sheet": "A1",          # 图纸幅面（A1 = 841×594；内容 85100mm 宽，1:150 出图 567mm）
+    "sc": 150,              # 出图比例分母（150 = 1:150；1:100 时内容 851mm 超出 A1 内框 811mm）
     "dwgno": "XG-SG-02",    # 图号
     "drafter": "张旭",       # 制图
     "checker": "樊晶晶",     # 审核
@@ -227,15 +227,16 @@ def compute_layout(p):
 # ============================================================
 # 3. DXF 生成
 # ============================================================
-# 颜色约定：结构线=红色(1)+粗线(0.5mm)；垫层/反滤层=绿色(3)+细线(0.18mm)
-STRUC_COLOR = 1      # 红
-PAD_COLOR = 3        # 绿
+# 颜色约定：纵剖面图整体为-单色白线（用户 2026-10-03 明确要求"纵剖图里面都用白色的线"）
+# 只有标准图框沿用样图配色：图幅线绿(3)、图框线蓝(5)。
+STRUC_COLOR = 7      # 白（结构线，原为红 1）
+PAD_COLOR = 7        # 白（垫层/反滤层线，原为绿 3）
 STRUC_LW = 50        # 0.5 mm（1/100 mm 单位）
 PAD_LW = 18          # 0.18 mm
-TEXT_COLOR = 7       # 黑（文字）
+TEXT_COLOR = 7       # 白（文字，黑底 CAD 下显示为白）
 END_COLOR = 7        # 白（纵剖面图左右两端封闭竖线，按用户要求用白色）
-RC_REBAR_COLOR = 130 # 蓝（钢筋混凝土-钢筋）
-RC_CONC_COLOR = 131  # 天蓝（钢筋混凝土-混凝土）
+RC_REBAR_COLOR = 7   # 白（钢筋混凝土-钢筋，原为蓝 130）
+RC_CONC_COLOR = 7    # 白（钢筋混凝土-混凝土，原为天蓝 131）
 
 LAYERS = {
     "铺盖":   ("铺盖", STRUC_COLOR),
@@ -447,12 +448,12 @@ def add_frame_dxf(msp, p):
     if not p.get("frmOn", 1):
         _CONTENT_BBOX = None
         return None
-    sc = float(p.get("sc", 100))
+    sc = float(p.get("sc", 150))
     cb = _dxf_bbox(msp)
     _CONTENT_BBOX = cb                     # 供 SVG 复用，保证两张输出口径一致
     items, fb = _FRAME.build_frame(
         cb,
-        sheet=p.get("sheet", "A3x4"),
+        sheet=p.get("sheet", "A1"),
         scale=sc,
         info=frame_info(p),
         notes=NOTES,
@@ -853,7 +854,7 @@ def generate_svg(p, out_path):
     frame_items, frame_box = (None, None)
     if p.get("frmOn", 1):
         frame_items, frame_box = _FRAME.build_frame(
-            content_box, sheet=p.get("sheet", "A3x4"), scale=float(p.get("sc", 100)),
+            content_box, sheet=p.get("sheet", "A1"), scale=float(p.get("sc", 150)),
             info=frame_info(p), notes=NOTES)
 
     if frame_box:
@@ -881,58 +882,59 @@ def generate_svg(p, out_path):
         '<defs>'
         '<pattern id="conc-fill" patternUnits="userSpaceOnUse" width="1600" height="1600" patternTransform="rotate(45)">'
         # 浅色底（钢筋混凝土断面底色）
-        '<rect width="1600" height="1600" fill="#e8e8e8"/>'
+        '<rect width="1600" height="1600" fill="#f2f2f2"/>'
         # 钢筋斜线（每 320mm 一条，粗、深）
-        '<line x1="0" y1="0" x2="1600" y2="0" stroke="#24458a" stroke-width="3"/>'
-        '<line x1="0" y1="320" x2="1600" y2="320" stroke="#24458a" stroke-width="3"/>'
-        '<line x1="0" y1="640" x2="1600" y2="640" stroke="#24458a" stroke-width="3"/>'
-        '<line x1="0" y1="960" x2="1600" y2="960" stroke="#24458a" stroke-width="3"/>'
-        '<line x1="0" y1="1280" x2="1600" y2="1280" stroke="#24458a" stroke-width="3"/>'
+        '<line x1="0" y1="0" x2="1600" y2="0" stroke="#5a5a5a" stroke-width="3"/>'
+        '<line x1="0" y1="320" x2="1600" y2="320" stroke="#5a5a5a" stroke-width="3"/>'
+        '<line x1="0" y1="640" x2="1600" y2="640" stroke="#5a5a5a" stroke-width="3"/>'
+        '<line x1="0" y1="960" x2="1600" y2="960" stroke="#5a5a5a" stroke-width="3"/>'
+        '<line x1="0" y1="1280" x2="1600" y2="1280" stroke="#5a5a5a" stroke-width="3"/>'
         # 混凝土骨料散点
-        '<circle cx="120" cy="120" r="6" fill="#24458a"/>'
-        '<circle cx="520" cy="80" r="5" fill="#24458a"/>'
-        '<circle cx="1000" cy="160" r="6" fill="#24458a"/>'
-        '<circle cx="1400" cy="60" r="5" fill="#24458a"/>'
-        '<circle cx="240" cy="440" r="6" fill="#24458a"/>'
-        '<circle cx="760" cy="400" r="5" fill="#24458a"/>'
-        '<circle cx="1240" cy="520" r="6" fill="#24458a"/>'
-        '<circle cx="1520" cy="360" r="5" fill="#24458a"/>'
-        '<circle cx="160" cy="800" r="6" fill="#24458a"/>'
-        '<circle cx="680" cy="720" r="5" fill="#24458a"/>'
-        '<circle cx="1160" cy="840" r="6" fill="#24458a"/>'
-        '<circle cx="1480" cy="760" r="5" fill="#24458a"/>'
-        '<circle cx="400" cy="1120" r="6" fill="#24458a"/>'
-        '<circle cx="920" cy="1080" r="5" fill="#24458a"/>'
-        '<circle cx="1320" cy="1240" r="6" fill="#24458a"/>'
-        '<circle cx="120" cy="1400" r="6" fill="#24458a"/>'
-        '<circle cx="600" cy="1360" r="5" fill="#24458a"/>'
-        '<circle cx="1080" cy="1480" r="6" fill="#24458a"/>'
+        '<circle cx="120" cy="120" r="6" fill="#5a5a5a"/>'
+        '<circle cx="520" cy="80" r="5" fill="#5a5a5a"/>'
+        '<circle cx="1000" cy="160" r="6" fill="#5a5a5a"/>'
+        '<circle cx="1400" cy="60" r="5" fill="#5a5a5a"/>'
+        '<circle cx="240" cy="440" r="6" fill="#5a5a5a"/>'
+        '<circle cx="760" cy="400" r="5" fill="#5a5a5a"/>'
+        '<circle cx="1240" cy="520" r="6" fill="#5a5a5a"/>'
+        '<circle cx="1520" cy="360" r="5" fill="#5a5a5a"/>'
+        '<circle cx="160" cy="800" r="6" fill="#5a5a5a"/>'
+        '<circle cx="680" cy="720" r="5" fill="#5a5a5a"/>'
+        '<circle cx="1160" cy="840" r="6" fill="#5a5a5a"/>'
+        '<circle cx="1480" cy="760" r="5" fill="#5a5a5a"/>'
+        '<circle cx="400" cy="1120" r="6" fill="#5a5a5a"/>'
+        '<circle cx="920" cy="1080" r="5" fill="#5a5a5a"/>'
+        '<circle cx="1320" cy="1240" r="6" fill="#5a5a5a"/>'
+        '<circle cx="120" cy="1400" r="6" fill="#5a5a5a"/>'
+        '<circle cx="600" cy="1360" r="5" fill="#5a5a5a"/>'
+        '<circle cx="1080" cy="1480" r="6" fill="#5a5a5a"/>'
         # 反向短斜线（骨料纹理）
-        '<line x1="400" y1="240" x2="500" y2="340" stroke="#24458a" stroke-width="2.5"/>'
-        '<line x1="900" y1="180" x2="1000" y2="280" stroke="#24458a" stroke-width="2.5"/>'
-        '<line x1="320" y1="600" x2="420" y2="700" stroke="#24458a" stroke-width="2.5"/>'
-        '<line x1="840" y1="560" x2="940" y2="660" stroke="#24458a" stroke-width="2.5"/>'
-        '<line x1="1300" y1="680" x2="1400" y2="780" stroke="#24458a" stroke-width="2.5"/>'
-        '<line x1="520" y1="960" x2="620" y2="1060" stroke="#24458a" stroke-width="2.5"/>'
-        '<line x1="1040" y1="920" x2="1140" y2="1020" stroke="#24458a" stroke-width="2.5"/>'
-        '<line x1="240" y1="1240" x2="340" y2="1340" stroke="#24458a" stroke-width="2.5"/>'
-        '<line x1="760" y1="1200" x2="860" y2="1300" stroke="#24458a" stroke-width="2.5"/>'
-        '<line x1="1240" y1="1400" x2="1340" y2="1500" stroke="#24458a" stroke-width="2.5"/>'
+        '<line x1="400" y1="240" x2="500" y2="340" stroke="#5a5a5a" stroke-width="2.5"/>'
+        '<line x1="900" y1="180" x2="1000" y2="280" stroke="#5a5a5a" stroke-width="2.5"/>'
+        '<line x1="320" y1="600" x2="420" y2="700" stroke="#5a5a5a" stroke-width="2.5"/>'
+        '<line x1="840" y1="560" x2="940" y2="660" stroke="#5a5a5a" stroke-width="2.5"/>'
+        '<line x1="1300" y1="680" x2="1400" y2="780" stroke="#5a5a5a" stroke-width="2.5"/>'
+        '<line x1="520" y1="960" x2="620" y2="1060" stroke="#5a5a5a" stroke-width="2.5"/>'
+        '<line x1="1040" y1="920" x2="1140" y2="1020" stroke="#5a5a5a" stroke-width="2.5"/>'
+        '<line x1="240" y1="1240" x2="340" y2="1340" stroke="#5a5a5a" stroke-width="2.5"/>'
+        '<line x1="760" y1="1200" x2="860" y2="1300" stroke="#5a5a5a" stroke-width="2.5"/>'
+        '<line x1="1240" y1="1400" x2="1340" y2="1500" stroke="#5a5a5a" stroke-width="2.5"/>'
         '</pattern>'
         '</defs>'
     )
 
     COL = {
-        "PG_FILL": "url(#conc-fill)", "DB_FILL": "url(#conc-fill)", "XL_FILL": "#7faedd",
-        "FL_GRAVEL": "#7ddc7d", "FL_STONE": "#e6d96a", "FL_SAND": "#e89090",
-        "HM_STONE": "url(#conc-fill)", "HM_DRY": "url(#conc-fill)", "HM_CUSH": "#f0a060",
-        "FCC_FILL": "#b8d8e8", "FCC_RIP": "#a87a52", "CUTOFF": "#404040",
-        "GATE": "#c8b8e0", "OUTLINE": "#000", "DIM": "#e60000", "TEXT": "#000",
+        # 单色线图：所有区域填充一律白（仅混凝土保留灰色骨料填充，用于区分材料）
+        "PG_FILL": "url(#conc-fill)", "DB_FILL": "url(#conc-fill)", "XL_FILL": "#fff",
+        "FL_GRAVEL": "#fff", "FL_STONE": "#fff", "FL_SAND": "#fff",
+        "HM_STONE": "url(#conc-fill)", "HM_DRY": "url(#conc-fill)", "HM_CUSH": "#fff",
+        "FCC_FILL": "#fff", "FCC_RIP": "#fff", "CUTOFF": "#fff",
+        "GATE": "#fff", "OUTLINE": "#000", "DIM": "#000", "TEXT": "#000",
     }
 
-    STRUC_STROKE = "#e60000"  # 结构线：红色粗线
+    STRUC_STROKE = "#000"     # 结构与标注线：预览浅底，用黑色（DXF 里是白色）
     STRUC_SW = 2.5
-    PAD_STROKE = "#00a000"    # 垫层/反滤层线：绿色细线
+    PAD_STROKE = "#000"       # 垫层/反滤层线：同色细线
     PAD_SW = 1.0
 
     def poly(points, fill, stroke=STRUC_STROKE, sw=STRUC_SW):
