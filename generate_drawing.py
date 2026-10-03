@@ -17,6 +17,18 @@ import ezdxf
 from ezdxf import units
 from ezdxf.enums import TextEntityAlignment
 
+# 标准图框模块（同目录）
+try:
+    import frame as _FRAME
+except ImportError:                                     # 以文件路径加载时的兜底
+    import importlib.util as _ilu
+    _spec = _ilu.spec_from_file_location(
+        "frame", os.path.join(os.path.dirname(os.path.abspath(__file__)), "frame.py"))
+    _FRAME = _ilu.module_from_spec(_spec)
+    _spec.loader.exec_module(_FRAME)
+
+NOTES = _FRAME.NOTES_MAIN
+
 
 ALIGN_MAP = {
     "LEFT": TextEntityAlignment.LEFT,
@@ -93,6 +105,14 @@ P = {
     "title": "水闸纵剖面图",
     "scale_text": "1:100",
     "unit_text": "mm",
+    # 标准图框
+    "proj": "滏阳河XG水闸重建工程",
+    "frmOn": 1,             # 是否绘制标准图框
+    "sheet": "A3x4",        # 图纸幅面（A3 加长 4 倍 = 1189×420）
+    "sc": 100,              # 出图比例分母（100 = 1:100）
+    "dwgno": "XG-SG-02",    # 图号
+    "drafter": "张旭",       # 制图
+    "checker": "樊晶晶",     # 审核
 }
 
 
@@ -238,6 +258,10 @@ LAYERS = {
     # 钢筋混凝土填充双图层（ANS31 钢筋 + AR-CONC 混凝土）
     "钢筋混凝土-钢筋":  ("钢筋混凝土-钢筋", RC_REBAR_COLOR),
     "钢筋混凝土-混凝土":   ("钢筋混凝土-混凝土", RC_CONC_COLOR),
+    # 标准图框（配色沿用用户样图：图幅线绿、图框线蓝、标题栏/文字白）
+    "图幅":   ("图幅", 3),
+    "图框":   ("图框", 5),
+    "标题栏": ("标题栏", 7),
 }
 
 # 细线层（垫层/反滤层）
@@ -257,9 +281,10 @@ def setup_doc():
     standards.setup_linetypes(doc)
     for name, (desc, color) in LAYERS.items():
         doc.layers.add(name=name, color=color)
-    # 线宽：结构层粗线，垫层/反滤层细线
+    # 线宽：结构层粗线，垫层/反滤层细线，图幅边界/标题栏细线
+    THIN_LAYERS = {"图幅", "标题栏"}
     for layer in doc.layers:
-        if layer.dxf.name in PAD_LAYERS:
+        if layer.dxf.name in PAD_LAYERS or layer.dxf.name in THIN_LAYERS:
             layer.dxf.lineweight = PAD_LW
         else:
             layer.dxf.lineweight = STRUC_LW
@@ -352,6 +377,96 @@ def add_dim_h(msp, x1, x2, y, text, layer="尺寸标注", color=STRUC_COLOR):
     add_polyline(msp, [(x1, y - 100), (x1, y + 300)], layer, color=color)
     add_polyline(msp, [(x2, y - 100), (x2, y + 300)], layer, color=color)
     add_text(msp, (x1 + x2) / 2, y + 50, text, layer=layer, height=350, color=color)
+
+
+def _dxf_bbox(msp):
+    """模型空间实体包围盒 (x0, y0, x1, y1)，单位 mm"""
+    x0 = y0 = 1e18
+    x1 = y1 = -1e18
+    for e in msp:
+        t = e.dxftype()
+        try:
+            if t == "LINE":
+                pts = [(e.dxf.start.x, e.dxf.start.y), (e.dxf.end.x, e.dxf.end.y)]
+            elif t == "LWPOLYLINE":
+                pts = [(q[0], q[1]) for q in e.get_points()]
+            elif t == "POLYLINE":
+                pts = [(v.dxf.location.x, v.dxf.location.y) for v in e.vertices]
+            elif t in ("TEXT", "MTEXT"):
+                s = e.dxf.text if t == "TEXT" else (e.text or "")
+                h = float(e.dxf.get("height", 350)) if t == "TEXT" else float(e.dxf.get("char_height", 350) or 350)
+                w = sum(1.0 if ord(c) > 127 else 0.55 for c in s) * h
+                ip = e.dxf.insert
+                ha = e.dxf.get("halign", 0) if t == "TEXT" else 0
+                if ha in (1, 4):            # 居中对齐 / 正中
+                    tx0, tx1 = ip.x - w / 2, ip.x + w / 2
+                elif ha == 2:               # 右对齐
+                    tx0, tx1 = ip.x - w, ip.x
+                else:                       # 左对齐（本项目默认）
+                    tx0, tx1 = ip.x, ip.x + w
+                x0 = min(x0, tx0); x1 = max(x1, tx1)
+                y0 = min(y0, ip.y - 0.3 * h); y1 = max(y1, ip.y + h)
+                continue
+            elif t == "INSERT":
+                ip = e.dxf.insert
+                pts = [(ip.x, ip.y)]
+            elif t in ("CIRCLE", "ARC"):
+                cc, rr = e.dxf.center, e.dxf.radius
+                x0 = min(x0, cc.x - rr); x1 = max(x1, cc.x + rr)
+                y0 = min(y0, cc.y - rr); y1 = max(y1, cc.y + rr)
+                continue
+            else:
+                continue
+        except Exception:
+            continue
+        for px, py in pts:
+            x0 = min(x0, px); x1 = max(x1, px)
+            y0 = min(y0, py); y1 = max(y1, py)
+    return x0, y0, x1, y1
+
+
+FRAME_LAYER = {"border": "图幅", "frame": "图框", "tblock": "标题栏", "note": "标题栏"}
+
+# generate_dxf 实测出的内容包围盒，供 generate_svg 复用（保证两种输出图框口径一致）
+_CONTENT_BBOX = None
+
+
+def frame_info(p):
+    """图框标题栏信息"""
+    sc = float(p.get("sc", 100))
+    return {
+        "proj": p.get("proj", ""),
+        "title": p.get("title", ""),
+        "ratio": p.get("scale_text") or ("1:%d" % int(sc)),
+        "no": p.get("dwgno", ""),
+        "drafter": p.get("drafter", ""),
+        "checker": p.get("checker", ""),
+    }
+
+
+def add_frame_dxf(msp, p):
+    """把标准图框（图幅 + 图框线 + 标题栏 + 说明）画进模型空间"""
+    global _CONTENT_BBOX
+    if not p.get("frmOn", 1):
+        _CONTENT_BBOX = None
+        return None
+    sc = float(p.get("sc", 100))
+    cb = _dxf_bbox(msp)
+    _CONTENT_BBOX = cb                     # 供 SVG 复用，保证两张输出口径一致
+    items, fb = _FRAME.build_frame(
+        cb,
+        sheet=p.get("sheet", "A3x4"),
+        scale=sc,
+        info=frame_info(p),
+        notes=NOTES,
+    )
+    for it in items:
+        if it[0] == "L":
+            add_polyline(msp, [(it[1], it[2]), (it[3], it[4])], FRAME_LAYER[it[5]])
+        else:
+            add_text(msp, it[2], it[3], it[1], layer=FRAME_LAYER[it[5]], height=it[4],
+                     align="MIDDLELEFT" if it[6] == "l" else "MIDDLECENTER")
+    return fb
 
 
 def generate_dxf(p, out_path):
@@ -675,6 +790,9 @@ def generate_dxf(p, out_path):
 
     # 8. 尺寸标注文字已在上方（构件名/材料/齿墙等文字按用户要求全部删除）
 
+    # 9. 标准图框（图幅边界 + 图框线 + 标题栏 + 说明文字）
+    add_frame_dxf(msp, p)
+
     doc.saveas(out_path, encoding="utf-8")
     return L
 
@@ -727,19 +845,32 @@ def _spline_intersect_y(ctrl, y_level, n=2048):
 def generate_svg(p, out_path):
     L = compute_layout(p)
 
-    margin_l, margin_r = 90, 80
-    margin_t, margin_b = 60, 60
-    width_m = L["x_fcc2"]  # 这里 x_fcc2 已为 mm 单位
+    margin_l, margin_r = 20, 20
+    margin_t, margin_b = 20, 20
     # SVG Y 轴向下，但我们要在 SVG 顶显示结构顶 → 把结构翻转
     y_top = max(L["y_pg_t"], L["y_hm_t1"], L["y_el_bridge"]) + 2000
-    height_m = y_top - (L["y_fcc_b"] - 4800) + 1000  # 底部留出尺寸标注区（含下移后的总长标注）
-    width_px = int(width_m * SVG_PX_PER_MM) + margin_l + margin_r
-    height_px = int(height_m * SVG_PX_PER_MM) + margin_t + margin_b
+    # 内容包围盒（mm）：优先用 generate_dxf 实测值，保证 DXF / SVG 图框口径一致
+    content_box = _CONTENT_BBOX or (0.0, L["y_fcc_b"] - 4800.0, L["x_fcc2"], y_top)
+
+    # ---- 标准图框（图幅 + 图框线 + 标题栏 + 说明）----
+    frame_items, frame_box = (None, None)
+    if p.get("frmOn", 1):
+        frame_items, frame_box = _FRAME.build_frame(
+            content_box, sheet=p.get("sheet", "A3x4"), scale=float(p.get("sc", 100)),
+            info=frame_info(p), notes=NOTES)
+
+    if frame_box:
+        x_left, y_bottom, x_right, y_top = frame_box
+    else:
+        x_left, y_bottom, x_right = content_box[0], content_box[1], content_box[2]
+
+    width_px = int((x_right - x_left) * SVG_PX_PER_MM) + margin_l + margin_r
+    height_px = int((y_top - y_bottom) * SVG_PX_PER_MM) + margin_t + margin_b
 
     def M(x, y):
         # CAD y 向上 → SVG y 向下：翻转
-        svg_y = (y_top - y) * SVG_PX_PER_MM
-        return (margin_l + x * SVG_PX_PER_MM, margin_t + svg_y)
+        return (margin_l + (x - x_left) * SVG_PX_PER_MM,
+                margin_t + (y_top - y) * SVG_PX_PER_MM)
 
     parts = []
     parts.append(
@@ -1166,6 +1297,23 @@ def generate_svg(p, out_path):
 
     # ---- 文字 ----
     # （构件名、材料名、齿墙标注、流向文字、标题文字按用户要求全部删除，仅保留尺寸标注文字）
+
+    # ---- 标准图框（最后画，压在最上层）----
+    if frame_items:
+        FCOL = {"border": "#1e7a3c", "frame": "#1f4fa8", "tblock": "#333333", "note": "#333333"}
+        FSW = {"border": 1.0, "frame": 2.0, "tblock": 1.0, "note": 1.0}
+        for it in frame_items:
+            if it[0] == "L":
+                p1 = M(it[1], it[2]); p2 = M(it[3], it[4])
+                parts.append('<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" stroke="%s" stroke-width="%.1f"/>'
+                             % (p1[0], p1[1], p2[0], p2[1], FCOL[it[5]], FSW[it[5]]))
+            else:
+                px, py = M(it[2], it[3])
+                anchor = "start" if it[6] == "l" else "middle"
+                parts.append('<text x="%.1f" y="%.1f" font-size="%.1f" fill="%s" text-anchor="%s" '
+                             'dominant-baseline="middle">%s</text>'
+                             % (px, py, max(6.0, it[4] * SVG_PX_PER_MM), FCOL[it[5]], anchor,
+                                it[1].replace("&", "&amp;").replace("<", "&lt;")))
 
     parts.append('</svg>')
     with open(out_path, "w", encoding="utf-8") as f:

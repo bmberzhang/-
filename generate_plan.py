@@ -20,6 +20,19 @@ from ezdxf.enums import TextEntityAlignment
 K = 1000.0          # 米 → 毫米
 PAD = 2000.0        # SVG 视口外扩（mm）
 
+# 标准图框模块（同目录）
+try:
+    import frame as _FRAME
+except ImportError:                                     # 以文件路径加载时的兜底
+    import importlib.util as _ilu
+    import os as _os
+    _spec = _ilu.spec_from_file_location(
+        "frame", _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "frame.py"))
+    _FRAME = _ilu.module_from_spec(_spec)
+    _spec.loader.exec_module(_FRAME)
+
+NOTES = _FRAME.NOTES_MAIN
+
 
 # ============================================================
 # 1. 参数表（长度单位为米）
@@ -55,6 +68,13 @@ P = {
     "slope": 2.0, "hmN": 20.0,
     "el": 1, "sm": 1, "hs": 1, "gs": 1,
     "dim": 1,       # 长度尺寸标注（底部顺流链/左侧宽链/右侧带宽）
+    # ⑪ 标准图框
+    "frmOn": 1,     # 是否绘制标准图框
+    "sheet": "A2",  # 图纸幅面（A4/A3/A2/A1，加长用 A3x3 形式）
+    "sc": 250,      # 出图比例分母（250 = 1:250）
+    "dwgno": "XG-SG-01",       # 图号
+    "drafter": "张旭",          # 制图
+    "checker": "樊晶晶",        # 审核
 }
 
 
@@ -143,8 +163,14 @@ LAYERS = {
     "高程标注": ("高程标注", 3),
     "示坡线": ("示坡线", 6),
     "尺寸标注": ("尺寸标注", 7),
+    # 标准图框（配色沿用用户样图：图幅线绿、图框线蓝、标题栏/文字白）
+    "图幅":   ("图幅", 3),
+    "图框":   ("图框", 5),
+    "标题栏": ("标题栏", 7),
 }
-LAYER_OF = {"out": "轮廓", "cen": "中心线", "elev": "高程标注", "show": "示坡线", "dim": "尺寸标注"}
+LAYER_OF = {"out": "轮廓", "cen": "中心线", "elev": "高程标注", "show": "示坡线", "dim": "尺寸标注",
+            "border": "图幅", "frame": "图框", "tblock": "标题栏", "note": "标题栏"}
+THICK_LAYERS = {"轮廓", "图框"}
 
 
 def _num(v, default=""):
@@ -479,6 +505,11 @@ def compute_geo(p):
         T("防冲槽", (Xhd + Xs3) / 2, yt, TH, "out")
 
     N["totalX"] = max(Xs3, Xhd)
+
+    # ---- 标准图框（图幅边界 + 图框线 + 标题栏 + 说明文字）----
+    if p.get("frmOn", 1):
+        _add_frame(G, p)
+
     return G, N, U, TH
 
 
@@ -519,6 +550,33 @@ def bbox(G):
     return x0, y0, x1, y1
 
 
+def _add_frame(G, p):
+    """把标准图框追加进图元列表 G（与图形同处一个模型坐标系，单位 mm）"""
+    sc = _num(p.get("sc"), 250)
+    items, fb = _FRAME.build_frame(
+        bbox(G),
+        sheet=p.get("sheet", "A2"),
+        scale=sc,
+        info={
+            "proj": p.get("proj", ""),
+            "title": p.get("title", ""),
+            "ratio": "1:%d" % int(round(sc)),
+            "no": p.get("dwgno", ""),
+            "drafter": p.get("drafter", ""),
+            "checker": p.get("checker", ""),
+        },
+        notes=NOTES,
+    )
+    for it in items:
+        if it[0] == "L":
+            G.append({"t": 1, "x1": it[1], "y1": it[2], "x2": it[3], "y2": it[4],
+                      "l": it[5], "d": 0})
+        else:
+            G.append({"t": 3, "s": it[1], "x": it[2], "y": it[3], "h": it[4],
+                      "l": it[5], "ro": 0, "al": it[6]})
+    return fb
+
+
 # ============================================================
 # 4. DXF 输出
 # ============================================================
@@ -533,7 +591,7 @@ def setup_doc():
     for name, (desc, color) in LAYERS.items():
         doc.layers.add(name=name, color=color)
     for layer in doc.layers:
-        lw = 50 if layer.dxf.name == "轮廓" else 18
+        lw = 50 if layer.dxf.name in THICK_LAYERS else 18
         try:
             layer.dxf.lineweight = lw
         except Exception:
@@ -565,7 +623,9 @@ def generate_dxf(p, out_path):
             t = msp.add_text(e["s"], dxfattribs={
                 "layer": lay, "height": e["h"], "style": style,
             })
-            t.set_placement((e["x"], e["y"]), align=TextEntityAlignment.MIDDLE_CENTER)
+            t.set_placement((e["x"], e["y"]),
+                            align=TextEntityAlignment.MIDDLE_LEFT if e.get("al") == "l"
+                            else TextEntityAlignment.MIDDLE_CENTER)
             if e.get("ro"):
                 t.dxf.rotation = e["ro"]
     doc.saveas(out_path)
@@ -575,8 +635,9 @@ def generate_dxf(p, out_path):
 # 5. SVG 预览输出
 # ============================================================
 SVG_PX_PER_MM = 0.022
-PREVIEW_COLOR = {"cen": "#cc0000", "elev": "#1e8a3a", "show": "#c71585", "dim": "#555555"}
-PREVIEW_SW = {"cen": 1.1, "show": 1.6}
+PREVIEW_COLOR = {"cen": "#cc0000", "elev": "#1e8a3a", "show": "#c71585", "dim": "#555555",
+                 "border": "#1e7a3c", "frame": "#1f4fa8", "tblock": "#333333", "note": "#333333"}
+PREVIEW_SW = {"cen": 1.1, "show": 1.6, "border": 1.0, "frame": 2.0}
 
 
 def generate_svg(p, out_path):
@@ -631,9 +692,10 @@ def generate_svg(p, out_path):
             col = PREVIEW_COLOR.get(e["l"], "#2b2b2b")
             font = "Arial, sans-serif" if e["l"] == "dim" else "SimHei, Microsoft YaHei, sans-serif"
             rot = ' transform="rotate(-%.1f %.1f %.1f)"' % (e["ro"], MX(e["x"]), MY(e["y"])) if e.get("ro") else ""
-            out.append('<text x="%.1f" y="%.1f" font-size="%.1f" font-family="%s" fill="%s" text-anchor="middle" '
+            anchor = "start" if e.get("al") == "l" else "middle"
+            out.append('<text x="%.1f" y="%.1f" font-size="%.1f" font-family="%s" fill="%s" text-anchor="%s" '
                        'dominant-baseline="middle"%s>%s</text>'
-                       % (MX(e["x"]), MY(e["y"]), max(7.0, e["h"] * scale), font, col, rot,
+                       % (MX(e["x"]), MY(e["y"]), max(7.0, e["h"] * scale), font, col, anchor, rot,
                           e["s"].replace("&", "&amp;").replace("<", "&lt;")))
 
     out.append('</svg>')
