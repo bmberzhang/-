@@ -213,6 +213,7 @@ PAD_COLOR = 3        # 绿
 STRUC_LW = 50        # 0.5 mm（1/100 mm 单位）
 PAD_LW = 18          # 0.18 mm
 TEXT_COLOR = 7       # 黑（文字）
+END_COLOR = 7        # 白（纵剖面图左右两端封闭竖线，按用户要求用白色）
 RC_REBAR_COLOR = 130 # 蓝（钢筋混凝土-钢筋）
 RC_CONC_COLOR = 131  # 天蓝（钢筋混凝土-混凝土）
 
@@ -590,6 +591,16 @@ def generate_dxf(p, out_path):
         [(L["x_pg1"], L["y_el_gate_top"]), (L["x_fcc2"], L["y_el_gate_top"])],
         dxfattribs={"layer": "尺寸标注", "color": STRUC_COLOR},
     )
+    # 端部封闭竖线（左端 x_pg1、右端 x_fcc2：从结构顶面拉到闸顶高程线；白色）
+    msp.add_lwpolyline(
+        [(L["x_pg1"], L["y_pg_t"]), (L["x_pg1"], L["y_el_gate_top"])],
+        dxfattribs={"layer": "尺寸标注", "color": END_COLOR},
+    )
+    msp.add_lwpolyline(
+        [(L["x_fcc2"], L["y_fcc_t"]), (L["x_fcc2"], L["y_el_gate_top"])],
+        dxfattribs={"layer": "尺寸标注", "color": END_COLOR},
+    )
+
     # 结构分界垂直线（从各结构顶面到闸顶高程 78.8 相交，仅此一段）
     add_polyline(msp, [(L["x_pg2"], L["y_pg_t"]), (L["x_pg2"], L["y_el_gate_top"])], "尺寸标注")    # 铺盖/底板
     add_polyline(msp, [(L["x_db2"], L["y_db_t"]), (L["x_db2"], L["y_el_gate_top"])], "尺寸标注")    # 底板/消力池
@@ -1130,6 +1141,11 @@ def generate_svg(p, out_path):
 
     # 正常蓄水位线虚线段已删除（与新加的截断式实线重叠造成视觉重影）
 
+    # ===== 端部封闭竖线（左端 x_pg1、右端 x_fcc2；与 DXF 一致）=====
+    # 注：DXF 里这两条线按用户要求用白色（CAD 黑底可见）；SVG 预览是浅底，
+    #     白色会看不见，故预览沿用标注红色。
+    parts.append(line(M(L["x_pg1"], L["y_pg_t"]), M(L["x_pg1"], L["y_el_gate_top"]), COL["DIM"], STRUC_SW))
+    parts.append(line(M(L["x_fcc2"], L["y_fcc_t"]), M(L["x_fcc2"], L["y_el_gate_top"]), COL["DIM"], STRUC_SW))
 
     # 高程标注（右侧集中标注）
     el_x1 = L["x_fcc2"] + 1200
