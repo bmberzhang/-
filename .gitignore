@@ -26,6 +26,8 @@ _qr_check/
 样例_*.png
 # verify_samples.py --charts 的图表核对输出
 _chartcheck/
+# 三维仿真的无头观察工装（含 index.html 的改动前整份备份，不入库）
+_sim3d_check/
 # Word 打开文档时产生的锁文件
 ~$*
 # 个人本地数据（记忆/缓存），不上传
