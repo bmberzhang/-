@@ -245,6 +245,62 @@ def build_frame(bbox, sheet="A3", scale=100, info=None, notes=None,
     return out, (MX(0.0), MY(0.0), MX(W), MY(H))
 
 
+def apply_view(doc, bbox, aspect=1.4142, margin=0.03):
+    """设置 DXF 的初始视图，使 CAD 打开文件即“全图居中、铺满窗口”。
+
+    有些 CAD / 看图软件打开 DXF 时并不会自动 Zoom Extents，而是直接采用
+    文件里保存的视图；而 ezdxf 新建文档的 $EXTMIN/$EXTMAX 是 (±1e20) 这种
+    无效值、活动视口停在原点附近，于是打开后看到的是空白或一个小角。
+    这里把三处一并写正确：
+
+    * ``$EXTMIN/$EXTMAX`` —— 图形范围（多数看图软件据此自动适配）
+    * ``$LIMMIN/$LIMMAX`` —— 图纸界限
+    * ``$VIEWCTR/$VIEWSIZE`` —— R12 起沿用的视图中心/高度
+    * 活动视口 ``*Active`` —— 视图中心、视图高度、宽高比、视线方向
+
+    ``aspect`` 默认 √2，即 A 系列（含加长幅面）的宽高比；
+    ``margin`` 为四周留白比例。
+    """
+    x0, y0, x1, y1 = [float(v) for v in bbox]
+    w = max(x1 - x0, 1e-9)
+    h = max(y1 - y0, 1e-9)
+    cx = (x0 + x1) / 2.0
+    cy = (y0 + y1) / 2.0
+    # 视图高度取“内容高”与“内容宽/宽高比”中的较大者，保证宽高两个方向都装得下
+    vh = max(h, w / aspect) * (1.0 + 2.0 * margin)
+
+    # 图形范围/图纸界限要写到【模型空间布局对象】上：
+    # ezdxf 保存时的 Drawing.update_all() 会用 msp.dxf.extmin/limmin 反写
+    # $EXTMIN/$LIMMIN，直接改 header 会被覆盖回默认值。
+    msp = doc.modelspace()
+    for attr, val in (("extmin", (x0, y0, 0.0)), ("extmax", (x1, y1, 0.0)),
+                      ("limmin", (x0, y0)), ("limmax", (x1, y1))):
+        try:
+            setattr(msp.dxf, attr, val)
+        except Exception:
+            pass
+    doc.header["$EXTMIN"] = (x0, y0, 0.0)
+    doc.header["$EXTMAX"] = (x1, y1, 0.0)
+    for key, val in (("$LIMMIN", (x0, y0)), ("$LIMMAX", (x1, y1)),
+                     ("$VIEWCTR", (cx, cy)), ("$VIEWSIZE", vh)):
+        try:                        # 个别变量不在 ezdxf 白名单里，跳过即可
+            doc.header[key] = val
+        except Exception:
+            pass
+
+    for vp in doc.viewports:        # 通常只有一个 *Active
+        try:
+            vp.dxf.center = (cx, cy)        # DXF 12：视图中心（模型坐标）
+            vp.dxf.height = vh              # DXF 40：视图高度（模型单位）
+            vp.dxf.aspect_ratio = aspect    # DXF 41
+            vp.dxf.direction = (0.0, 0.0, 1.0)   # DXF 16：视线方向（俯视）
+            vp.dxf.target = (cx, cy, 0.0)   # DXF 17：视图目标点
+            vp.dxf.view_twist = 0.0         # DXF 51：不旋转
+        except Exception:
+            pass
+    return vh
+
+
 def merge_bbox(items, bbox):
     """把图元并入包围盒（用于 SVG 视口扩展）"""
     x0, y0, x1, y1 = bbox

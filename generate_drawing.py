@@ -791,6 +791,9 @@ def generate_dxf(p, out_path):
     # 9. 标准图框（图幅边界 + 图框线 + 标题栏 + 说明文字）
     add_frame_dxf(msp, p)
 
+    # 10. 初始视图：打开文件即全图居中（图形范围 + 活动视口）
+    _FRAME.apply_view(doc, _dxf_bbox(msp))
+
     doc.saveas(out_path, encoding="utf-8")
     return L
 

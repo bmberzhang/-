@@ -623,6 +623,8 @@ def generate_dxf(p, out_path):
                             else TextEntityAlignment.MIDDLE_CENTER)
             if e.get("ro"):
                 t.dxf.rotation = e["ro"]
+    # 初始视图：打开文件即全图居中（图形范围 + 活动视口）
+    _FRAME.apply_view(doc, bbox(G))
     doc.saveas(out_path)
 
 
