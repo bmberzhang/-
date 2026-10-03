@@ -28,6 +28,7 @@ _qr_check/
 _chartcheck/
 # 三维仿真的无头观察工装（含 index.html 的改动前整份备份，不入库）
 _sim3d_check/
+_sim3d_run/
 # Word 打开文档时产生的锁文件
 ~$*
 # 个人本地数据（记忆/缓存），不上传
