@@ -1984,31 +1984,35 @@ function buildWaterGateModel(data, gate) {
     // ===== 工作桥 / 检修桥（上游侧） =====
     box(B_total + 1, 0.5, wbw, matConcreteDark, 0, ft + ph + 0.25, -fl / 2 + wbw / 2);
 
-    // ===== 启闭机排架柱 + 启闭机房（柱子在工作桥与交通桥之间的中央区域） =====
+    // ===== 启闭机排架柱 + 启闭机房（轴线 = 闸门中心线 = 工作桥中心线） =====
+    //   纵剖面设计图：排架立柱中心线 = x_gc = 闸门中心线，启闭机房在工作桥正上方，
+    //   启闭机吊索垂直下穿工作桥接闸门 —— 四者必须同一条轴线。
     var colH = 2.6;
     var colGap = 2.0; // 柱子沿 X 方向间距
-    // 排架柱 z 位置：避开工作桥（z 范围 -fl/2 ~ -fl/2+wbw）和交通桥（z 范围 fl/2-tw ~ fl/2）
-    // 排在中央 z=±1.5, ±2.5 四排
-    var colZs = [2.5, 1.5, -1.5, -2.5];
+    // 排架柱 z 位置：立在闸墩顶、夹住工作桥
+    //   桥面（宽 wbw）两端正好压在两列柱心上，柱外缘与桥面边缘齐平 —— 柱仍落在闸墩顶上，
+    //   不能退到桥外：上游桥边线与闸底板边线重合，退出去柱脚就悬在铺盖上方了。
+    var colOff = wbw / 2 - 0.175;
+    var colZs = [gateAxisZ - colOff, gateAxisZ + colOff];
     for (var cx = -B_total / 2; cx <= B_total / 2 + 0.01; cx += colGap) {
         for (var k = 0; k < colZs.length; k++) {
             box(0.35, colH, 0.35, matConcrete, cx, ft + ph + colH / 2, colZs[k]);
         }
     }
-    // 排架顶大梁（沿 Z 方向，覆盖全部排架柱 + 机房）
-    var beamLen = 6; // 覆盖 z=-3 到 +3
-    box(B_total, 0.5, beamLen, matConcrete, 0, ft + ph + colH + 0.25, 0);
-    // 启闭机房（坐在大梁上）
-    var roomH = 2.4, roomD = 2.2; // 房 z 方向长 2.2，中心 z=0
-    box(B_total, roomH, roomD, matConcreteDark, 0, ft + ph + colH + 0.5 + roomH / 2, 0);
-    // 屋顶（两坡：在 z=0 处屋脊对齐，两板在中央高、两端低）
+    // 排架顶大梁（沿 Z 方向，压住两排立柱，中心 = 闸门中心线）
+    var beamLen = wbw + 0.4;
+    box(B_total, 0.5, beamLen, matConcrete, 0, ft + ph + colH + 0.25, gateAxisZ);
+    // 启闭机房（坐在大梁上，正对闸门 —— 启闭机吊索垂直下穿工作桥）
+    var roomH = 2.4, roomD = 2.2;
+    box(B_total, roomH, roomD, matConcreteDark, 0, ft + ph + colH + 0.5 + roomH / 2, gateAxisZ);
+    // 屋顶（两坡：屋脊在 gateAxisZ 处，两板在中央高、两端低）
     var roofSpan = roomD / 2 + 0.4;
     var roofSlab1 = box(B_total + 0.6, 0.15, roofSpan, matRoof, 0,
-        ft + ph + colH + 0.5 + roomH + 0.35, -roofSpan / 2);
-    roofSlab1.rotation.x = -0.45;   // +Z 端（z=0）向上
+        ft + ph + colH + 0.5 + roomH + 0.35, gateAxisZ - roofSpan / 2);
+    roofSlab1.rotation.x = -0.45;   // +Z 端（屋脊）向上
     var roofSlab2 = box(B_total + 0.6, 0.15, roofSpan, matRoof, 0,
-        ft + ph + colH + 0.5 + roomH + 0.35, +roofSpan / 2);
-    roofSlab2.rotation.x = 0.45;    // -Z 端（z=0）向上
+        ft + ph + colH + 0.5 + roomH + 0.35, gateAxisZ + roofSpan / 2);
+    roofSlab2.rotation.x = 0.45;    // -Z 端（屋脊）向上
 
     // ===== 八字翼墙（上游喇叭口，多段渐变高度） =====
     for (var side = -1; side <= 1; side += 2) {
