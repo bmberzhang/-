@@ -3,14 +3,24 @@ services:
     name: sluice
     runtime: python
     plan: free
+    region: singapore          # 亚洲节点，国内访问比默认 oregon 快很多
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn server:app --bind 0.0.0.0:$PORT --workers 1 --timeout 180
+    startCommand: gunicorn server:app --preload --bind 0.0.0.0:$PORT --workers 1 --timeout 180
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.9
+      - key: MPLBACKEND
+        value: Agg             # 容器无显示器，matplotlib 必须用 Agg 后端
       - key: DATA_DIR
         value: /opt/render/project/src/data
       - key: SEED_DB
         value: /opt/render/project/src/users.db.seed
-      - key: MPLBACKEND
-        value: Agg
-      - key: PYTHON_VERSION
-        value: 3.12.9
+      - key: DATA_REPO
+        value: bmberzhang/-
+      - key: DATA_BRANCH
+        value: data
+      # 以下两个是密钥，不写死在文件里；部署时在 Render 面板上填
+      - key: GITHUB_TOKEN
+        sync: false            # 必填：GitHub classic token（repo 权限），账号/文件云端同步用
+      - key: SECRET_KEY
+        sync: false            # 建议填：不填则每次部署后所有用户要重新登录
