@@ -52,15 +52,6 @@
 .hc-go svg { width: 14px; height: 14px; transition: transform .15s; }
 .home-card:hover .hc-go svg { transform: translateX(3px); }
 
-.home-foot { display: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
-.home-foot.show { display: grid; }
-.home-foot .item {
-    background: var(--surface); border: 1px solid var(--line);
-    border-radius: var(--r-lg); box-shadow: var(--sh-1); padding: 16px 18px;
-}
-.home-foot .item h4 { font-size: 13px; font-weight: 600; color: var(--ink-1); margin-bottom: 6px; }
-.home-foot .item p { font-size: 12.5px; color: var(--ink-3); line-height: 1.65; }
-
 /* ================= 参数表单 ================= */
 #mainForm { display: none; }
 .form-layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 18px; align-items: start; }
@@ -326,7 +317,6 @@
     .rail { display: none; }
     .thesis-layout { grid-template-columns: 1fr; }
     .doc-grid { grid-template-columns: 1fr; }
-    .home-foot { grid-template-columns: 1fr; }
 }
 @media (max-width: 768px) {
     .container { padding: 16px 12px 48px; }
@@ -382,17 +372,26 @@
     <div class="page-head">
         <div>
             <h1 id="phTitle">工作台</h1>
-            <p id="phSub">从参数验证开始，四步完成一套水闸设计</p>
+            <p id="phSub">从计算工具开始，五步完成一套水闸设计</p>
         </div>
         <div class="ph-side" id="phSide"></div>
     </div>
 
     <!-- 工作台首页 -->
     <div id="homeCards" class="home-cards">
+        <a class="home-card" href="/tool">
+            <div class="hc-top">
+                <span class="hc-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2" width="10.8" height="12" rx="1.5"/><path d="M5.4 5.2h5.2"/><path d="M5.6 8.6h.01M8 8.6h.01M10.4 8.6h.01M5.6 11.2h.01M8 11.2h.01M10.4 11.2h.01"/></svg></span>
+                <span class="hc-step">01</span>
+            </div>
+            <h3>计算工具</h3>
+            <p>按 SL 265-2016 规范逐项计算，结果随参数实时刷新，可反复试算取值</p>
+            <span class="hc-go">进入<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 3.6L10.8 8l-4.4 4.4"/></svg></span>
+        </a>
         <a class="home-card" href="/verify">
             <div class="hc-top">
                 <span class="hc-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.6h5M10.6 4.6H14M2 11.4h3.4M9 11.4H14"/><circle cx="8.7" cy="4.6" r="1.7"/><circle cx="7.1" cy="11.4" r="1.7"/></svg></span>
-                <span class="hc-step">01</span>
+                <span class="hc-step">02</span>
             </div>
             <h3>参数验证</h3>
             <p>填写水闸设计参数，按 SL 265-2016 规范验证并完成闸孔、消能、防渗、稳定等计算</p>
@@ -401,7 +400,7 @@
         <a class="home-card" href="/model">
             <div class="hc-top">
                 <span class="hc-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.9l5.2 3v6.2L8 14.1 2.8 11.1V4.9z"/><path d="M2.8 4.9L8 7.9l5.2-3M8 7.9v6.2"/></svg></span>
-                <span class="hc-step">02</span>
+                <span class="hc-step">03</span>
             </div>
             <h3>三维仿真</h3>
             <p>水闸三维模型交互展示，闸门开度调节、水流仿真，直观查看设计成果</p>
@@ -410,7 +409,7 @@
         <a class="home-card" href="/drawing">
             <div class="hc-top">
                 <span class="hc-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.2" y="2.2" width="11.6" height="11.6" rx="1.4"/><path d="M2.2 6.2h11.6M6.2 6.2v7.6"/></svg></span>
-                <span class="hc-step">03</span>
+                <span class="hc-step">04</span>
             </div>
             <h3>工程图纸</h3>
             <p>输入结构尺寸生成水闸纵剖面图，下载 DXF 用 CAD 打开精修</p>
@@ -419,28 +418,12 @@
         <a class="home-card" href="/thesis">
             <div class="hc-top">
                 <span class="hc-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.9h5l3.4 3.4v8.8H4z"/><path d="M9 1.9v3.4h3.4"/><path d="M6.3 8.4h3.9M6.3 11h3.9"/></svg></span>
-                <span class="hc-step">04</span>
+                <span class="hc-step">05</span>
             </div>
             <h3>生成论文</h3>
             <p>按模板自动生成约 68 页毕业设计论文（Word 格式），封面、计算、图纸联动</p>
             <span class="hc-go">进入<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 3.6L10.8 8l-4.4 4.4"/></svg></span>
         </a>
-    </div>
-
-    <!-- 工作台底部说明 -->
-    <div class="home-foot" id="homeFoot">
-        <div class="item">
-            <h4>规范依据</h4>
-            <p>按 SL 265-2016《水闸设计规范》逐项校核，闸孔、消能防冲、防渗排水、稳定计算同步完成</p>
-        </div>
-        <div class="item">
-            <h4>参数联动</h4>
-            <p>「参数验证」填写的数据会自动带入三维模型与工程图纸，改一处三处同步更新</p>
-        </div>
-        <div class="item">
-            <h4>成果输出</h4>
-            <p>纵剖面图导出 DXF 可直接在 CAD 精修；毕业设计论文一键生成 Word 文档</p>
-        </div>
     </div>
 
     <div id="mainForm">
@@ -1328,7 +1311,7 @@ else if (_p.indexOf('/drawing') === 0) PAGE_MODE = 'drawing';
 
 // 页面模式对应的页头文案与右侧标记
 var PAGE_HEAD = {
-    home:    ['工作台', '从参数验证开始，四步完成一套水闸设计', ''],
+    home:    ['工作台', '从计算工具开始，五步完成一套水闸设计', ''],
     tool:    ['设计计算工具', '按 SL 265-2016 规范逐项计算，结果随参数实时刷新', '<span class="tag tag-brand" id="toolQuotaTag">免费 2 次</span>'],
     verify:  ['参数验证', '填写水闸设计参数，自动完成规范校验与结构计算', '<span class="tag tag-brand" id="verifyQuotaTag">免费 2 次</span><span class="tag">SL 265-2016</span>'],
     model:   ['三维仿真', '交互查看水闸结构，调节闸门开度观察过流状态', ''],
@@ -1478,7 +1461,6 @@ function applyPageMode() {
         if (show.home) el('homeCards').classList.add('show');
         else el('homeCards').classList.remove('show');
     }
-    if (el('homeFoot')) el('homeFoot').classList.toggle('show', show.home);
     if (el('mainForm')) el('mainForm').style.display = show.verify ? 'block' : 'none';
     if (show.verify) setTimeout(buildFormRail, 0);
     if (el('resultPanel')) el('resultPanel').style.display = show.verify ? 'block' : 'none';
