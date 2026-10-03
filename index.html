@@ -125,6 +125,34 @@
 .result-panel h2 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .result-panel > h2:first-child { padding-bottom: 13px; border-bottom: 1px solid var(--line-soft); }
 
+/* ================= 计算工具：从任务书导入参数 ================= */
+.calc-import {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px; flex-wrap: wrap;
+    background: var(--brand-wash); border: 1px solid var(--line);
+    border-radius: var(--r-md); padding: 13px 16px; margin-bottom: 14px;
+}
+.ci-left { display: flex; align-items: flex-start; gap: 11px; min-width: 0; flex: 1; }
+.ci-ico {
+    width: 30px; height: 30px; flex: none; border-radius: var(--r-md);
+    background: var(--surface); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center; color: var(--brand);
+}
+.ci-ico svg { width: 16px; height: 16px; }
+.ci-text { min-width: 0; }
+.ci-title { font-size: 13.5px; font-weight: 600; color: var(--ink-1); margin-bottom: 3px; }
+.ci-sub { font-size: 12.5px; color: var(--ink-3); line-height: 1.6; }
+.ci-right { display: flex; align-items: center; gap: 8px; flex: none; flex-wrap: wrap; }
+label.btn { user-select: none; }
+.ci-msg {
+    font-size: 12.5px; line-height: 1.65; border-radius: var(--r-md);
+    padding: 9px 14px; margin-bottom: 14px;
+    background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-2);
+}
+.ci-msg.ok   { background: #f0f8f3; border-color: #cfe7d9; color: #14603f; }
+.ci-msg.warn { background: #fdf7ec; border-color: #f0e0c0; color: #8a5a12; }
+.ci-msg.err  { background: #fdf2f2; border-color: #f2d4d4; color: #a12626; }
+
 .validation-item {
     display: flex; align-items: flex-start; gap: 10px;
     padding: 9px 14px; margin-bottom: 6px;
@@ -321,6 +349,8 @@
 @media (max-width: 768px) {
     .container { padding: 16px 12px 48px; }
     .home-cards { grid-template-columns: 1fr; }
+    .calc-import { flex-direction: column; align-items: stretch; }
+    .ci-right { justify-content: flex-end; }
     .form-row { grid-template-columns: 1fr; }
     .plan-seg { padding: 12px 16px; gap: 10px; }
     .section-header { padding: 13px 16px; }
@@ -1137,7 +1167,23 @@
 
     <!-- 水闸设计计算工具（免费） -->
     <div class="result-panel" id="toolPanel" style="display:none;">
-        <iframe src="/static/calc_tool.html" title="水闸设计计算工具" style="display:block;width:100%;height:1180px;border:1px solid var(--line);border-radius:var(--r-md);background:#fff;"></iframe>
+        <!-- 从任务书导入参数：与「生成论文」共用同一份任务书，无需重复上传 -->
+        <div class="calc-import" id="calcImport">
+            <div class="ci-left">
+                <span class="ci-ico"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.9h5l3.4 3.4v8.8H4z"/><path d="M9 1.9v3.4h3.4"/><path d="M8 8.2v4.2"/><path d="M6.2 10.6L8 12.4l1.8-1.8"/></svg></span>
+                <div class="ci-text">
+                    <div class="ci-title">从任务书自动填入参数</div>
+                    <div class="ci-sub" id="calcDocName">正在读取…</div>
+                </div>
+            </div>
+            <div class="ci-right">
+                <button class="btn btn-secondary btn-sm" type="button" id="calcFillBtn" onclick="fillCalcFromTask()">填入参数</button>
+                <label class="btn btn-secondary btn-sm" for="calcTaskFile" id="calcPickLabel">选择任务书</label>
+                <input type="file" id="calcTaskFile" accept=".doc,.docx" style="display:none" onchange="uploadTaskForCalc(this)">
+            </div>
+        </div>
+        <div class="ci-msg" id="calcImportMsg" style="display:none"></div>
+        <iframe id="toolFrame" src="/static/calc_tool.html" title="水闸设计计算工具" style="display:block;width:100%;height:1180px;border:1px solid var(--line);border-radius:var(--r-md);background:#fff;"></iframe>
     </div>
 
     <!-- 3D 仿真模型面板 -->
@@ -3248,6 +3294,143 @@ function parseDocs() {
         .catch(function () {});
 }
 
+// ===================================================================
+// 计算工具：从任务书导入参数
+// 与「生成论文」共用同一份任务书（同一个 kind='task'），避免客户重复上传。
+// 填入后不自动计算——计算工具按次收费，必须由客户自己点「开始计算」。
+// ===================================================================
+var CALC_TASK = { has: false, name: '' };
+var CALC_BUSY = false;
+var _calcReplyTimer = null;      // 等计算工具回执的兜底定时器
+
+function calcMsg(text, cls) {
+    var el = thEl('calcImportMsg');
+    if (!el) return;
+    if (!text) { el.style.display = 'none'; el.textContent = ''; el.className = 'ci-msg'; return; }
+    el.className = 'ci-msg' + (cls ? ' ' + cls : '');
+    el.style.display = 'block';
+    el.textContent = text;
+}
+
+function renderCalcImport() {
+    var sub = thEl('calcDocName'), btn = thEl('calcFillBtn'), lb = thEl('calcPickLabel');
+    if (sub) {
+        sub.textContent = CALC_TASK.has
+            ? '已上传：' + CALC_TASK.name + '。点「填入参数」写入下方计算工具；也可「换一份」。'
+            : '还没有上传任务书。上传后会自动识别设计流量、水位、底板高程等，填入下方计算工具。' +
+              '（与「生成论文」共用同一份，无需重复上传）';
+    }
+    if (btn) {
+        btn.disabled = !CALC_TASK.has || CALC_BUSY;
+        btn.textContent = CALC_BUSY ? '识别中…' : '填入参数';
+    }
+    if (lb) lb.textContent = CALC_TASK.has ? '换一份' : '选择任务书';
+}
+
+function loadCalcDoc() {
+    if (PAGE_MODE !== 'tool') return;
+    renderCalcImport();
+    fetch('/thesis/doc/status', { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+            if (!d || !d.ok) return;
+            var t = (d.docs || {}).task || {};
+            CALC_TASK = { has: !!t.has_file, name: t.filename || '' };
+            renderCalcImport();
+        }).catch(function () {});
+}
+
+// 上传任务书（kind=task）。成功后自动解析并填入。
+function uploadTaskForCalc(input) {
+    var f = input.files && input.files[0];
+    if (!f) return;
+    var lower = f.name.toLowerCase();
+    if (!(lower.endsWith('.doc') || lower.endsWith('.docx'))) {
+        calcMsg('只支持 Word 文档（.docx / .doc），当前是「' + f.name + '」', 'err');
+        input.value = '';
+        return;
+    }
+    if (f.size > 25 * 1024 * 1024) {
+        calcMsg('文件超过 25MB，请压缩后重试', 'err');
+        input.value = '';
+        return;
+    }
+    var fd = new FormData();
+    fd.append('kind', 'task');
+    fd.append('file', f);
+    calcMsg('正在上传并识别任务书…', '');
+    fetch('/thesis/doc/upload', { method: 'POST', body: fd })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d || {} }; }); })
+        .then(function (res) {
+            input.value = '';
+            var d = res.d;
+            if (!res.ok || !d.ok) { calcMsg(d.error || '上传失败', 'err'); return; }
+            CALC_TASK = { has: true, name: d.filename || f.name };
+            renderCalcImport();
+            if (d.warning) { calcMsg(d.warning, 'warn'); return; }
+            calcMsg('已识别 ' + (d.params_n || 0) + ' 项参数，正在填入计算工具…', 'ok');
+            fillCalcFromTask();
+        })
+        .catch(function () {
+            input.value = '';
+            calcMsg('上传失败，请检查网络后重试', 'err');
+        });
+}
+
+// 解析已上传的任务书，把参数发给计算工具（iframe）
+function fillCalcFromTask() {
+    if (!CALC_TASK.has) { calcMsg('请先选择任务书文件', 'err'); return; }
+    if (CALC_BUSY) return;
+    CALC_BUSY = true;
+    renderCalcImport();
+    calcMsg('正在识别任务书参数…', '');
+    fetch('/thesis/doc/parse', { method: 'POST' })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d || {} }; }); })
+        .then(function (res) {
+            CALC_BUSY = false;
+            renderCalcImport();
+            var d = res.d;
+            if (!d.ok) { calcMsg(d.error || '解析失败，请重新上传任务书', 'err'); return; }
+            var params = d.params || {};
+            if (!Object.keys(params).length) {
+                calcMsg('这份任务书里没有识别到设计参数，请确认上传的是毕业设计任务书', 'warn');
+                return;
+            }
+            var frame = thEl('toolFrame');
+            if (!frame || !frame.contentWindow) { calcMsg('计算工具还没加载完，请稍后重试', 'warn'); return; }
+            frame.contentWindow.postMessage(
+                { type: 'sluice:import-task-params', params: params, projectName: d.project_name || '' },
+                location.origin
+            );
+            // 实际填了哪几项由计算工具回执（见下面的 message 监听）；
+            // 万一 iframe 还没加载完导致消息丢失，给个兜底提示，别让客户一直卡在「识别中」
+            if (_calcReplyTimer) clearTimeout(_calcReplyTimer);
+            _calcReplyTimer = setTimeout(function () {
+                _calcReplyTimer = null;
+                calcMsg('计算工具还没加载完，请稍后重试；也可以直接在下方手动填写。', 'warn');
+            }, 3000);
+        })
+        .catch(function () {
+            CALC_BUSY = false;
+            renderCalcImport();
+            calcMsg('网络异常，请稍后重试', 'err');
+        });
+}
+
+// 计算工具填完后回执。工具内部已列出具体填了哪几项，这里只说个数，避免重复刷屏。
+window.addEventListener('message', function (ev) {
+    if (ev.origin !== location.origin) return;
+    var d = ev.data || {};
+    if (d.type !== 'sluice:import-done') return;
+    if (_calcReplyTimer) { clearTimeout(_calcReplyTimer); _calcReplyTimer = null; }
+    var n = d.filled || 0;
+    if (n > 0) {
+        calcMsg('已填入 ' + n + ' 项参数，请核对后点「开始计算」。', 'ok');
+    } else {
+        calcMsg('这份任务书里没有本工具需要的参数（设计流量 / 水位 / 底板高程等），请手动填写。', 'warn');
+    }
+});
+
 var PARAM_LABEL = {
     floodStandard: '防洪标准', designFlow: '设计流量', checkFlow: '校核流量',
     downstreamWaterLevel: '设计洪水位（下游）', normalStorageLevel: '正常蓄水位',
@@ -3545,6 +3728,7 @@ function generateThesis() {
 }
 
 if (PAGE_MODE === 'thesis') { loadDocStatus(); }
+if (PAGE_MODE === 'tool') { loadCalcDoc(); }
 
 function buildThesis(data, gate, energy, seep, top, stab) {
     var Q = parseFloat(data.designFlow)||174, n = parseInt(data.gateCount)||3, b0 = parseFloat(data.singleGateWidth)||6;

@@ -26,6 +26,32 @@ body { background: var(--bg); }
 .topbar-sub { font-size: 11.5px; color: var(--ink-4); margin-top: 1px; }
 .topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
+/* ========== 从任务书导入参数后的提示与高亮 ========== */
+.import-tip {
+    display: none; align-items: flex-start; gap: 8px;
+    background: var(--brand-wash); border: 1px solid var(--line);
+    border-radius: var(--r-md); padding: 10px 12px;
+    font-size: 12.5px; line-height: 1.65; color: var(--ink-2);
+}
+.import-tip.show { display: flex; }
+.import-tip .it-ico { flex: none; margin-top: 1px; color: var(--brand); }
+.import-tip b { color: var(--brand); font-weight: 600; }
+.import-tip .it-close {
+    flex: none; margin-left: auto; cursor: pointer; border: 0; background: none;
+    color: var(--ink-4); font-size: 15px; line-height: 1; padding: 0 2px;
+}
+.import-tip .it-close:hover { color: var(--ink-2); }
+
+/* 被任务书填入的输入框：短暂高亮，方便核对 */
+input.imported, select.imported {
+    animation: importFlash 1.6s ease-out;
+    box-shadow: 0 0 0 2px var(--brand-wash);
+}
+@keyframes importFlash {
+    0%   { background: var(--brand-wash); box-shadow: 0 0 0 3px var(--brand-wash); }
+    100% { background: transparent;       box-shadow: 0 0 0 0 transparent; }
+}
+
 /* ================= 双栏 ================= */
 .body { display: flex; align-items: flex-start; min-height: calc(100vh - 56px); }
 .sidebar {
@@ -196,6 +222,12 @@ body { background: var(--bg); }
     <div class="panel-title">
       <h2 id="panelTitle">设计参数输入（带滩地）</h2>
       <p id="panelDesc">复式断面：主河槽 + 两侧滩地，滩地参与过流</p>
+    </div>
+
+    <div class="import-tip" id="importTip">
+      <span class="it-ico"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8v8.4"/><path d="M4.6 7l3.4 3.4L11.4 7"/><path d="M2.4 13.4h11.2"/></svg></span>
+      <span id="importTipText">已从任务书填入参数</span>
+      <button class="it-close" type="button" onclick="closeImportTip()" title="关闭">×</button>
     </div>
 
     <div class="group">
@@ -726,6 +758,97 @@ document.getElementById('btnCalc').addEventListener('click', gatedRun);
 document.getElementById('btnTopCalc').addEventListener('click', gatedRun);
 document.getElementById('btnLockCalc').addEventListener('click', gatedRun);
 document.getElementById('btnLockPay').addEventListener('click', showPay);
+
+/* ================= 从任务书导入参数（由父页面 postMessage 传入）=================
+   只负责「填值 + 高亮 + 提示」，绝不自动计算：本工具按次收费，必须用户自己点「开始计算」 */
+var IMPORT_MAP = {          // 任务书解析字段 → 本工具输入框 id
+  designFlow: 'Q',
+  downstreamWaterLevel: 'Hds',
+  normalStorageLevel: 'Hz',
+  gateSillElevation: 'Hb',
+  groundElevation: 'Hgr',
+  channelBottomWidth: 'Bb',
+  seismicAcceleration: 'aP'
+};
+var IMPORT_LABEL = {
+  Q: '设计流量', Hds: '闸下设计水位', Hz: '正常蓄水位高程', Hb: '闸底板高程',
+  Hgr: '闸址现状地面高程', Bb: '河道设计底宽', aP: '地震动峰值加速度', Int: '地震基本烈度'
+};
+
+// 「8 / 8度 / Ⅷ / 八度」统一成下拉框里的 'Ⅷ度'
+function toIntensityOption(v) {
+  if (v === undefined || v === null) return '';
+  var key = String(v).trim().replace(/[度级]/g, '').trim();
+  var map = {
+    '6': 'Ⅵ度', '7': 'Ⅶ度', '8': 'Ⅷ度', '9': 'Ⅸ度',
+    'Ⅵ': 'Ⅵ度', 'Ⅶ': 'Ⅶ度', 'Ⅷ': 'Ⅷ度', 'Ⅸ': 'Ⅸ度',
+    '六': 'Ⅵ度', '七': 'Ⅶ度', '八': 'Ⅷ度', '九': 'Ⅸ度'
+  };
+  return map[key] || '';
+}
+
+function closeImportTip() {
+  var t = document.getElementById('importTip');
+  if (t) t.classList.remove('show');
+}
+
+function _flashImport(el) {
+  el.classList.remove('imported');
+  void el.offsetWidth;              // 强制重排，让动画能重新播
+  el.classList.add('imported');
+}
+
+function applyImportedParams(params) {
+  params = params || {};
+  var filled = [];
+
+  Object.keys(IMPORT_MAP).forEach(function (k) {
+    var el = document.getElementById(IMPORT_MAP[k]);
+    if (!el) return;
+    var raw = params[k];
+    if (raw === undefined || raw === null || raw === '') return;
+    var v = parseFloat(String(raw).replace(/[^\d.\-]/g, ''));
+    if (!isFinite(v)) return;
+    el.value = v;
+    _flashImport(el);
+    filled.push(IMPORT_LABEL[el.id] || el.id);
+  });
+
+  var iOpt = toIntensityOption(params.seismicIntensity);
+  if (iOpt) {
+    var iEl = document.getElementById('Int');
+    if (iEl) { iEl.value = iOpt; _flashImport(iEl); filled.push(IMPORT_LABEL.Int); }
+  }
+
+  var tip = document.getElementById('importTip'), txt = document.getElementById('importTipText');
+  if (txt) {
+    txt.innerHTML = filled.length
+      ? '已从任务书填入 <b>' + filled.length + '</b> 项：' + filled.join('、') +
+        '。其余参数任务书未涉及，沿用默认值，核对后点「开始计算」。'
+      : '任务书里没有识别到本工具需要的参数，请手动填写。';
+  }
+  if (tip) tip.classList.add('show');
+
+  // 回执给父页面，外层据此给出「实际填了几项」的准确提示
+  if (window.parent && window.parent !== window) {
+    try {
+      window.parent.postMessage(
+        { type: 'sluice:import-done', filled: filled.length, names: filled },
+        window.location.origin
+      );
+    } catch (e) {}
+  }
+  return filled.length;
+}
+
+window.addEventListener('message', function (ev) {
+  if (ev.origin !== window.location.origin) return;      // 只接受同源消息
+  var d = ev.data || {};
+  if (d.type !== 'sluice:import-task-params') return;
+  applyImportedParams(d.params || {});
+  var sb = document.querySelector('.sidebar');
+  if (sb) sb.scrollTop = 0;
+});
 
 // 进页面先取剩余次数（不自动计算，点「开始计算」才扣次）
 loadQuota();
