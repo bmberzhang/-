@@ -3177,6 +3177,9 @@ function deleteDoc(kind) {
         if (!d.ok) { alert(d.error || '删除失败'); return; }
         thSetCard(kind, null);
         thMsg(kind, '', '');
+        // 先把上一次识别出的参数清掉，再按剩下的文件重新解析；
+        // 不清的话第 2 步会一直显示已经删掉的那份任务书的数据。
+        resetParsedParams();
         parseDocs();
     }).catch(function () { alert('删除失败，请稍后重试'); });
 }
@@ -3203,6 +3206,10 @@ function loadDocStatus() {
                 TH_SOURCES = d.parsed.sources || [];
                 renderParams();
             }
+            // 一个文件都没有：清掉可能残留的上次识别结果
+            if (!(d.docs.task || {}).has_file && !(d.docs.spec || {}).has_file) {
+                resetParsedParams();
+            }
             // 只要上传过文件就重新解析一次：拿到最新的参数、学校名与题目，顺带回填封面
             if ((d.docs.task || {}).has_file || (d.docs.spec || {}).has_file) {
                 parseDocs();
@@ -3217,7 +3224,10 @@ function parseDocs() {
         .then(function (res) {
             var d = res.d;
             if (!d.ok) {
+                // 解析失败（通常是任务书已被删）：清空残留参数，别让旧数据留在页面上
+                resetParsedParams();
                 if (d.warnings && d.warnings.length) thMsg('task', d.warnings[0], 'warn');
+                else if (d.error) thMsg('task', d.error, 'warn');
                 return;
             }
             TH_PARAMS = d.params || {};
@@ -3228,13 +3238,18 @@ function parseDocs() {
                 if (d.spec_summary) { box.style.display = 'flex'; box.innerHTML = '<div>已按你上传的规范排版：' + escHtml(d.spec_summary) + '</div>'; }
                 else { box.style.display = 'none'; }
             }
-            renderParams();
+            renderParams(!d.has_task);
             // 规范里带学校名、任务书里带题目，直接回填封面抬头
+            // 记下 data-autofilled：删掉任务书后只清这些自动填的，用户手填的不动
             if (thEl('thesisInfo')) {
                 var uIn = thEl('thesisInfo').querySelector('input[name=university]');
-                if (d.university && uIn && !uIn.value) uIn.value = d.university;
+                if (d.university && uIn && !uIn.value) {
+                    uIn.value = d.university; uIn.dataset.autofilled = d.university;
+                }
                 var pIn = thEl('thesisInfo').querySelector('input[name=projectName]');
-                if (d.project_name && pIn && !pIn.value) pIn.value = d.project_name;
+                if (d.project_name && pIn && !pIn.value) {
+                    pIn.value = d.project_name; pIn.dataset.autofilled = d.project_name;
+                }
             }
             // 提示
             if (d.warnings && d.warnings.length) {
@@ -3272,14 +3287,41 @@ var PARAM_UNIT = {
     floodStandard: '年一遇'
 };
 
-function renderParams() {
+// 清空上一次识别出的参数。
+// 删掉任务书后必须调它：否则第 2 步的表单会残留上一份任务书的数据，
+// 看起来像"删了还在"（线上实测踩过）。
+function resetParsedParams() {
+    TH_PARAMS = {};
+    TH_SOURCES = [];
+    var wrap = thEl('parseWrap');
+    if (wrap) wrap.style.display = 'none';
+    var grid = thEl('parseParams');
+    if (grid) grid.innerHTML = '';
+    var box = thEl('specSummaryBox');
+    if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+    var wb = thEl('parseWarnBox');
+    if (wb) { wb.style.display = 'none'; wb.innerHTML = ''; }
+    // 封面里由系统自动回填的字段也一并撤掉（用户自己填过的保持原样）
+    var tinfo = thEl('thesisInfo');
+    if (tinfo) {
+        var auto = tinfo.querySelectorAll('input[data-autofilled]');
+        for (var i = 0; i < auto.length; i++) {
+            if (auto[i].value === auto[i].dataset.autofilled) auto[i].value = '';
+            delete auto[i].dataset.autofilled;
+        }
+    }
+}
+
+function renderParams(noTask) {
     var wrap = thEl('parseWrap'), grid = thEl('parseParams');
     if (!wrap || !grid) return;
     var keys = Object.keys(PARAM_LABEL).filter(function (k) { return TH_PARAMS[k] !== undefined; });
     wrap.style.display = 'block';
     if (!keys.length) {
-        grid.innerHTML = '<div class="parse-empty">没有从任务书中识别到设计参数。' +
-            '系统会按通用水闸设计取值计算，你也可以直接联系客服补充数据。</div>';
+        grid.innerHTML = '<div class="parse-empty">' + (noTask
+            ? '还没上传任务书。请先在第 1 步上传毕业设计任务书，系统才能读取出设计数据。'
+            : '没有从任务书中识别到设计参数。系统会按通用水闸设计取值计算，你也可以直接联系客服补充数据。')
+            + '</div>';
         return;
     }
     var fromMap = {};
