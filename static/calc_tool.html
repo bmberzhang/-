@@ -678,6 +678,14 @@ function gatedRun() {
 }
 
 /* ===== 付费弹窗 ===== */
+// 收款码地址：后台上传的图是转成 base64 data URL 存库的，
+// data URL 后面不能再拼查询串（拼了 base64 就坏掉 → 浏览器解码失败 → 破图）
+function qrSrc(v) {
+  if (!v) return '';
+  if (/^data:/i.test(v) || /^blob:/i.test(v)) return v;
+  return v + (v.indexOf('?') < 0 ? '?' : '&') + 't=' + Date.now();
+}
+
 function showPay() {
   var pay = _pay || {};
   // 嵌在外层 /tool 页面里时，交给外层整页弹出（避免 iframe 内 fixed 定位跑出可视区）
@@ -692,7 +700,7 @@ function showPay() {
   [['payWechat', 'payWechatNo', pay.wechat_qr], ['payAlipay', 'payAlipayNo', pay.alipay_qr]]
     .forEach(function (p) {
       var img = document.getElementById(p[0]), no = document.getElementById(p[1]);
-      if (p[2]) { img.src = p[2] + '?t=' + Date.now(); img.style.display = ''; no.style.display = 'none'; }
+      if (p[2]) { img.src = qrSrc(p[2]); img.style.display = ''; no.style.display = 'none'; }
       else { img.style.display = 'none'; no.style.display = 'flex'; }
     });
   document.getElementById('payNote').textContent =

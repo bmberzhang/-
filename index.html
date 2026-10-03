@@ -2981,6 +2981,14 @@ function poFinish(sfx) {
   if (sfx === 'G') { closePayG(); } else { closePayT(); }
 }
 
+// 收款码地址：后台上传的图是转成 base64 data URL 存库的，
+// data URL 后面不能再拼查询串（拼了 base64 就坏掉 → 浏览器解码失败 → 破图）
+function qrSrc(v) {
+  if (!v) return '';
+  if (/^data:/i.test(v) || /^blob:/i.test(v)) return v;
+  return v + (v.indexOf('?') < 0 ? '?' : '&') + 't=' + Date.now();
+}
+
 function showPayT() {
   var pay = myPayT || {};
   document.getElementById('payPriceT').textContent =
@@ -2992,7 +3000,7 @@ function showPayT() {
   ];
   pairs.forEach(function(p) {
     var img = document.getElementById(p[0]), no = document.getElementById(p[1]);
-    if (p[2]) { img.src = p[2] + '?t=' + Date.now(); img.style.display = ''; no.style.display = 'none'; }
+    if (p[2]) { img.src = qrSrc(p[2]); img.style.display = ''; no.style.display = 'none'; }
     else { img.style.display = 'none'; no.style.display = 'flex'; }
   });
   document.getElementById('payNoteT').textContent = pay.pay_note || '扫码支付后请联系管理员开通次数。';
@@ -3036,7 +3044,7 @@ function showPayG(pay, label) {
   ];
   pairs.forEach(function(p) {
     var img = document.getElementById(p[0]), no = document.getElementById(p[1]);
-    if (p[2]) { img.src = p[2] + '?t=' + Date.now(); img.style.display = ''; no.style.display = 'none'; }
+    if (p[2]) { img.src = qrSrc(p[2]); img.style.display = ''; no.style.display = 'none'; }
     else { img.style.display = 'none'; no.style.display = 'flex'; }
   });
   document.getElementById('payNoteG').textContent = pay.pay_note || '扫码支付后请联系管理员开通次数。';
