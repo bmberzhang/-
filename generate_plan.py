@@ -557,13 +557,8 @@ def _add_frame(G, p):
         bbox(G),
         sheet=p.get("sheet", "A2"),
         scale=sc,
-        info={
-            "proj": p.get("proj", ""),
-            "title": p.get("title", ""),
-            "ratio": "1:%d" % int(round(sc)),
-            "no": p.get("dwgno", ""),
-            "drafter": p.get("drafter", ""),
-            "checker": p.get("checker", ""),
+        info={          # 标题栏内容一律留空，只保留表格线与栏目名（人工填写）
+            "proj": "", "title": "", "ratio": "", "no": "", "drafter": "", "checker": "",
         },
         notes=NOTES,
     )

@@ -178,7 +178,10 @@ def build_frame(bbox, sheet="A3", scale=100, info=None, notes=None,
         out.append(("L", MX(u1), MY(v1), MX(u2), MY(v2), kind))
 
     def T(s, u, v, h, kind, align="c"):
-        out.append(("T", str(s), MX(u), MY(v), h * S, kind, align))
+        s = "" if s is None else str(s)
+        if not s.strip():          # 空文字不产生实体（标题栏留空时用）
+            return
+        out.append(("T", s, MX(u), MY(v), h * S, kind, align))
 
     def RECT(u1, v1, u2, v2, kind):
         L(u1, v1, u2, v1, kind)

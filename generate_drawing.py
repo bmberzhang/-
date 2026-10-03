@@ -432,16 +432,13 @@ _CONTENT_BBOX = None
 
 
 def frame_info(p):
-    """图框标题栏信息"""
-    sc = float(p.get("sc", 100))
-    return {
-        "proj": p.get("proj", ""),
-        "title": p.get("title", ""),
-        "ratio": p.get("scale_text") or ("1:%d" % int(sc)),
-        "no": p.get("dwgno", ""),
-        "drafter": p.get("drafter", ""),
-        "checker": p.get("checker", ""),
-    }
+    """图框标题栏信息。
+
+    按要求：标题栏只保留表格线与栏目名（制图/审核/比例/图号），**内容一律留空**，
+    由出图后人工填写。需要恢复自动填写时，把下面 return 里的空串换回
+    p.get("proj","") / p.get("title","") / ("1:%d"%int(sc)) / p.get("dwgno","") 等即可。
+    """
+    return {"proj": "", "title": "", "ratio": "", "no": "", "drafter": "", "checker": ""}
 
 
 def add_frame_dxf(msp, p):
