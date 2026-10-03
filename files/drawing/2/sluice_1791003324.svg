@@ -1,0 +1,173 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2653" height="964" viewBox="0 0 2653 964" style="background:#fafafa;font-family:SimHei,Microsoft YaHei,sans-serif;">
+<defs><pattern id="conc-fill" patternUnits="userSpaceOnUse" width="1600" height="1600" patternTransform="rotate(45)"><rect width="1600" height="1600" fill="#e8e8e8"/><line x1="0" y1="0" x2="1600" y2="0" stroke="#24458a" stroke-width="3"/><line x1="0" y1="320" x2="1600" y2="320" stroke="#24458a" stroke-width="3"/><line x1="0" y1="640" x2="1600" y2="640" stroke="#24458a" stroke-width="3"/><line x1="0" y1="960" x2="1600" y2="960" stroke="#24458a" stroke-width="3"/><line x1="0" y1="1280" x2="1600" y2="1280" stroke="#24458a" stroke-width="3"/><circle cx="120" cy="120" r="6" fill="#24458a"/><circle cx="520" cy="80" r="5" fill="#24458a"/><circle cx="1000" cy="160" r="6" fill="#24458a"/><circle cx="1400" cy="60" r="5" fill="#24458a"/><circle cx="240" cy="440" r="6" fill="#24458a"/><circle cx="760" cy="400" r="5" fill="#24458a"/><circle cx="1240" cy="520" r="6" fill="#24458a"/><circle cx="1520" cy="360" r="5" fill="#24458a"/><circle cx="160" cy="800" r="6" fill="#24458a"/><circle cx="680" cy="720" r="5" fill="#24458a"/><circle cx="1160" cy="840" r="6" fill="#24458a"/><circle cx="1480" cy="760" r="5" fill="#24458a"/><circle cx="400" cy="1120" r="6" fill="#24458a"/><circle cx="920" cy="1080" r="5" fill="#24458a"/><circle cx="1320" cy="1240" r="6" fill="#24458a"/><circle cx="120" cy="1400" r="6" fill="#24458a"/><circle cx="600" cy="1360" r="5" fill="#24458a"/><circle cx="1080" cy="1480" r="6" fill="#24458a"/><line x1="400" y1="240" x2="500" y2="340" stroke="#24458a" stroke-width="2.5"/><line x1="900" y1="180" x2="1000" y2="280" stroke="#24458a" stroke-width="2.5"/><line x1="320" y1="600" x2="420" y2="700" stroke="#24458a" stroke-width="2.5"/><line x1="840" y1="560" x2="940" y2="660" stroke="#24458a" stroke-width="2.5"/><line x1="1300" y1="680" x2="1400" y2="780" stroke="#24458a" stroke-width="2.5"/><line x1="520" y1="960" x2="620" y2="1060" stroke="#24458a" stroke-width="2.5"/><line x1="1040" y1="920" x2="1140" y2="1020" stroke="#24458a" stroke-width="2.5"/><line x1="240" y1="1240" x2="340" y2="1340" stroke="#24458a" stroke-width="2.5"/><line x1="760" y1="1200" x2="860" y2="1300" stroke="#24458a" stroke-width="2.5"/><line x1="1240" y1="1400" x2="1340" y2="1500" stroke="#24458a" stroke-width="2.5"/></pattern></defs>
+<polygon points="727.2,511.1 727.2,500.1 397.2,500.1 397.2,511.1" fill="url(#conc-fill)" stroke="none"/>
+<line x1="419.2" y1="511.1" x2="705.2" y2="511.1" stroke="#000" stroke-width="2.5"/>
+<line x1="397.2" y1="511.1" x2="397.2" y2="500.1" stroke="#000" stroke-width="2.5"/>
+<line x1="397.2" y1="500.1" x2="727.2" y2="500.1" stroke="#000" stroke-width="2.5"/>
+<line x1="727.2" y1="511.1" x2="727.2" y2="500.1" stroke="#000" stroke-width="2.5"/>
+<polygon points="397.2,511.1 397.2,522.1 408.2,522.1 419.2,511.1" fill="#404040" stroke="none"/><polyline points="397.2,511.1 397.2,522.1 408.2,522.1 419.2,511.1" fill="none" stroke="#e60000" stroke-width="2.5"/>
+<polygon points="727.2,511.1 727.2,522.1 716.2,522.1 705.2,511.1" fill="#404040" stroke="none"/><polyline points="727.2,511.1 727.2,522.1 716.2,522.1 705.2,511.1" fill="none" stroke="#e60000" stroke-width="2.5"/>
+<polygon points="1035.2,526.5 1035.2,500.1 727.2,500.1 727.2,526.5" fill="url(#conc-fill)" stroke="none"/>
+<line x1="771.2" y1="526.5" x2="991.2" y2="526.5" stroke="#000" stroke-width="2.5"/>
+<line x1="727.2" y1="526.5" x2="727.2" y2="500.1" stroke="#000" stroke-width="2.5"/>
+<line x1="727.2" y1="500.1" x2="1035.2" y2="500.1" stroke="#000" stroke-width="2.5"/>
+<line x1="1035.2" y1="526.5" x2="1035.2" y2="500.1" stroke="#000" stroke-width="2.5"/>
+<polygon points="727.2,526.5 727.2,548.5 749.2,548.5 771.2,526.5" fill="#404040" stroke="none"/><polyline points="727.2,526.5 727.2,548.5 749.2,548.5 771.2,526.5" fill="none" stroke="#e60000" stroke-width="2.5"/>
+<polygon points="1035.2,526.5 1035.2,548.5 1013.2,548.5 991.2,526.5" fill="#404040" stroke="none"/><polyline points="1035.2,526.5 1035.2,548.5 1013.2,548.5 991.2,526.5" fill="none" stroke="#e60000" stroke-width="2.5"/>
+<polygon points="1376.2,513.3 1376.2,500.1 1035.2,500.1 1035.2,513.3" fill="#7faedd" stroke="none"/>
+<line x1="1057.2" y1="513.3" x2="1354.2" y2="513.3" stroke="#000" stroke-width="2.5"/>
+<line x1="1035.2" y1="513.3" x2="1035.2" y2="500.1" stroke="#000" stroke-width="2.5"/>
+<line x1="1035.2" y1="500.1" x2="1376.2" y2="500.1" stroke="#000" stroke-width="2.5"/>
+<line x1="1376.2" y1="513.3" x2="1376.2" y2="500.1" stroke="#000" stroke-width="2.5"/>
+<rect x="1057.2" y="513.3" width="297.0" height="4.4" fill="#7ddc7d" stroke="#00a000" stroke-width="1.0"/>
+<rect x="1057.2" y="517.8" width="297.0" height="6.6" fill="#e6d96a" stroke="#00a000" stroke-width="1.0"/>
+<rect x="1035.2" y="524.3" width="341.0" height="4.4" fill="#e89090" stroke="#00a000" stroke-width="1.0"/>
+<polygon points="1035.2,513.3 1035.2,524.3 1046.2,524.3 1057.2,513.3" fill="#404040" stroke="none"/><polyline points="1035.2,513.3 1035.2,524.3 1046.2,524.3 1057.2,513.3" fill="none" stroke="#e60000" stroke-width="2.5"/>
+<polygon points="1376.2,513.3 1376.2,524.3 1365.2,524.3 1354.2,513.3" fill="#404040" stroke="none"/><polyline points="1376.2,513.3 1376.2,524.3 1365.2,524.3 1354.2,513.3" fill="none" stroke="#e60000" stroke-width="2.5"/>
+<polygon points="1365.2,500.1 1365.2,489.1 1376.2,489.1 1376.2,500.1" fill="#404040" stroke="none"/><polyline points="1365.2,500.1 1365.2,489.1 1376.2,489.1 1376.2,500.1" fill="none" stroke="#e60000" stroke-width="2.5"/>
+<polygon points="1596.2,489.1 1376.2,489.1 1376.2,500.1 1398.2,500.1" fill="url(#conc-fill)" stroke="none" stroke-width="2.5"/>
+<polygon points="1574.2,500.1 1596.2,500.1" fill="url(#conc-fill)" stroke="none" stroke-width="2.5"/>
+<line x1="1398.2" y1="500.1" x2="1574.2" y2="500.1" stroke="#000" stroke-width="2.5"/>
+<polygon points="1596.2,489.1 1816.2,511.1 1816.2,522.1 1596.2,500.1" fill="url(#conc-fill)" stroke="#e60000" stroke-width="2.5"/>
+<polygon points="1376.2,500.1 1376.2,511.1 1387.2,511.1 1398.2,500.1" fill="#404040" stroke="none"/><polyline points="1376.2,500.1 1376.2,511.1 1387.2,511.1 1398.2,500.1" fill="none" stroke="#e60000" stroke-width="2.5"/>
+<polygon points="1596.2,500.1 1596.2,511.1 1585.2,511.1 1574.2,500.1" fill="#404040" stroke="none"/><polyline points="1596.2,500.1 1596.2,511.1 1585.2,511.1 1574.2,500.1" fill="none" stroke="#e60000" stroke-width="2.5"/>
+<polygon points="1816.2,522.1 1816.2,533.1 1805.2,533.1 1794.2,520.0" fill="#404040" stroke="none"/><polyline points="1816.2,522.1 1816.2,533.1 1805.2,533.1 1794.2,520.0" fill="none" stroke="#e60000" stroke-width="2.5"/>
+<polygon points="1816.2,511.1 1941.6,573.9 2051.6,573.9 2177.0,511.1" fill="#b8d8e8" stroke="#e60000" stroke-width="2.5"/>
+<polygon points="1816.2,511.1 1941.6,573.9 1941.6,565.0 1816.2,520.0" fill="#a87a52" stroke="#e60000" stroke-width="2.5"/>
+<polygon points="2177.0,511.1 2051.6,573.9 2051.6,565.0 2177.0,520.0" fill="#a87a52" stroke="#e60000" stroke-width="2.5"/>
+<polygon points="1941.6,573.9 2051.6,573.9 2051.6,565.0 1941.6,565.0" fill="#a87a52" stroke="#e60000" stroke-width="2.5"/>
+<line x1="397.2" y1="628.8" x2="727.2" y2="628.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="397.2" y1="618.8" x2="397.2" y2="638.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="727.2" y1="618.8" x2="727.2" y2="638.8" stroke="#e60000" stroke-width="2.5"/>
+<text x="562.2" y="614.8" font-size="26" fill="#e60000" text-anchor="middle">铺盖 15000mm</text>
+<line x1="727.2" y1="628.8" x2="1035.2" y2="628.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="727.2" y1="618.8" x2="727.2" y2="638.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="1035.2" y1="618.8" x2="1035.2" y2="638.8" stroke="#e60000" stroke-width="2.5"/>
+<text x="881.2" y="614.8" font-size="26" fill="#e60000" text-anchor="middle">底板 14000mm</text>
+<line x1="1035.2" y1="628.8" x2="1376.2" y2="628.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="1035.2" y1="618.8" x2="1035.2" y2="638.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="1376.2" y1="618.8" x2="1376.2" y2="638.8" stroke="#e60000" stroke-width="2.5"/>
+<text x="1205.7" y="614.8" font-size="26" fill="#e60000" text-anchor="middle">消力池 15500mm</text>
+<line x1="1376.2" y1="628.8" x2="1816.2" y2="628.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="1376.2" y1="618.8" x2="1376.2" y2="638.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="1816.2" y1="618.8" x2="1816.2" y2="638.8" stroke="#e60000" stroke-width="2.5"/>
+<text x="1596.2" y="614.8" font-size="26" fill="#e60000" text-anchor="middle">海漫 20000mm</text>
+<line x1="1816.2" y1="628.8" x2="2177.0" y2="628.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="1816.2" y1="618.8" x2="1816.2" y2="638.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="2177.0" y1="618.8" x2="2177.0" y2="638.8" stroke="#e60000" stroke-width="2.5"/>
+<text x="1996.6" y="614.8" font-size="26" fill="#e60000" text-anchor="middle">防冲槽 16400mm</text>
+<line x1="397.2" y1="661.8" x2="2177.0" y2="661.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="397.2" y1="651.8" x2="397.2" y2="671.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="2177.0" y1="651.8" x2="2177.0" y2="671.8" stroke="#e60000" stroke-width="2.5"/>
+<text x="1287.1" y="647.8" font-size="26" fill="#e60000" text-anchor="middle">总长 80900mm</text>
+<line x1="364.2" y1="511.1" x2="364.2" y2="500.1" stroke="#e60000" stroke-width="2.5"/>
+<line x1="354.2" y1="511.1" x2="374.2" y2="511.1" stroke="#e60000" stroke-width="2.5"/>
+<line x1="354.2" y1="500.1" x2="374.2" y2="500.1" stroke="#e60000" stroke-width="2.5"/>
+<text x="350.2" y="505.6" font-size="26" fill="#e60000" text-anchor="end" transform="rotate(-90 350.2 505.6)">500mm</text>
+<line x1="694.2" y1="526.5" x2="694.2" y2="500.1" stroke="#e60000" stroke-width="2.5"/>
+<line x1="684.2" y1="526.5" x2="704.2" y2="526.5" stroke="#e60000" stroke-width="2.5"/>
+<line x1="684.2" y1="500.1" x2="704.2" y2="500.1" stroke="#e60000" stroke-width="2.5"/>
+<text x="680.2" y="513.3" font-size="26" fill="#e60000" text-anchor="end" transform="rotate(-90 680.2 513.3)">1200mm</text>
+<line x1="1002.2" y1="513.3" x2="1002.2" y2="500.1" stroke="#e60000" stroke-width="2.5"/>
+<line x1="992.2" y1="513.3" x2="1012.2" y2="513.3" stroke="#e60000" stroke-width="2.5"/>
+<line x1="992.2" y1="500.1" x2="1012.2" y2="500.1" stroke="#e60000" stroke-width="2.5"/>
+<text x="988.2" y="506.7" font-size="26" fill="#e60000" text-anchor="end" transform="rotate(-90 988.2 506.7)">600mm</text>
+<line x1="1343.2" y1="502.3" x2="1343.2" y2="489.1" stroke="#e60000" stroke-width="2.5"/>
+<line x1="1333.2" y1="502.3" x2="1353.2" y2="502.3" stroke="#e60000" stroke-width="2.5"/>
+<line x1="1333.2" y1="489.1" x2="1353.2" y2="489.1" stroke="#e60000" stroke-width="2.5"/>
+<text x="1329.2" y="495.8" font-size="26" fill="#e60000" text-anchor="end" transform="rotate(-90 1329.2 495.8)">600mm</text>
+<line x1="1783.2" y1="573.9" x2="1783.2" y2="511.1" stroke="#e60000" stroke-width="2.5"/>
+<line x1="1773.2" y1="573.9" x2="1793.2" y2="573.9" stroke="#e60000" stroke-width="2.5"/>
+<line x1="1773.2" y1="511.1" x2="1793.2" y2="511.1" stroke="#e60000" stroke-width="2.5"/>
+<text x="1769.2" y="542.5" font-size="26" fill="#e60000" text-anchor="end" transform="rotate(-90 1769.2 542.5)">2850mm</text>
+<rect x="741.5" y="374.8" width="6.6" height="125.4" fill="#c8b8e0" stroke="#e60000" stroke-width="2.5"/>
+<rect x="789.9" y="374.8" width="17.6" height="125.4" fill="#c8b8e0" stroke="#e60000" stroke-width="2.5"/>
+<rect x="748.1" y="242.8" width="8.8" height="132.0" fill="url(#conc-fill)" stroke="#e60000" stroke-width="2.5"/>
+<rect x="840.5" y="242.8" width="8.8" height="132.0" fill="url(#conc-fill)" stroke="#e60000" stroke-width="2.5"/>
+<rect x="756.9" y="305.4" width="83.6" height="6.6" fill="url(#conc-fill)" stroke="none" stroke-width="2.5"/>
+<line x1="756.9" y1="312.1" x2="840.5" y2="312.1" stroke="#e60000" stroke-width="2.5"/>
+<line x1="756.9" y1="305.4" x2="840.5" y2="305.4" stroke="#e60000" stroke-width="2.5"/>
+<rect x="748.1" y="227.3" width="101.2" height="4.4" fill="url(#conc-fill)" stroke="none" stroke-width="2.5"/>
+<line x1="748.1" y1="227.3" x2="849.3" y2="227.3" stroke="#e60000" stroke-width="2.5"/>
+<line x1="748.1" y1="231.8" x2="748.1" y2="227.3" stroke="#e60000" stroke-width="2.5"/>
+<line x1="849.3" y1="231.8" x2="849.3" y2="227.3" stroke="#e60000" stroke-width="2.5"/>
+<line x1="756.9" y1="231.8" x2="840.5" y2="231.8" stroke="#e60000" stroke-width="2.5"/>
+<polygon points="748.1,231.8 748.1,242.8 756.9,242.8 756.9,231.8" fill="url(#conc-fill)" stroke="none"/><polyline points="748.1,231.8 748.1,242.8 756.9,242.8 756.9,231.8" fill="none" stroke="#e60000" stroke-width="2.5"/>
+<polygon points="849.3,231.8 849.3,242.8 840.5,242.8 840.5,231.8" fill="url(#conc-fill)" stroke="none"/><polyline points="849.3,231.8 849.3,242.8 840.5,242.8 840.5,231.8" fill="none" stroke="#e60000" stroke-width="2.5"/>
+<rect x="891.7" y="385.8" width="101.2" height="3.1" fill="#c8b8e0" stroke="#e60000" stroke-width="2.5"/>
+<rect x="891.7" y="374.8" width="101.2" height="11.0" fill="#c8b8e0" stroke="#e60000" stroke-width="2.5"/>
+<rect x="925.4" y="374.8" width="0.0" height="11.0" fill="#fafafa" stroke="#aaa" stroke-width="2.5"/>
+<rect x="959.2" y="374.8" width="0.0" height="11.0" fill="#fafafa" stroke="#aaa" stroke-width="2.5"/>
+<rect x="891.7" y="372.5" width="101.2" height="2.2" fill="#c8b8e0" stroke="#e60000" stroke-width="2.5"/>
+<rect x="748.1" y="183.3" width="101.2" height="44.0" fill="#c8b8e0" stroke="#e60000" stroke-width="2.5"/>
+<polygon points="748.1,183.3 798.7,150.3 849.3,183.3" fill="#c8b8e0" stroke="#e60000" stroke-width="2.5"/>
+<line x1="397.2" y1="374.8" x2="2177.0" y2="374.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="727.2" y1="500.1" x2="727.2" y2="374.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="1035.2" y1="500.1" x2="1035.2" y2="374.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="1376.2" y1="489.1" x2="1376.2" y2="374.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="1816.2" y1="511.1" x2="1816.2" y2="374.8" stroke="#e60000" stroke-width="2.5"/>
+<polyline points="727,500 724,500 719,500 714,499 708,499 702,499 695,498 689,497 683,497 678,496 672,496 666,495 661,494 655,493 649,492 644,491 639,489 635,488 630,486 627,485 623,483 619,481 615,478 611,473 606,467 601,458 595,447 589,434 582,420 576,406 570,393 566,382 562,375" fill="none" stroke="#e60000" stroke-width="2.5"/>
+<polyline points="1376,489 1380,489 1384,489 1390,488 1395,488 1402,488 1408,487 1414,486 1420,486 1426,485 1431,485 1437,484 1442,483 1448,482 1453,481 1459,480 1464,478 1469,476 1474,475 1479,474 1483,472 1489,469 1494,466 1501,462 1508,456 1518,448 1529,438 1542,426 1555,414 1568,402 1579,391 1589,381 1596,375" fill="none" stroke="#e60000" stroke-width="2.5"/>
+<line x1="397.2" y1="458.3" x2="601.0" y2="458.3" stroke="#e60000" stroke-width="2.5"/>
+<line x1="1505.4" y1="458.3" x2="2177.0" y2="458.3" stroke="#e60000" stroke-width="2.5"/>
+<line x1="397.2" y1="423.1" x2="583.8" y2="423.1" stroke="#e60000" stroke-width="2.5"/>
+<line x1="1545.4" y1="423.1" x2="2177.0" y2="423.1" stroke="#e60000" stroke-width="2.5"/>
+<line x1="397.2" y1="500.1" x2="397.2" y2="374.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="2177.0" y1="511.1" x2="2177.0" y2="374.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="2203.4" y1="500.1" x2="2269.4" y2="500.1" stroke="#e60000" stroke-width="2.5"/>
+<line x1="2203.4" y1="503.4" x2="2203.4" y2="496.8" stroke="#e60000" stroke-width="2.5"/>
+<text x="2205.6" y="496.8" font-size="26" fill="#e60000" text-anchor="start">▽73100 铺盖顶（底板顶）</text>
+<line x1="2203.4" y1="458.3" x2="2269.4" y2="458.3" stroke="#e60000" stroke-width="2.5"/>
+<line x1="2203.4" y1="461.6" x2="2203.4" y2="455.0" stroke="#e60000" stroke-width="2.5"/>
+<text x="2205.6" y="455.0" font-size="26" fill="#e60000" text-anchor="start">▽75000 滩地</text>
+<line x1="2203.4" y1="423.1" x2="2269.4" y2="423.1" stroke="#e60000" stroke-width="2.5"/>
+<line x1="2203.4" y1="426.4" x2="2203.4" y2="419.8" stroke="#e60000" stroke-width="2.5"/>
+<text x="2205.6" y="419.8" font-size="26" fill="#e60000" text-anchor="start">▽76600 正常蓄水位</text>
+<line x1="2203.4" y1="374.8" x2="2269.4" y2="374.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="2203.4" y1="378.0" x2="2203.4" y2="371.4" stroke="#e60000" stroke-width="2.5"/>
+<text x="2205.6" y="371.4" font-size="26" fill="#e60000" text-anchor="start">▽78800 闸顶</text>
+<line x1="2203.4" y1="242.8" x2="2269.4" y2="242.8" stroke="#e60000" stroke-width="2.5"/>
+<line x1="2203.4" y1="246.0" x2="2203.4" y2="239.4" stroke="#e60000" stroke-width="2.5"/>
+<text x="2205.6" y="239.4" font-size="26" fill="#e60000" text-anchor="start">▽84800 排架</text>
+<line x1="2203.4" y1="227.3" x2="2269.4" y2="227.3" stroke="#e60000" stroke-width="2.5"/>
+<line x1="2203.4" y1="230.6" x2="2203.4" y2="224.0" stroke="#e60000" stroke-width="2.5"/>
+<text x="2205.6" y="224.0" font-size="26" fill="#e60000" text-anchor="start">▽85500 工作桥</text>
+<line x1="20.0" y1="944.0" x2="2633.6" y2="944.0" stroke="#1e7a3c" stroke-width="1.0"/>
+<line x1="2633.6" y1="944.0" x2="2633.6" y2="20.0" stroke="#1e7a3c" stroke-width="1.0"/>
+<line x1="2633.6" y1="20.0" x2="20.0" y2="20.0" stroke="#1e7a3c" stroke-width="1.0"/>
+<line x1="20.0" y1="20.0" x2="20.0" y2="944.0" stroke="#1e7a3c" stroke-width="1.0"/>
+<line x1="75.0" y1="933.0" x2="2622.6" y2="933.0" stroke="#1f4fa8" stroke-width="2.0"/>
+<line x1="2622.6" y1="933.0" x2="2622.6" y2="31.0" stroke="#1f4fa8" stroke-width="2.0"/>
+<line x1="2622.6" y1="31.0" x2="75.0" y2="31.0" stroke="#1f4fa8" stroke-width="2.0"/>
+<line x1="75.0" y1="31.0" x2="75.0" y2="933.0" stroke="#1f4fa8" stroke-width="2.0"/>
+<line x1="2226.6" y1="933.0" x2="2622.6" y2="933.0" stroke="#333333" stroke-width="1.0"/>
+<line x1="2622.6" y1="933.0" x2="2622.6" y2="809.8" stroke="#333333" stroke-width="1.0"/>
+<line x1="2622.6" y1="809.8" x2="2226.6" y2="809.8" stroke="#333333" stroke-width="1.0"/>
+<line x1="2226.6" y1="809.8" x2="2226.6" y2="933.0" stroke="#333333" stroke-width="1.0"/>
+<line x1="2276.9" y1="933.0" x2="2276.9" y2="868.9" stroke="#333333" stroke-width="1.0"/>
+<line x1="2380.6" y1="933.0" x2="2380.6" y2="868.9" stroke="#333333" stroke-width="1.0"/>
+<line x1="2453.9" y1="933.0" x2="2453.9" y2="868.9" stroke="#333333" stroke-width="1.0"/>
+<line x1="2531.1" y1="868.9" x2="2531.1" y2="809.8" stroke="#333333" stroke-width="1.0"/>
+<line x1="2587.0" y1="868.9" x2="2587.0" y2="809.8" stroke="#333333" stroke-width="1.0"/>
+<line x1="2226.6" y1="901.0" x2="2453.9" y2="901.0" stroke="#333333" stroke-width="1.0"/>
+<line x1="2226.6" y1="868.9" x2="2622.6" y2="868.9" stroke="#333333" stroke-width="1.0"/>
+<line x1="2531.1" y1="839.1" x2="2622.6" y2="839.1" stroke="#333333" stroke-width="1.0"/>
+<text x="2251.7" y="885.0" font-size="8.8" fill="#333333" text-anchor="middle" dominant-baseline="middle">制 图</text>
+<text x="2251.7" y="917.0" font-size="8.8" fill="#333333" text-anchor="middle" dominant-baseline="middle">审 核</text>
+<text x="2559.0" y="824.4" font-size="8.8" fill="#333333" text-anchor="middle" dominant-baseline="middle">比 例</text>
+<text x="2559.0" y="854.0" font-size="8.8" fill="#333333" text-anchor="middle" dominant-baseline="middle">图 号</text>
+<text x="2604.8" y="824.4" font-size="8.8" fill="#333333" text-anchor="middle" dominant-baseline="middle">1:100</text>
+<text x="2604.8" y="854.0" font-size="8.8" fill="#333333" text-anchor="middle" dominant-baseline="middle">XG-SG-02</text>
+<text x="2328.8" y="885.0" font-size="8.8" fill="#333333" text-anchor="middle" dominant-baseline="middle">张旭</text>
+<text x="2328.8" y="917.0" font-size="8.8" fill="#333333" text-anchor="middle" dominant-baseline="middle">樊晶晶</text>
+<text x="2378.9" y="853.6" font-size="7.9" fill="#333333" text-anchor="middle" dominant-baseline="middle">滏阳河XG水闸重建工程</text>
+<text x="2378.9" y="828.7" font-size="13.2" fill="#333333" text-anchor="middle" dominant-baseline="middle">水闸纵剖面图</text>
+<text x="92.6" y="832.9" font-size="6.6" fill="#333333" text-anchor="start" dominant-baseline="middle">说明：</text>
+<text x="92.6" y="843.9" font-size="6.6" fill="#333333" text-anchor="start" dominant-baseline="middle">1、图中高程为1985国家高程；高程以m计，其余尺寸均以mm计；</text>
+<text x="92.6" y="854.9" font-size="6.6" fill="#333333" text-anchor="start" dominant-baseline="middle">2、排水管采用A110PVC排水管，间距为2m，呈梅花状布置；三层反滤自下而上依次为粗砂垫层厚0.2m；碎石垫层厚0.2m；碎石头垫层厚0.3m；排水管外包两层反滤土工布，土工布规格为400g/㎡；</text>
+<text x="92.6" y="865.9" font-size="6.6" fill="#333333" text-anchor="start" dominant-baseline="middle">3、上游铺盖、混凝土护坡、闸室、消力池底板、下游护底、左右岸两侧挡墙混凝土强度等级为C30F150W6；工作桥、检修板强度等级为C30F150，交通桥及铺装层混凝土强度等级为C40，垫层混凝土强度等级为C15；</text>
+<text x="92.6" y="876.9" font-size="6.6" fill="#333333" text-anchor="start" dominant-baseline="middle">4、回填土压实度不小于0.99；</text>
+<text x="92.6" y="887.9" font-size="6.6" fill="#333333" text-anchor="start" dominant-baseline="middle">5、结构缝宽20mm，缝内填充闭孔泡沫塑料板；橡胶止水采用651（300×8）型橡胶止水带，布置位置距离迎水面200mm；</text>
+<text x="92.6" y="898.9" font-size="6.6" fill="#333333" text-anchor="start" dominant-baseline="middle">6、栏杆采用不锈钢栏杆。</text>
+<text x="92.6" y="909.9" font-size="6.6" fill="#333333" text-anchor="start" dominant-baseline="middle">7、水闸末端与下游渠道自然顺连。</text>
+</svg>
