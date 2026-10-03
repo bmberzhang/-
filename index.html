@@ -1945,13 +1945,11 @@ function buildWaterGateModel(data, gate) {
     }
 
     // ===== 闸墩（流线型：直段 + 两端半圆墩头） =====
-    var pierXs = [];   // 各闸墩中心 X（排架立柱落墩位置）
     for (var i = 0; i <= n; i++) {
         var isEdge = (i === 0 || i === n);
         var pierW = isEdge ? dside : dp;
         var px = -B_total / 2 + dside + i * (b0 + dp) - dp / 2;
         if (isEdge) px = (i === 0) ? -B_total / 2 + dside / 2 : B_total / 2 - dside / 2;
-        pierXs.push(px);
 
         // 直段墩身
         var bodyLen = Math.max(fl - pierW, 1);
@@ -1983,33 +1981,34 @@ function buildWaterGateModel(data, gate) {
     // ===== 交通桥（下游侧桥面） =====
     box(B_total + 1, 0.7, tw, matConcreteDark, 0, ft + ph + 0.35, fl / 2 - tw / 2);
 
-    // ===== 启闭机排架柱 + 工作桥 + 启闭机房（轴线 = 闸门中心线） =====
-    // 构成自下而上：闸门 → 排架立柱（立在闸墩上）→ 工作桥 → 启闭机房
-    // 柱高按"闸门全开不被工作桥挡住"确定：闸门顶抬升 gateH 后须停在工作桥桥面以下，
-    // 留 0.9m 吊头净空；否则提闸时门体会穿过桥面板。
-    var colH = gateH + 0.9;
-    var colW = 0.35;
-    // 工作桥（=闸门）轴线两侧各一排立柱，立柱落在各闸墩中心线上
-    var colZs = [gateAxisZ + (wbw / 2 - colW), gateAxisZ - (wbw / 2 - colW)];
-    for (var ci = 0; ci < pierXs.length; ci++) {
+    // ===== 工作桥 / 检修桥（上游侧） =====
+    box(B_total + 1, 0.5, wbw, matConcreteDark, 0, ft + ph + 0.25, -fl / 2 + wbw / 2);
+
+    // ===== 启闭机排架柱 + 启闭机房（柱子在工作桥与交通桥之间的中央区域） =====
+    var colH = 2.6;
+    var colGap = 2.0; // 柱子沿 X 方向间距
+    // 排架柱 z 位置：避开工作桥（z 范围 -fl/2 ~ -fl/2+wbw）和交通桥（z 范围 fl/2-tw ~ fl/2）
+    // 排在中央 z=±1.5, ±2.5 四排
+    var colZs = [2.5, 1.5, -1.5, -2.5];
+    for (var cx = -B_total / 2; cx <= B_total / 2 + 0.01; cx += colGap) {
         for (var k = 0; k < colZs.length; k++) {
-            box(colW, colH, colW, matConcrete, pierXs[ci], ft + ph + colH / 2, colZs[k]);
+            box(0.35, colH, 0.35, matConcrete, cx, ft + ph + colH / 2, colZs[k]);
         }
     }
-    // 工作桥（桥面板坐在排架顶；桥面中心线 = 闸门中心线，闸门正在其正下方）
-    var yDeck = ft + ph + colH;
-    box(B_total + 1, 0.5, wbw, matConcreteDark, 0, yDeck + 0.25, gateAxisZ);
-    // 启闭机房（坐在工作桥上，中心线 = 闸门中心线）
-    var roomH = 2.4, roomD = Math.min(2.2, wbw - 1.0);
-    box(B_total, roomH, roomD, matConcreteDark, 0, yDeck + 0.5 + roomH / 2, gateAxisZ);
-    // 屋顶（两坡：屋脊在轴线上，两板在中央高、两端低）
+    // 排架顶大梁（沿 Z 方向，覆盖全部排架柱 + 机房）
+    var beamLen = 6; // 覆盖 z=-3 到 +3
+    box(B_total, 0.5, beamLen, matConcrete, 0, ft + ph + colH + 0.25, 0);
+    // 启闭机房（坐在大梁上）
+    var roomH = 2.4, roomD = 2.2; // 房 z 方向长 2.2，中心 z=0
+    box(B_total, roomH, roomD, matConcreteDark, 0, ft + ph + colH + 0.5 + roomH / 2, 0);
+    // 屋顶（两坡：在 z=0 处屋脊对齐，两板在中央高、两端低）
     var roofSpan = roomD / 2 + 0.4;
     var roofSlab1 = box(B_total + 0.6, 0.15, roofSpan, matRoof, 0,
-        yDeck + 0.5 + roomH + 0.35, gateAxisZ - roofSpan / 2);
-    roofSlab1.rotation.x = -0.45;   // +Z 端（轴线处）向上
+        ft + ph + colH + 0.5 + roomH + 0.35, -roofSpan / 2);
+    roofSlab1.rotation.x = -0.45;   // +Z 端（z=0）向上
     var roofSlab2 = box(B_total + 0.6, 0.15, roofSpan, matRoof, 0,
-        yDeck + 0.5 + roomH + 0.35, gateAxisZ + roofSpan / 2);
-    roofSlab2.rotation.x = 0.45;    // -Z 端（轴线处）向上
+        ft + ph + colH + 0.5 + roomH + 0.35, +roofSpan / 2);
+    roofSlab2.rotation.x = 0.45;    // -Z 端（z=0）向上
 
     // ===== 八字翼墙（上游喇叭口，多段渐变高度） =====
     for (var side = -1; side <= 1; side += 2) {
@@ -2116,7 +2115,7 @@ function buildWaterGateModel(data, gate) {
     gateModel = {
         n: n, b0: b0, dp: dp, dside: dside, fl: fl, ft: ft, ph: ph, gateH: gateH,
         spLen: spLen, rpLen: rpLen, B_total: B_total,
-        gateAxisZ: gateAxisZ, wbw: wbw, tw: tw, pierXs: pierXs,
+        gateAxisZ: gateAxisZ,
         sill: parseFloat(data.gateSillElevation) || 73.10,
         upWL: (gate && gate.upstreamWL) ? gate.upstreamWL : 77.40,
         dsWL: parseFloat(data.downstreamWaterLevel) || 77.52,
